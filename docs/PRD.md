@@ -22,7 +22,9 @@ Zentrales Operations-Dashboard für ein E-Commerce-Unternehmen. Das Dashboard er
 
 | Priorität | Feature | ID | Status |
 |-----------|---------|-----|--------|
-| P0 (MVP) | N8N Workflow Hub — Datei-Upload + Verarbeitung + Download | PROJ-1 | Planned |
+| P0 (Foundation) | Login / Authentifizierung — Email + Passwort, Supabase Auth | PROJ-4 | Planned |
+| P0 (Foundation) | Dashboard-Navigation — Sidebar Shell für alle Features | PROJ-5 | Planned |
+| P0 (MVP) | N8N Workflow Hub — Datei-Upload + Verarbeitung + Download | PROJ-1 | Deployed |
 | P0 (MVP) | Bestellungs-Viewer — Google Drive → Supabase → Excel-Ansicht | PROJ-2 | Planned |
 | P1 | Preisdatenbank — Sellerboard SKU/ASIN + Repricer Status | PROJ-3 | Planned |
 
@@ -49,4 +51,4 @@ Zentrales Operations-Dashboard für ein E-Commerce-Unternehmen. Das Dashboard er
 ---
 
 _Letzte Aktualisierung: 2026-03-03_
-_Nächster Schritt: `/architecture` für PROJ-1 (N8N Workflow Hub)_
+_Nächster Schritt: `/frontend` für PROJ-4 (Login) und PROJ-5 (Dashboard-Navigation)_
