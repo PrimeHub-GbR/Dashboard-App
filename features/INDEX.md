@@ -12,7 +12,10 @@
 
 | ID | Feature | Status | Spec | Created |
 |----|---------|--------|------|---------|
+| PROJ-1 | N8N Workflow Hub (Datei-Upload + Verarbeitung + Download) | In Review | [PROJ-1-workflow-hub.md](PROJ-1-workflow-hub.md) | 2026-03-03 |
+| PROJ-2 | Bestellungs-Viewer (Google Drive → Supabase → Excel-Ansicht) | Planned | [PROJ-2-orders-viewer.md](PROJ-2-orders-viewer.md) | 2026-03-03 |
+| PROJ-3 | Preisdatenbank (Sellerboard SKU/ASIN + Repricer Status) | Planned | [PROJ-3-price-database.md](PROJ-3-price-database.md) | 2026-03-03 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-1
+## Next Available ID: PROJ-4
