@@ -1,6 +1,6 @@
 # PROJ-1: N8N Workflow Hub
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-03
 **Last Updated:** 2026-03-03
 
@@ -402,4 +402,9 @@ Keine neuen Pakete nötig — alle Libraries bereits installiert:
 - **Recommendation:** Fix BUG-1 (auth middleware), BUG-2 (rate limiting), BUG-3 (timeout mechanism), BUG-7 (n8n auth) before deployment. BUG-4 (security headers) and BUG-5 (callback overwrite) should also be addressed.
 
 ## Deployment
-_To be added by /deploy_
+## Deployment Info
+
+**Deployed:** 2026-03-03
+**Production URL:** https://app-two-gamma-77.vercel.app
+**Inspect:** https://vercel.com/primehubgbr-2551s-projects/app/J5Wo2kpCY2Rtyps1LoBQ9anmej7R
+**Timeout Cron:** Supabase pg_cron (every minute → marks pending/running jobs > 5 min as timeout)
