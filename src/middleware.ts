@@ -29,15 +29,21 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Logged-in user on login page → redirect to dashboard
+  if (user && request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard/workflow-hub', request.url))
+  }
+
+  // Not logged-in user on protected dashboard route → redirect to login
   if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/'
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  // /api/jobs/* is intentionally excluded: those routes handle their own auth
+  // (Supabase session check, HMAC for n8n callbacks, CRON_SECRET for timeout).
+  matcher: ['/', '/dashboard/:path*'],
 }
