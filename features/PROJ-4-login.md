@@ -1,8 +1,8 @@
 # PROJ-4: Login / Authentifizierung
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-03
-**Last Updated:** 2026-03-03
+**Last Updated:** 2026-03-04
 
 ## Dependencies
 - Keine (Grundbaustein — wird von allen anderen Features vorausgesetzt)
@@ -300,3 +300,13 @@ Ersetzt:
 - **Security:** All checks passed. Headers correct, secrets managed properly, auth flow solid, API routes properly protected with their own authentication mechanisms.
 - **Production Ready:** YES
 - **Recommendation:** Deploy. The two informational findings (Next.js middleware deprecation, cosmetic login flash on client navigation) are non-blocking and can be addressed in future iterations.
+
+---
+
+## Deployment
+
+- **Deployed:** 2026-03-04
+- **Git Tag:** v1.2.0-PROJ-4
+- **Commit:** feat(PROJ-4): Login authentication with Supabase Auth
+- **Build:** PASS (npm run build — 0 errors, 1 known deprecation warning FINDING-1)
+- **QA Approved:** Yes (Re-Test #3)
