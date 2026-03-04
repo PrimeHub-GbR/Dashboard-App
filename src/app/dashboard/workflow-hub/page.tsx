@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { PageHeader } from '@/components/workflow-hub/PageHeader'
+import { PageHeader } from '@/components/PageHeader'
 import { WorkflowHubClient } from '@/components/workflow-hub/WorkflowHubClient'
 
 export const metadata: Metadata = {

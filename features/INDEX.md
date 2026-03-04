@@ -18,7 +18,7 @@
 | PROJ-4 | Login / Authentifizierung (Email + Passwort, Supabase Auth) | Deployed | [PROJ-4-login.md](PROJ-4-login.md) | 2026-03-03 |
 | PROJ-5 | Dashboard-Navigation (Sidebar Shell für alle Features) | Deployed | [PROJ-5-dashboard-nav.md](PROJ-5-dashboard-nav.md) | 2026-03-03 |
 | PROJ-6 | Custom Domain Setup (dashboard.primehubgbr.com) | Planned | [PROJ-6-custom-domain.md](PROJ-6-custom-domain.md) | 2026-03-04 |
-| PROJ-7 | n8n Workflow Monitor (Liste, Status, Toggle, Statistiken) | Deployed | [PROJ-7-workflow-monitor.md](PROJ-7-workflow-monitor.md) | 2026-03-04 |
+| PROJ-7 | n8n Workflow Monitor (Liste, Status, Toggle, Statistiken) | In Review | [PROJ-7-workflow-monitor.md](PROJ-7-workflow-monitor.md) | 2026-03-04 |
 
 <!-- Add features above this line -->
 
