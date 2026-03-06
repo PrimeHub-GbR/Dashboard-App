@@ -64,7 +64,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Preisdaten konnten nicht geladen werden' }, { status: 500 })
     }
 
-    return NextResponse.json({ data: data ?? [], totalCount: count ?? 0 })
+    // PostgreSQL numeric type serialises as string in JSON — coerce to number
+    const prices = (data ?? []).map((row) => ({
+      ean: row.ean as string,
+      asin: (row.asin as string | null) ?? null,
+      ek_price: row.ek_price != null ? Number(row.ek_price) : null,
+      order_date: (row.order_date as string | null) ?? null,
+      supplier: (row.supplier as string | null) ?? null,
+    }))
+
+    return NextResponse.json({ data: prices, totalCount: count ?? 0 })
   } catch (err) {
     console.error('GET /api/prices unexpected error:', err)
     return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })
