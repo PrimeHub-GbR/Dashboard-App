@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
+import { McpStatus } from '@/components/McpStatus'
 
 const navItems = [
   { label: 'Workflow Hub', href: '/dashboard/workflow-hub', icon: LayoutDashboard },
@@ -72,6 +73,7 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="px-4 py-3 gap-2">
+        <McpStatus />
         <Separator />
         {userEmail && (
           <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
