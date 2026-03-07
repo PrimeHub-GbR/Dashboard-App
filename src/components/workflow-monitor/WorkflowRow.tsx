@@ -1,5 +1,6 @@
 import { TableCell, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
   Tooltip,
@@ -7,11 +8,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ExternalLink } from 'lucide-react'
 import type { WorkflowStat } from './WorkflowMonitorClient'
 
 interface WorkflowRowProps {
   workflow: WorkflowStat
   isAdmin: boolean
+  n8nBaseUrl: string
   onToggle: (id: string, currentActive: boolean) => void
 }
 
@@ -41,7 +44,7 @@ function formatErrorRate(
   return `${Math.round(rate * 100)}%`
 }
 
-export function WorkflowRow({ workflow, isAdmin, onToggle }: WorkflowRowProps) {
+export function WorkflowRow({ workflow, isAdmin, n8nBaseUrl, onToggle }: WorkflowRowProps) {
   const lastRunText = formatLastRun(workflow.lastRunAt, workflow.lastRunSuccess)
   const errorRateText = formatErrorRate(
     workflow.errorRateLast30Days,
@@ -94,6 +97,18 @@ export function WorkflowRow({ workflow, isAdmin, onToggle }: WorkflowRowProps) {
             </Tooltip>
           </TooltipProvider>
         )}
+      </TableCell>
+      <TableCell className="text-center">
+        <Button variant="ghost" size="icon" asChild>
+          <a
+            href={`${n8nBaseUrl}/workflow/${workflow.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${workflow.name} in n8n öffnen`}
+          >
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
       </TableCell>
     </TableRow>
   )

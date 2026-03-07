@@ -11,16 +11,7 @@ import {
 } from '@/components/ui/table'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination'
 import { WorkflowRow } from './WorkflowRow'
-
-const PAGE_SIZE = 20
 
 export interface WorkflowStat {
   id: string
@@ -34,15 +25,73 @@ export interface WorkflowStat {
 
 interface WorkflowMonitorClientProps {
   isAdmin: boolean
+  n8nBaseUrl: string
 }
 
-export function WorkflowMonitorClient({ isAdmin }: WorkflowMonitorClientProps) {
+function formatSecondsSince(s: number): string {
+  if (s < 60) return `vor ${s} Sek.`
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return sec > 0 ? `vor ${m} Min. ${sec} Sek.` : `vor ${m} Min.`
+}
+
+function WorkflowSection({
+  title,
+  workflows,
+  isAdmin,
+  n8nBaseUrl,
+  onToggle,
+  headingClass,
+}: {
+  title: string
+  workflows: WorkflowStat[]
+  isAdmin: boolean
+  n8nBaseUrl: string
+  onToggle: (id: string, currentActive: boolean) => void
+  headingClass: string
+}) {
+  if (workflows.length === 0) return null
+  return (
+    <div className="space-y-2">
+      <h2 className={`text-sm font-semibold uppercase tracking-wide ${headingClass}`}>
+        {title} ({workflows.length})
+      </h2>
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Letzte Ausführung</TableHead>
+              <TableHead className="text-right">Ausführungen (30T)</TableHead>
+              <TableHead className="text-right">Fehlerquote</TableHead>
+              <TableHead className="text-center">Aktiv</TableHead>
+              <TableHead className="text-center">n8n</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {workflows.map((workflow) => (
+              <WorkflowRow
+                key={workflow.id}
+                workflow={workflow}
+                isAdmin={isAdmin}
+                n8nBaseUrl={n8nBaseUrl}
+                onToggle={onToggle}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+}
+
+export function WorkflowMonitorClient({ isAdmin, n8nBaseUrl }: WorkflowMonitorClientProps) {
   const [workflows, setWorkflows] = useState<WorkflowStat[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [secondsSince, setSecondsSince] = useState(0)
-  const [page, setPage] = useState(1)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -58,7 +107,6 @@ export function WorkflowMonitorClient({ isAdmin }: WorkflowMonitorClientProps) {
       setError(null)
       setLastUpdated(new Date())
       setSecondsSince(0)
-      setPage(1)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannter Fehler'
       setError(msg)
@@ -67,16 +115,16 @@ export function WorkflowMonitorClient({ isAdmin }: WorkflowMonitorClientProps) {
     }
   }, [])
 
-  // Initial load + 30s auto-refresh
+  // Initial load + 5min auto-refresh
   useEffect(() => {
     fetchWorkflows()
-    intervalRef.current = setInterval(fetchWorkflows, 30_000)
+    intervalRef.current = setInterval(fetchWorkflows, 300_000)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchWorkflows])
 
-  // Tick counter for "Aktualisiert vor X Sek."
+  // Tick counter for "Aktualisiert vor X Sek./Min."
   useEffect(() => {
     tickRef.current = setInterval(() => {
       setSecondsSince((s) => s + 1)
@@ -128,12 +176,15 @@ export function WorkflowMonitorClient({ isAdmin }: WorkflowMonitorClientProps) {
     )
   }
 
+  const activeWorkflows = workflows.filter((w) => w.active)
+  const inactiveWorkflows = workflows.filter((w) => !w.active)
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Refresh indicator */}
       <div className="text-xs text-muted-foreground text-right">
         {lastUpdated
-          ? `Aktualisiert vor ${secondsSince} Sek.`
+          ? `Aktualisiert ${formatSecondsSince(secondsSince)}`
           : 'Noch nicht geladen'}
       </div>
 
@@ -154,62 +205,25 @@ export function WorkflowMonitorClient({ isAdmin }: WorkflowMonitorClientProps) {
         </p>
       )}
 
-      {/* Table */}
-      {workflows.length > 0 && (() => {
-        const totalPages = Math.ceil(workflows.length / PAGE_SIZE)
-        const paged = workflows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-        return (
-          <>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Letzte Ausführung</TableHead>
-                    <TableHead className="text-right">Ausführungen (30T)</TableHead>
-                    <TableHead className="text-right">Fehlerquote</TableHead>
-                    <TableHead className="text-center">Aktiv</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paged.map((workflow) => (
-                    <WorkflowRow
-                      key={workflow.id}
-                      workflow={workflow}
-                      isAdmin={isAdmin}
-                      onToggle={handleToggle}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      aria-disabled={page === 1}
-                      className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                  <PaginationItem className="text-sm px-4 flex items-center">
-                    {page} / {totalPages}
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      aria-disabled={page === totalPages}
-                      className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            )}
-          </>
-        )
-      })()}
+      {/* Active workflows */}
+      <WorkflowSection
+        title="Aktive Workflows"
+        workflows={activeWorkflows}
+        isAdmin={isAdmin}
+        n8nBaseUrl={n8nBaseUrl}
+        onToggle={handleToggle}
+        headingClass="text-green-600 dark:text-green-400"
+      />
+
+      {/* Inactive workflows */}
+      <WorkflowSection
+        title="Inaktive Workflows"
+        workflows={inactiveWorkflows}
+        isAdmin={isAdmin}
+        n8nBaseUrl={n8nBaseUrl}
+        onToggle={handleToggle}
+        headingClass="text-muted-foreground"
+      />
     </div>
   )
 }

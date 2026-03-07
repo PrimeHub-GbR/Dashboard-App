@@ -33,7 +33,7 @@ async function n8nFetch<T>(path: string): Promise<T> {
   }
   const res = await fetch(`${N8N_BASE_URL}/api/v1${path}`, {
     headers: { 'X-N8N-API-KEY': N8N_API_KEY },
-    next: { revalidate: 30 },
+    next: { revalidate: 300 },
   })
   if (!res.ok) {
     throw new Error(`n8n API Fehler: ${res.status}`)

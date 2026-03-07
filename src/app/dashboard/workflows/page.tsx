@@ -28,15 +28,17 @@ export default async function WorkflowsPage() {
 
   const isAdmin = roleData?.role === 'admin'
 
+  const n8nBaseUrl = process.env.N8N_BASE_URL ?? 'https://n8n.primehubgbr.com'
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6">
         <PageHeader
           title="n8n Workflows"
-          description="Live-Status aller n8n-Workflows — aktualisiert sich automatisch alle 30 Sekunden"
+          description="Live-Status aller n8n-Workflows — aktualisiert sich automatisch alle 5 Minuten"
         />
       </div>
-      <WorkflowMonitorClient isAdmin={isAdmin} />
+      <WorkflowMonitorClient isAdmin={isAdmin} n8nBaseUrl={n8nBaseUrl} />
     </div>
   )
 }

@@ -14,7 +14,7 @@
 
 ## Übersicht
 
-Eigene Seite `/dashboard/workflows` die alle n8n-Workflows aus der n8n-Instanz auflistet und ihren Live-Status anzeigt. Admins können Workflows direkt aus dem Dashboard aktivieren oder deaktivieren. Die Seite aktualisiert sich automatisch alle 30 Sekunden.
+Eigene Seite `/dashboard/workflows` die alle n8n-Workflows aus der n8n-Instanz auflistet und ihren Live-Status anzeigt. Aktive Workflows erscheinen oben, inaktive darunter. Admins können Workflows direkt aus dem Dashboard aktivieren oder deaktivieren. Jeder Workflow hat einen Direktlink zu n8n. Die Seite aktualisiert sich automatisch alle 5 Minuten.
 
 ## User Stories
 
@@ -24,13 +24,16 @@ Eigene Seite `/dashboard/workflows` die alle n8n-Workflows aus der n8n-Instanz a
 - Als Admin möchte ich Statistiken pro Workflow sehen (Anzahl Ausführungen, Fehlerquote), um problematische Workflows zu identifizieren
 - Als Staff möchte ich die Workflow-Liste lesen können, um den aktuellen Status zu verstehen (ohne Änderungsrechte)
 - Als User möchte ich, dass die Seite sich automatisch aktualisiert, ohne manuell neu laden zu müssen
+- Als Admin möchte ich einen Direktlink zu jedem Workflow in n8n haben, um schnell dorthin navigieren zu können
 
 ## Acceptance Criteria
 
 - [ ] Gegeben ein angemeldeter User (Admin oder Staff), wenn er `/dashboard/workflows` aufruft, dann sieht er eine Tabelle aller n8n-Workflows mit: Name, aktiv/inaktiv Badge, letzte Ausführung (Zeit + Erfolg/Fehler), Ausführungsanzahl (letzte 30 Tage), Fehlerquote (letzte 30 Tage)
 - [ ] Gegeben ein angemeldeter Admin, wenn er den Toggle eines Workflows betätigt, dann wird der Workflow in n8n aktiviert/deaktiviert und der Badge aktualisiert sich sofort
 - [ ] Gegeben ein angemeldeter Staff-User, dann ist der Aktivierungs-Toggle deaktiviert (read-only) und ein Tooltip erklärt "Nur Admins können Workflows aktivieren/deaktivieren"
-- [ ] Gegeben die Seite ist geöffnet, dann aktualisieren sich die Daten automatisch alle 30 Sekunden ohne Seitenneuladen
+- [ ] Gegeben die Seite ist geöffnet, dann aktualisieren sich die Daten automatisch alle 5 Minuten ohne Seitenneuladen
+- [ ] Gegeben die Workflow-Liste angezeigt wird, dann erscheinen aktive Workflows oben in einem eigenen Block ("Aktive Workflows"), inaktive darunter ("Inaktive Workflows")
+- [ ] Gegeben ein Workflow angezeigt wird, dann gibt es einen Button mit ExternalLink-Icon, der `https://n8n.primehubgbr.com/workflow/{id}` im neuen Tab öffnet
 - [ ] Gegeben die n8n API ist nicht erreichbar, dann wird ein Fehlerbanner angezeigt mit dem letzten bekannten Stand (Fallback auf gecachte Daten falls vorhanden)
 - [ ] Gegeben die Liste wird geladen, dann werden Skeleton-Rows angezeigt bis die Daten da sind
 - [ ] Gegeben ein Workflow wurde noch nie ausgeführt, dann steht "Noch nie ausgeführt" in der Spalte "Letzte Ausführung"
@@ -51,7 +54,8 @@ Eigene Seite `/dashboard/workflows` die alle n8n-Workflows aus der n8n-Instanz a
 - **Toggle-Endpunkt**: `PATCH /api/n8n/workflows/[id]/toggle` — prüft Admin-Rolle, ruft n8n `PATCH /workflows/{id}/activate` bzw. `deactivate` auf
 - **Statistiken**: Aus n8n Executions API (`GET /executions?workflowId=...&limit=100`) — Anzahl + Fehlerquote berechnet auf Server
 - **Caching**: API-Route cached n8n-Antworten für 30s (`unstable_cache` oder Response-Header `Cache-Control`)
-- **Auto-Refresh**: `useEffect` + `setInterval(30_000)` im Client, stoppt bei Page-Unmount
+- **Auto-Refresh**: `useEffect` + `setInterval(300_000)` im Client, stoppt bei Page-Unmount
+- **n8n-Direktlink**: Button pro Workflow-Zeile → `${N8N_BASE_URL}/workflow/{id}`, öffnet im neuen Tab; URL wird server-seitig in `page.tsx` gelesen und als Prop übergeben
 - **Auth**: Alle API-Routen prüfen Session via Supabase; Toggle prüft zusätzlich Admin-Rolle aus `user_roles`
 - **n8n API-Key**: In `.env.local` als `N8N_API_KEY` (kein `NEXT_PUBLIC_` Prefix)
 
