@@ -19,7 +19,8 @@
 | PROJ-5 | Dashboard-Navigation (Sidebar Shell für alle Features) | Deployed | [PROJ-5-dashboard-nav.md](PROJ-5-dashboard-nav.md) | 2026-03-03 |
 | PROJ-6 | Custom Domain Setup (dashboard.primehubgbr.com) | Deployed | [PROJ-6-custom-domain.md](PROJ-6-custom-domain.md) | 2026-03-04 |
 | PROJ-7 | n8n Workflow Monitor (Liste, Status, Toggle, Statistiken) | Deployed | [PROJ-7-workflow-monitor.md](PROJ-7-workflow-monitor.md) | 2026-03-04 |
+| PROJ-8 | Repricer CSV Update (ISBN→EAN→BBP, Preise aktualisieren) | Deployed | [PROJ-8-repricer-update.md](PROJ-8-repricer-update.md) | 2026-03-07 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-8
+## Next Available ID: PROJ-9
