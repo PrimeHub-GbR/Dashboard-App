@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { Download, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,28 +11,6 @@ import { PRICES_PAGE_SIZE } from "@/lib/price-types"
 import { PricesTable } from "./PricesTable"
 import { EanAsinMapManager } from "./EanAsinMapManager"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
-
-function exportToCsv(
-  data: { ean: string; asin: string | null; ek_price: number | null; supplier: string | null; order_date: string | null }[]
-) {
-  const header = ["EAN", "ASIN", "EK-Preis (EUR)", "Lieferant", "Bestelldatum"]
-  const rows = data.map((r) => [
-    r.ean,
-    r.asin ?? "",
-    r.ek_price != null ? r.ek_price.toFixed(2) : "",
-    r.supplier ?? "",
-    r.order_date ? new Date(r.order_date).toLocaleDateString("de-DE") : "",
-  ])
-  const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `preisdatenbank_${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  // Defer revocation so the browser can initiate the download first
-  setTimeout(() => URL.revokeObjectURL(url), 100)
-}
 
 export function PricesClient() {
   const {
@@ -49,10 +27,26 @@ export function PricesClient() {
   } = usePrices()
 
   const { isAdmin } = useUserRole()
+  const [isExporting, setIsExporting] = useState(false)
 
-  const handleExport = useCallback(() => {
-    exportToCsv(prices)
-  }, [prices])
+  const handleExport = useCallback(async () => {
+    setIsExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.set("q", search)
+      const res = await fetch(`/api/prices/export?${params}`)
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `preisdatenbank_${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } finally {
+      setIsExporting(false)
+    }
+  }, [search])
 
   const from = (page - 1) * PRICES_PAGE_SIZE + 1
   const to = Math.min(page * PRICES_PAGE_SIZE, totalCount)
@@ -69,9 +63,9 @@ export function PricesClient() {
         </div>
         <div className="flex items-center gap-2">
           {isAdmin && <EanAsinMapManager onMappingChange={refresh} />}
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={isLoading || prices.length === 0}>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={isLoading || isExporting || totalCount === 0}>
             <Download className="mr-2 h-4 w-4" />
-            CSV Export
+            {isExporting ? "Exportiere…" : "CSV Export"}
           </Button>
         </div>
       </div>

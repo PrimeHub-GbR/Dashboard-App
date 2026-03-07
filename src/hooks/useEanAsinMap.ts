@@ -17,14 +17,23 @@ export function useEanAsinMap() {
   const fetchMappings = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch('/api/prices/ean-asin-map')
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}))
-        setError(json.error ?? 'Mappings konnten nicht geladen werden')
-        return
+      // Fetch all pages to avoid the 200-per-page limit
+      const allMappings: EanAsinMapping[] = []
+      let page = 1
+      while (true) {
+        const res = await fetch(`/api/prices/ean-asin-map?page=${page}`)
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}))
+          setError(json.error ?? 'Mappings konnten nicht geladen werden')
+          return
+        }
+        const json = await res.json()
+        const batch: EanAsinMapping[] = json.data ?? []
+        allMappings.push(...batch)
+        if (allMappings.length >= (json.totalCount ?? 0)) break
+        page++
       }
-      const json = await res.json()
-      setMappings(json.data ?? [])
+      setMappings(allMappings)
     } catch {
       setError('Mappings konnten nicht geladen werden')
     }

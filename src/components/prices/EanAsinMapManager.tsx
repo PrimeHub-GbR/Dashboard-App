@@ -15,6 +15,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,6 +46,7 @@ export function EanAsinMapManager({ onMappingChange }: EanAsinMapManagerProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,16 +63,19 @@ export function EanAsinMapManager({ onMappingChange }: EanAsinMapManagerProps) {
     setIsSaving(false)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteConfirmed = async () => {
+    if (!confirmDeleteId) return
     setDeleteError(null)
-    setDeletingId(id)
-    const err = await deleteMapping(id)
+    setDeletingId(confirmDeleteId)
+    setConfirmDeleteId(null)
+    const err = await deleteMapping(confirmDeleteId)
     if (err) setDeleteError(err)
     else onMappingChange?.()
     setDeletingId(null)
   }
 
   return (
+    <>
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
@@ -167,7 +181,7 @@ export function EanAsinMapManager({ onMappingChange }: EanAsinMapManagerProps) {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(m.id)}
+                        onClick={() => setConfirmDeleteId(m.id)}
                         disabled={deletingId === m.id}
                         aria-label="Mapping löschen"
                       >
@@ -186,5 +200,23 @@ export function EanAsinMapManager({ onMappingChange }: EanAsinMapManagerProps) {
         </p>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmDeleteId !== null} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Mapping löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Diese Aktion kann nicht rückgängig gemacht werden. Das EAN → ASIN Mapping wird dauerhaft gelöscht.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteConfirmed} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Löschen
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

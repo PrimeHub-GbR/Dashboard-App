@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
+const MAP_PAGE_SIZE = 200
+
 async function getAuthenticatedUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) return { user: null, isAdmin: false }
@@ -15,7 +17,11 @@ async function getAuthenticatedUser(supabase: Awaited<ReturnType<typeof createSu
   return { user, isAdmin: data?.role === 'admin' }
 }
 
-export async function GET() {
+const getQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+})
+
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
     const { user } = await getAuthenticatedUser(supabase)
@@ -24,18 +30,28 @@ export async function GET() {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
-    const { data, error } = await supabase
+    const { searchParams } = request.nextUrl
+    const parsed = getQuerySchema.safeParse({ page: searchParams.get('page') ?? undefined })
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Ungültige Parameter' }, { status: 400 })
+    }
+
+    const { page } = parsed.data
+    const from = (page - 1) * MAP_PAGE_SIZE
+    const to = from + MAP_PAGE_SIZE - 1
+
+    const { data, error, count } = await supabase
       .from('ean_asin_map')
-      .select('id, ean, asin, created_at')
+      .select('id, ean, asin, created_at', { count: 'exact' })
       .order('ean', { ascending: true })
-      .limit(500)
+      .range(from, to)
 
     if (error) {
       console.error('GET /api/prices/ean-asin-map error:', error)
       return NextResponse.json({ error: 'Mappings konnten nicht geladen werden' }, { status: 500 })
     }
 
-    return NextResponse.json({ data: data ?? [] })
+    return NextResponse.json({ data: data ?? [], totalCount: count ?? 0 })
   } catch (err) {
     console.error('GET /api/prices/ean-asin-map unexpected error:', err)
     return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })
@@ -81,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('ean_asin_map')
-      .upsert({ ean, asin }, { onConflict: 'ean,asin', ignoreDuplicates: false })
+      .upsert({ ean, asin }, { onConflict: 'ean', ignoreDuplicates: false })
       .select('id, ean, asin, created_at')
       .single()
 
