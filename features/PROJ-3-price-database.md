@@ -1,6 +1,6 @@
 # PROJ-3: Preisdatenbank (EAN-eindeutige EK-Preis-Übersicht)
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-03-03
 **Last Updated:** 2026-03-05
 
@@ -307,4 +307,18 @@ The critical blocker is BUG-01: the database migration for the view and mapping 
 7. Address remaining MEDIUM/LOW items
 
 ## Deployment
-_To be added by /deploy_
+
+**Deployed:** 2026-03-07
+**Production URL:** https://dashboard.primehubgbr.com/dashboard/prices
+**Tag:** v1.3.1-PROJ-3
+
+**Fixes deployed:**
+- BUG-02: ILIKE wildcard escaping (`%`, `_`)
+- BUG-05: Upsert `onConflict: 'ean'` corrected
+- BUG-07/15: `useEanAsinMap` fetches all pages with pagination
+- BUG-08: Server-side CSV export via `/api/prices/export` (up to 10k rows)
+- BUG-09: Delete errors shown in UI
+- BUG-10: AlertDialog confirmation before delete
+- BUG-13: Prices table refreshes after mapping changes
+- BUG-14: `setTimeout` 1s before `URL.revokeObjectURL`
+- BUG-01/SEC-01: DB view + table + RLS verified in Supabase
