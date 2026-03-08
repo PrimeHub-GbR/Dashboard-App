@@ -383,3 +383,11 @@ Alle benötigten Libraries sind bereits installiert.
 **Gesamtbewertung: 9/10 AC bestanden. 1 Blocker (BUG-2: Timeout 5 Min statt 10 Min).**
 
 Naechster Schritt: BUG-2 (Timeout-Wert) fixen, dann SEC-1/SEC-2 pruefen. Danach `/deploy` ausfuehren.
+
+## Deployment
+
+**Status:** ✅ Deployed
+**Deployed:** 2026-03-08
+**Production URL:** https://dashboard.primehubgbr.com/dashboard/repricer
+**Git Commit:** 94054ee
+**Git Tag:** v1.9.0-PROJ-9
