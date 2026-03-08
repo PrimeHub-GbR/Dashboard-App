@@ -20,7 +20,8 @@
 | PROJ-6 | Custom Domain Setup (dashboard.primehubgbr.com) | Deployed | [PROJ-6-custom-domain.md](PROJ-6-custom-domain.md) | 2026-03-04 |
 | PROJ-7 | n8n Workflow Monitor (Liste, Status, Toggle, Statistiken) | Deployed | [PROJ-7-workflow-monitor.md](PROJ-7-workflow-monitor.md) | 2026-03-04 |
 | PROJ-8 | Repricer CSV Update (ISBN→EAN→BBP, Preise aktualisieren) | Deployed | [PROJ-8-repricer-update.md](PROJ-8-repricer-update.md) | 2026-03-07 |
+| PROJ-9 | Repricer Dashboard (CSV Upload + Status + Download im Browser) | In Progress | [PROJ-9-repricer-dashboard.md](PROJ-9-repricer-dashboard.md) | 2026-03-08 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-9
+## Next Available ID: PROJ-10

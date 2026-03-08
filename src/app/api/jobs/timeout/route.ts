@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
-const JOB_TIMEOUT_MINUTES = 5
+const JOB_TIMEOUT_MINUTES = 10
 
 export async function GET(request: NextRequest) {
   // Protect endpoint: only Vercel Cron (via CRON_SECRET) may call this

@@ -73,6 +73,15 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
     acceptedMimeTypes: [],
     acceptedExtensions: '',
   },
+  'repricer-updater': {
+    key: 'repricer-updater',
+    label: 'Repricer CSV Update',
+    acceptsFile: true,
+    hasResultFile: true,
+    adminOnly: true,
+    acceptedMimeTypes: ['text/csv', 'application/vnd.ms-excel', ''],
+    acceptedExtensions: '.csv',
+  },
 }
 
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB

@@ -33,6 +33,7 @@ const workflowKeySchema = z.enum([
   'a43-export',
   'avus-export',
   'blank-export',
+  'repricer-updater',
 ])
 
 export async function POST(request: NextRequest) {
@@ -113,8 +114,8 @@ export async function POST(request: NextRequest) {
     // 6. Service role client for DB operations (bypasses RLS)
     const supabase = createSupabaseServiceClient()
 
-    // 7. Avus-Export role check: only admin allowed
-    if (workflowKey === 'avus-export') {
+    // 7. Admin-only role check
+    if (config.adminOnly) {
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
 
       if (roleError || !roleData || roleData.role !== 'admin') {
         return NextResponse.json(
-          { error: 'Keine Berechtigung für Avus Export' },
+          { error: `Keine Berechtigung für ${config.label}` },
           { status: 403 }
         )
       }

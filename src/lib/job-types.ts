@@ -6,6 +6,7 @@ export type WorkflowKey =
   | 'a43-export'
   | 'avus-export'
   | 'blank-export'
+  | 'repricer-updater'
 
 export interface Job {
   id: string
@@ -15,6 +16,7 @@ export interface Job {
   result_file_url: string | null
   status: JobStatus
   error_message: string | null
+  metadata: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }

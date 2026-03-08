@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Workflow, ShoppingCart, Database } from 'lucide-react'
+import { LayoutDashboard, Workflow, ShoppingCart, Database, RefreshCw } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +26,7 @@ const navItems = [
   { label: 'Workflow Monitor', href: '/dashboard/workflows', icon: Workflow },
   { label: 'Bestellungen', href: '/dashboard/orders', icon: ShoppingCart },
   { label: 'Preisdatenbank', href: '/dashboard/prices', icon: Database },
+  { label: 'Repricer', href: '/dashboard/repricer', icon: RefreshCw },
 ]
 
 interface DashboardSidebarProps {

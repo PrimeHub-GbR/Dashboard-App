@@ -7,6 +7,7 @@ const callbackBodySchema = z.object({
   status: z.enum(['success', 'failed', 'timeout']),
   result_file_path: z.string().optional(),
   error_message: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 function verifyHmacSignature(
@@ -88,7 +89,7 @@ export async function POST(
       )
     }
 
-    const { status, result_file_path, error_message } = parseResult.data
+    const { status, result_file_path, error_message, metadata } = parseResult.data
 
     // 4. Update job in DB via service role client
     const supabase = createSupabaseServiceClient()
@@ -115,6 +116,10 @@ export async function POST(
 
     if (error_message) {
       updateData.error_message = error_message
+    }
+
+    if (metadata) {
+      updateData.metadata = metadata
     }
 
     const { error: updateError } = await supabase
