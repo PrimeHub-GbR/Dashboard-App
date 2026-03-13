@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { WORKFLOW_CONFIGS } from '@/lib/workflow-config'
 import type { Job } from '@/lib/job-types'
 import { StatusBadge } from './StatusBadge'
+import { CancelButton } from './CancelButton'
 
 interface ActiveJobsBannerProps {
   jobs: Job[]
@@ -22,11 +23,14 @@ export function ActiveJobsBanner({ jobs }: ActiveJobsBannerProps) {
       </div>
       <div className="flex flex-col gap-1">
         {jobs.map((job) => (
-          <div key={job.id} className="flex items-center justify-between text-sm">
-            <span className="max-w-xs truncate text-muted-foreground">
+          <div key={job.id} className="flex items-center justify-between gap-3 text-sm">
+            <span className="truncate text-muted-foreground">
               {WORKFLOW_CONFIGS[job.workflow_key]?.label ?? job.workflow_key}
             </span>
-            <StatusBadge status={job.status} />
+            <div className="flex shrink-0 items-center gap-2">
+              <StatusBadge status={job.status} />
+              <CancelButton jobId={job.id} />
+            </div>
           </div>
         ))}
       </div>

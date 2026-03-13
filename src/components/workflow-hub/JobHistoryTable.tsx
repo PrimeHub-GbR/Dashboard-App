@@ -15,6 +15,7 @@ import { WORKFLOW_CONFIGS } from '@/lib/workflow-config'
 import type { Job } from '@/lib/job-types'
 import { StatusBadge } from './StatusBadge'
 import { DownloadButton } from './DownloadButton'
+import { CancelButton } from './CancelButton'
 
 interface JobHistoryTableProps {
   jobs: Job[]
@@ -116,6 +117,9 @@ export function JobHistoryTable({ jobs, isLoading, error }: JobHistoryTableProps
                           <span className="text-xs text-muted-foreground">
                             Job erneut starten
                           </span>
+                        )}
+                        {(job.status === 'pending' || job.status === 'running') && (
+                          <CancelButton jobId={job.id} />
                         )}
                         <DownloadButton jobId={job.id} hasResultFile={!!showDownload} />
                       </div>
