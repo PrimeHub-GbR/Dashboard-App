@@ -50,7 +50,7 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
   return (
     <Sidebar>
       <SidebarHeader className="px-4 py-3">
-        <span className="font-semibold text-sm">PrimeHub Dashboard</span>
+        <a href="/landing" className="font-semibold text-sm hover:text-primary transition-colors">PrimeHub Dashboard</a>
       </SidebarHeader>
 
       <SidebarContent>
