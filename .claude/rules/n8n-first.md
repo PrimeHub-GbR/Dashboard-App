@@ -32,13 +32,68 @@ ALL process logic (data processing, file transformation, external API calls, bat
 - **Debugging**: Errors in N8N are immediately visible in the execution log, with input/output per node
 - **Low maintenance**: Process logic in N8N needs no code review, no deployment, no test setup
 
+## N8N Workflow Read-Only Rule (MANDATORY)
+
+**Claude darf N8N-Workflows NUR LESEN — niemals erstellen, verändern oder löschen.**
+
+Erlaubte MCP-Operationen:
+- `list_workflows` ✅
+- `get_workflow` ✅
+- `get_executions` ✅
+- `search_nodes` ✅
+
+Verbotene MCP-Operationen:
+- `create_workflow` ❌
+- `update_workflow` ❌
+- `delete_workflow` ❌
+- `activate_workflow` ❌
+- `execute_workflow` ❌
+
+Wenn ein Workflow geändert werden muss, erstellt Claude eine **Schritt-für-Schritt-Anleitung für Anfänger** (siehe unten), die der Nutzer selbst im N8N-Dashboard ausführt.
+
+## Anleitung-Format bei notwendigen Workflow-Änderungen
+
+Wenn Workflow-Änderungen benötigt werden, gibt Claude IMMER diese Struktur aus:
+
+```
+## N8N Anleitung: [Beschreibung der Änderung]
+
+**Was geändert werden muss:** [kurze Erklärung warum]
+
+### Schritt 1 — N8N Dashboard öffnen
+1. Öffne https://n8n.primehubgbr.com im Browser
+2. Melde dich an
+
+### Schritt 2 — Workflow finden
+1. Klicke links in der Sidebar auf "Workflows"
+2. Suche nach dem Workflow "[Workflow-Name]"
+3. Klicke darauf, um ihn zu öffnen
+
+### Schritt 3 — [Spezifische Änderung]
+[Detaillierte, bildhafte Beschreibung — z.B.:]
+1. Klicke auf die Node "[Node-Name]" (erkennbar am [Icon/Position])
+2. Auf der rechten Seite öffnet sich ein Einstellungs-Panel
+3. Ändere das Feld "[Feldname]" von "[alter Wert]" auf "[neuer Wert]"
+4. Klicke auf "Save" oder das Häkchen ✓
+
+### Schritt 4 — Änderungen speichern
+1. Klicke oben rechts auf den roten "Save"-Button
+2. Der Button wird grau — das bedeutet: gespeichert ✓
+
+### Schritt 5 — Testen (optional aber empfohlen)
+1. Klicke oben rechts auf "Test Workflow"
+2. [Beschreibung was passieren soll]
+3. Prüfe unten im Execution-Log ob alle Nodes grün sind ✓
+```
+
 ## Skill consequence
 
 When a feature requires process logic:
 1. `/architecture` documents the N8N workflow as a dependency
-2. `/n8n-workflow-builder` builds the workflow via MCP
-3. `/qa` tests the workflow + dashboard integration together
-4. `/deploy` deploys the dashboard — the N8N workflow is already live
+2. Claude analysiert den bestehenden Workflow (read-only) und erstellt eine Anleitung
+3. Nutzer führt die Änderungen manuell im N8N-Dashboard aus
+4. `/qa` tests the workflow + dashboard integration together
+5. `/deploy` deploys the dashboard — the N8N workflow is already live
 
 ## Code review triggers
 

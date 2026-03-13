@@ -45,6 +45,14 @@
 - Run `git diff` to verify what has already been changed in this session
 - Never guess at import paths, component names, or API routes - verify by reading
 
+## N8N Workflows — Read-Only
+
+**Claude darf N8N-Workflows ausschließlich lesen, niemals verändern.**
+- Erlaubt: `list_workflows`, `get_workflow`, `get_executions`, `search_nodes`
+- Verboten: `create_workflow`, `update_workflow`, `activate_workflow`, `execute_workflow`, `delete_workflow`
+
+Wenn ein Workflow geändert werden muss: Claude erstellt eine Schritt-für-Schritt-Anleitung (Anfänger-freundlich) die der Nutzer selbst im N8N-Dashboard ausführt. Format: siehe `.claude/rules/n8n-first.md`.
+
 ## Handoffs Between Skills
 - After completing a skill, suggest the next skill to the user
 - Format: "Next step: Run `/skillname` to [action]"
