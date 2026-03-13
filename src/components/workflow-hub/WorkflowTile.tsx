@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { AnimatedBorderCard } from '@/components/ui/dynamic-border-animations-card'
 import type { WorkflowConfig } from '@/lib/workflow-config'
 import { FileDropZone } from './FileDropZone'
 
@@ -28,14 +29,17 @@ const WORKFLOW_ICONS: Record<string, LucideIcon> = {
   ean2bbp: ArrowLeftRight,
 }
 
-const WORKFLOW_COLORS: Record<string, { bg: string; icon: string; border: string }> = {
-  sellerboard:      { bg: 'bg-blue-500/20',   icon: 'text-blue-300',   border: 'border-blue-500/30' },
-  kulturgut:        { bg: 'bg-amber-500/20',  icon: 'text-amber-300',  border: 'border-amber-500/30' },
-  'a43-export':     { bg: 'bg-violet-500/20', icon: 'text-violet-300', border: 'border-violet-500/30' },
-  'avus-export':    { bg: 'bg-rose-500/20',   icon: 'text-rose-300',   border: 'border-rose-500/30' },
-  'blank-export':   { bg: 'bg-slate-500/20',  icon: 'text-slate-300',  border: 'border-slate-500/30' },
-  'repricer-updater': { bg: 'bg-green-500/20', icon: 'text-green-300', border: 'border-green-500/30' },
-  ean2bbp:          { bg: 'bg-cyan-500/20',   icon: 'text-cyan-300',   border: 'border-cyan-500/30' },
+const WORKFLOW_COLORS: Record<string, {
+  bg: string; icon: string; border: string
+  topColor: string; rightColor: string; bottomColor: string; leftColor: string
+}> = {
+  sellerboard:      { bg: 'bg-blue-500/20',   icon: 'text-blue-300',   border: 'border-blue-500/30',   topColor: 'via-blue-400/70',   rightColor: 'via-blue-500/50',   bottomColor: 'via-blue-400/70',   leftColor: 'via-blue-500/50' },
+  kulturgut:        { bg: 'bg-amber-500/20',  icon: 'text-amber-300',  border: 'border-amber-500/30',  topColor: 'via-amber-400/70',  rightColor: 'via-amber-500/50',  bottomColor: 'via-amber-400/70',  leftColor: 'via-amber-500/50' },
+  'a43-export':     { bg: 'bg-violet-500/20', icon: 'text-violet-300', border: 'border-violet-500/30', topColor: 'via-violet-400/70', rightColor: 'via-violet-500/50', bottomColor: 'via-violet-400/70', leftColor: 'via-violet-500/50' },
+  'avus-export':    { bg: 'bg-rose-500/20',   icon: 'text-rose-300',   border: 'border-rose-500/30',   topColor: 'via-rose-400/70',   rightColor: 'via-rose-500/50',   bottomColor: 'via-rose-400/70',   leftColor: 'via-rose-500/50' },
+  'blank-export':   { bg: 'bg-slate-500/20',  icon: 'text-slate-300',  border: 'border-slate-500/30',  topColor: 'via-slate-400/70',  rightColor: 'via-slate-500/50',  bottomColor: 'via-slate-400/70',  leftColor: 'via-slate-500/50' },
+  'repricer-updater': { bg: 'bg-green-500/20', icon: 'text-green-300', border: 'border-green-500/30', topColor: 'via-green-400/70',  rightColor: 'via-green-500/50',  bottomColor: 'via-green-400/70',  leftColor: 'via-green-500/50' },
+  ean2bbp:          { bg: 'bg-cyan-500/20',   icon: 'text-cyan-300',   border: 'border-cyan-500/30',   topColor: 'via-cyan-400/70',   rightColor: 'via-cyan-500/50',   bottomColor: 'via-cyan-400/70',   leftColor: 'via-cyan-500/50' },
 }
 
 interface WorkflowTileProps {
@@ -126,21 +130,30 @@ export function WorkflowTile({ config }: WorkflowTileProps) {
   return (
     <>
       {/* Tile */}
-      <div className="group flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.05] p-5 transition-all duration-200 hover:bg-white/[0.08] hover:border-white/20 hover:shadow-lg">
+      <AnimatedBorderCard
+        topColor={color.topColor}
+        rightColor={color.rightColor}
+        bottomColor={color.bottomColor}
+        leftColor={color.leftColor}
+        className="group flex flex-col p-5 transition-all duration-200 hover:bg-[#0f2016] cursor-default"
+      >
+        {/* Glow blob */}
+        <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full ${color.bg} blur-2xl opacity-60 pointer-events-none`} />
+
         {/* Icon */}
-        <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${color.bg} ${color.border} border`}>
+        <div className={`relative mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${color.bg} border ${color.border}`}>
           <Icon className={`h-5 w-5 ${color.icon}`} />
         </div>
 
         {/* Label */}
-        <h3 className="mb-1.5 text-sm font-semibold text-white">{config.label}</h3>
+        <h3 className="relative mb-1.5 text-sm font-semibold text-white">{config.label}</h3>
 
         {/* Description */}
-        <p className="mb-5 flex-1 text-xs leading-relaxed text-white/55">{config.description}</p>
+        <p className="relative mb-5 flex-1 text-xs leading-relaxed text-white/60">{config.description}</p>
 
         {/* Admin badge */}
         {config.adminOnly && (
-          <span className="mb-3 inline-flex w-fit items-center rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-300 border border-rose-500/25">
+          <span className="relative mb-3 inline-flex w-fit items-center rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-300 border border-rose-500/25">
             Admin only
           </span>
         )}
@@ -148,12 +161,12 @@ export function WorkflowTile({ config }: WorkflowTileProps) {
         {/* CTA */}
         <button
           onClick={handleOpen}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/12 bg-white/8 px-3 py-2 text-xs font-medium text-white/80 transition-all hover:bg-white/14 hover:border-white/25 hover:text-white"
+          className={`relative flex w-full items-center justify-center gap-1.5 rounded-xl border ${color.border} ${color.bg} px-3 py-2 text-xs font-semibold ${color.icon} transition-all hover:opacity-90 active:scale-95`}
         >
           Workflow starten
           <ArrowRight className="h-3.5 w-3.5" />
         </button>
-      </div>
+      </AnimatedBorderCard>
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={handleClose}>
