@@ -268,3 +268,32 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// DELETE /api/jobs — löscht alle abgeschlossenen Jobs (success/failed/timeout) des Nutzers
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabaseAuth = await createSupabaseServerClient()
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    }
+
+    const supabase = createSupabaseServiceClient()
+
+    const { error: deleteError } = await supabase
+      .from('jobs')
+      .delete()
+      .eq('user_id', user.id)
+      .in('status', ['success', 'failed', 'timeout'])
+
+    if (deleteError) {
+      return NextResponse.json({ error: 'Verlauf konnte nicht gelöscht werden' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (err) {
+    console.error('DELETE /api/jobs error:', err)
+    return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })
+  }
+}

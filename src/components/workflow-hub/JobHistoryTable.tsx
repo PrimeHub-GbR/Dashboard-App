@@ -1,6 +1,8 @@
 'use client'
 
-import { Inbox } from 'lucide-react'
+import { useState } from 'react'
+import { Inbox, Trash2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -11,6 +13,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { WORKFLOW_CONFIGS } from '@/lib/workflow-config'
 import type { Job } from '@/lib/job-types'
 import { StatusBadge } from './StatusBadge'
@@ -21,6 +34,7 @@ interface JobHistoryTableProps {
   jobs: Job[]
   isLoading: boolean
   error: string | null
+  onClear: () => Promise<void>
 }
 
 function formatDateTime(iso: string): string {
@@ -58,11 +72,70 @@ function SkeletonRows() {
   )
 }
 
-export function JobHistoryTable({ jobs, isLoading, error }: JobHistoryTableProps) {
+export function JobHistoryTable({ jobs, isLoading, error, onClear }: JobHistoryTableProps) {
+  const [isClearing, setIsClearing] = useState(false)
+
+  const hasFinishedJobs = jobs.some(
+    (j) => j.status === 'success' || j.status === 'failed' || j.status === 'timeout'
+  )
+
+  async function handleClear() {
+    setIsClearing(true)
+    try {
+      const res = await fetch('/api/jobs', { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        toast.error(body.error ?? 'Verlauf konnte nicht gelöscht werden')
+      } else {
+        toast.success('Verlauf gelöscht')
+        await onClear()
+      }
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Verlauf (letzte 30 Tage)</CardTitle>
+        {hasFinishedJobs && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                disabled={isClearing}
+                className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-50"
+              >
+                {isClearing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Verlauf löschen
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Verlauf löschen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Alle abgeschlossenen Jobs (erfolgreich, fehlgeschlagen, Timeout) werden
+                  unwiderruflich gelöscht. Laufende Jobs bleiben erhalten.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleClear}
+                  className="bg-rose-600 hover:bg-rose-500 text-white"
+                >
+                  Ja, löschen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </CardHeader>
       <CardContent>
         <Table>

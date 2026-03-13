@@ -9,7 +9,7 @@ import { ActiveJobsBanner } from './ActiveJobsBanner'
 import { JobHistoryTable } from './JobHistoryTable'
 
 export function WorkflowHubClient() {
-  const { jobs, isLoading: jobsLoading, error: jobsError } = useJobs()
+  const { jobs, isLoading: jobsLoading, error: jobsError, refresh } = useJobs()
   const { role, isLoading: roleLoading } = useUserRole()
 
   const activeJobs = jobs.filter(
@@ -43,7 +43,7 @@ export function WorkflowHubClient() {
       </div>
 
       <ActiveJobsBanner jobs={activeJobs} />
-      <JobHistoryTable jobs={jobs} isLoading={jobsLoading} error={jobsError} />
+      <JobHistoryTable jobs={jobs} isLoading={jobsLoading} error={jobsError} onClear={refresh} />
     </div>
   )
 }
