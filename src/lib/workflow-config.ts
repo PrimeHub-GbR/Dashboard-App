@@ -10,6 +10,7 @@ export interface WorkflowConfig {
   adminOnly: boolean
   acceptedMimeTypes: string[]
   acceptedExtensions: string
+  verified?: boolean
 }
 
 export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
@@ -91,8 +92,8 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   },
   ean2bbp: {
     key: 'ean2bbp',
-    label: 'EAN → BBP Konvertierung',
-    description: 'EAN-Liste per VLB-API abfragen und in Buchhändler-Bruttopreise (BBP) umwandeln.',
+    label: 'EAN Nummer → Buchbindungspreis',
+    description: 'EAN-Liste hochladen und per VLB-API den Buchbindungspreis (BBP) ergänzen.',
     acceptsFile: true,
     hasResultFile: true,
     adminOnly: false,
@@ -102,6 +103,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
       'application/vnd.ms-excel',
     ],
     acceptedExtensions: '.csv,.xlsx,.xls',
+    verified: true,
   },
 }
 

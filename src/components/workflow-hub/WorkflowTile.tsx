@@ -140,6 +140,16 @@ export function WorkflowTile({ config }: WorkflowTileProps) {
         {/* Glow blob */}
         <div className={`absolute -top-8 -right-8 h-24 w-24 rounded-full ${color.bg} blur-2xl opacity-60 pointer-events-none`} />
 
+        {/* Verified dot */}
+        {config.verified && (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5" title="Getestet & funktioniert">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+            </span>
+          </div>
+        )}
+
         {/* Icon */}
         <div className={`relative mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${color.bg} border ${color.border}`}>
           <Icon className={`h-5 w-5 ${color.icon}`} />
