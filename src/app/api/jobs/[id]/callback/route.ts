@@ -50,24 +50,19 @@ export async function POST(
       return NextResponse.json({ error: 'Ungültige Job-ID' }, { status: 400 })
     }
 
-    // 2. Verify HMAC signature
+    // 2. Verify HMAC signature (optional — skipped if N8N_HMAC_SECRET is not set)
     const hmacSecret = process.env.N8N_HMAC_SECRET
-    if (!hmacSecret) {
-      console.error('N8N_HMAC_SECRET is not configured')
-      return NextResponse.json(
-        { error: 'Server-Konfigurationsfehler' },
-        { status: 500 }
-      )
-    }
 
     const rawBody = await request.text()
-    const signature = request.headers.get('x-n8n-signature')
 
-    if (!verifyHmacSignature(rawBody, signature, hmacSecret)) {
-      return NextResponse.json(
-        { error: 'Ungültige Signatur' },
-        { status: 401 }
-      )
+    if (hmacSecret) {
+      const signature = request.headers.get('x-n8n-signature')
+      if (!verifyHmacSignature(rawBody, signature, hmacSecret)) {
+        return NextResponse.json(
+          { error: 'Ungültige Signatur' },
+          { status: 401 }
+        )
+      }
     }
 
     // 3. Parse and validate body with Zod
