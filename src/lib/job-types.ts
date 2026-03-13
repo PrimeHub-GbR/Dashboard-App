@@ -7,6 +7,7 @@ export type WorkflowKey =
   | 'avus-export'
   | 'blank-export'
   | 'repricer-updater'
+  | 'ean2bbp'
 
 export interface Job {
   id: string

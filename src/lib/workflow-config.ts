@@ -4,6 +4,7 @@ import type { WorkflowKey } from './job-types'
 export interface WorkflowConfig {
   key: WorkflowKey
   label: string
+  description: string
   acceptsFile: boolean
   hasResultFile: boolean
   adminOnly: boolean
@@ -15,6 +16,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   sellerboard: {
     key: 'sellerboard',
     label: 'Sellerboard Import',
+    description: 'Sellerboard-Exporte verarbeiten und in die Datenbank importieren.',
     acceptsFile: true,
     hasResultFile: false,
     adminOnly: false,
@@ -28,6 +30,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   kulturgut: {
     key: 'kulturgut',
     label: 'Kulturgut Katalog',
+    description: 'Kulturgut-Katalog verarbeiten und eine aufbereitete Ergebnis-Datei erstellen.',
     acceptsFile: true,
     hasResultFile: true,
     adminOnly: false,
@@ -41,6 +44,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   'a43-export': {
     key: 'a43-export',
     label: 'A43 Export',
+    description: 'A43-Katalog exportieren, normalisieren und als Download bereitstellen.',
     acceptsFile: true,
     hasResultFile: true,
     adminOnly: false,
@@ -54,6 +58,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   'avus-export': {
     key: 'avus-export',
     label: 'Avus Export',
+    description: 'Avus-Katalog exportieren und aufbereiten. Nur für Administratoren.',
     acceptsFile: true,
     hasResultFile: true,
     adminOnly: true,
@@ -67,6 +72,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   'blank-export': {
     key: 'blank-export',
     label: 'Blank Export',
+    description: 'Leeren Export-Job starten und eine leere Exportdatei generieren.',
     acceptsFile: false,
     hasResultFile: true,
     adminOnly: false,
@@ -76,11 +82,26 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   'repricer-updater': {
     key: 'repricer-updater',
     label: 'Repricer CSV Update',
+    description: 'Repricer-CSV mit aktuellen Marktpreisen befüllen und als Download bereitstellen.',
     acceptsFile: true,
     hasResultFile: true,
     adminOnly: true,
     acceptedMimeTypes: ['text/csv', 'application/vnd.ms-excel', ''],
     acceptedExtensions: '.csv',
+  },
+  ean2bbp: {
+    key: 'ean2bbp',
+    label: 'EAN → BBP Konvertierung',
+    description: 'EAN-Liste per VLB-API abfragen und in Buchhändler-Bruttopreise (BBP) umwandeln.',
+    acceptsFile: true,
+    hasResultFile: true,
+    adminOnly: false,
+    acceptedMimeTypes: [
+      'text/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ],
+    acceptedExtensions: '.csv,.xlsx,.xls',
   },
 }
 
