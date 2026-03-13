@@ -34,6 +34,7 @@ const workflowKeySchema = z.enum([
   'avus-export',
   'blank-export',
   'repricer-updater',
+  'ean2bbp',
 ])
 
 export async function POST(request: NextRequest) {
