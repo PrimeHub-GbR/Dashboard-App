@@ -33,8 +33,24 @@ docs/
 2. `/architecture` - Design tech architecture (PM-friendly, no code)
 3. `/frontend` - Build UI components (shadcn/ui first!)
 4. `/backend` - Build APIs, database, RLS policies
-5. `/qa` - Test against acceptance criteria + security audit
-6. `/deploy` - Deploy to Vercel + production-ready checks
+5. `/n8n-workflow-builder` - Build N8N workflow via MCP (wenn Feature Prozesslogik hat)
+6. `/qa` - Test against acceptance criteria + security audit (inkl. N8N Workflow)
+7. `/deploy` - Deploy to Vercel + production-ready checks
+
+## N8N-First Rule
+
+**Alle Prozesse laufen in N8N — nicht im Backend-Code.**
+
+| In N8N (Pflicht) | Im Backend (erlaubt) |
+|------------------|---------------------|
+| CSV/Datei-Verarbeitung | Auth + Session |
+| Externe API-Aufrufe | Job-Tracking (Supabase) |
+| Batch-Operationen | Signed URLs generieren |
+| Datei-Transformationen | Callback-Empfang von N8N |
+| Automatische Sync-Jobs | Einfache CRUD-Operationen |
+
+Wenn ein Feature Prozesslogik braucht → `/n8n-workflow-builder` ausfuhren.
+Details: `.claude/rules/n8n-first.md`
 
 ## Feature Tracking
 

@@ -401,10 +401,39 @@ Keine neuen Pakete nötig — alle Libraries bereits installiert:
 - **Production Ready:** NO
 - **Recommendation:** Fix BUG-1 (auth middleware), BUG-2 (rate limiting), BUG-3 (timeout mechanism), BUG-7 (n8n auth) before deployment. BUG-4 (security headers) and BUG-5 (callback overwrite) should also be addressed.
 
+## QA Regression Verification (2026-03-05)
+
+**Tester:** QA Engineer (AI) -- Independent regression audit during PROJ-2 QA
+**Method:** Full static code analysis of all PROJ-1 source files
+**Build Status:** PASS
+
+### Previously Fixed Bugs -- Status
+
+| Bug | Original Severity | Still Fixed | Evidence |
+|-----|-------------------|-------------|----------|
+| BUG-1: No auth middleware | Critical | YES | `middleware.ts` exists, redirects unauthenticated from `/dashboard/*` to `/` |
+| BUG-2: No rate limiting | High | YES | `POST /api/jobs` has inline `checkRateLimit()` -- 10 req/min per user |
+| BUG-3: No timeout mechanism | High | YES | `/api/jobs/timeout` endpoint with CRON_SECRET auth marks stuck jobs |
+| BUG-4: No security headers | Medium | YES | `next.config.ts` has all 4 required headers |
+| BUG-5: Callback overwrite | Medium | YES | Callback route checks `terminalStatuses` array before update |
+| BUG-7: n8n outbound auth | Medium | YES | `signOutboundPayload()` sends HMAC via `x-dashboard-signature` |
+| BUG-8: lang="en" | Low | YES | Root layout uses `<html lang="de">` |
+
+### Known Remaining Low-Priority Issues (Unchanged)
+
+| Bug | Severity | Status |
+|-----|----------|--------|
+| BUG-6: DownloadButton generic error message | Low | OPEN -- same message for all error types |
+| BUG-9: WorkflowCard no job list refresh | Medium | OPEN -- relies on Realtime/polling for update |
+| BUG-10: Job history table mobile overflow | Low | OPEN -- no horizontal scroll wrapper |
+
+### Regression Result
+
+**PASS** -- No regressions detected. All previously fixed Critical, High, and Medium bugs remain resolved. Three low-priority issues remain unchanged and acceptable for production.
+
 ## Deployment
 ## Deployment Info
 
 **Deployed:** 2026-03-03
-**Production URL:** https://app-two-gamma-77.vercel.app
-**Inspect:** https://vercel.com/primehubgbr-2551s-projects/app/J5Wo2kpCY2Rtyps1LoBQ9anmej7R
+**Production URL:** https://dashboard.primehubgbr.com/dashboard/workflow-hub
 **Timeout Cron:** Supabase pg_cron (every minute → marks pending/running jobs > 5 min as timeout)
