@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Toaster } from '@/components/ui/sonner'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { DashboardSidebar } from '@/components/DashboardSidebar'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
@@ -10,18 +9,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const userEmail = user?.email ?? null
 
   return (
-    <SidebarProvider>
+    <div className="flex h-screen overflow-hidden">
       <DashboardSidebar userEmail={userEmail} />
-      <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b px-4 lg:hidden">
-          <SidebarTrigger />
-          <span className="font-semibold text-sm">PrimeHub Dashboard</span>
-        </header>
-        <main className="flex-1 p-6 lg:p-8">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-background">
           {children}
         </main>
-      </SidebarInset>
+      </div>
       <Toaster richColors position="top-right" />
-    </SidebarProvider>
+    </div>
   )
 }
