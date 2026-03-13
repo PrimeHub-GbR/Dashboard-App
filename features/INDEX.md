@@ -1,27 +1,63 @@
-# Feature Index
+# Feature Index — PrimeHub Dashboard v2
 
-> Central tracking for all features. Updated by skills automatically.
+> Zentrale Übersicht aller Features. Organisiert nach Dashboard-Tabs.
+> Vor jeder Arbeit lesen. Nach Statusänderung aktualisieren.
 
-## Status Legend
-- **Planned** - Requirements written, ready for development
-- **In Progress** - Currently being built
-- **In Review** - QA testing in progress
-- **Deployed** - Live in production
+## Status-Legende
+- **Planned** — Anforderungen geschrieben, bereit für Entwicklung
+- **In Progress** — Wird gerade gebaut
+- **In Review** — QA-Testing läuft
+- **Deployed** — Live in Produktion
 
-## Features
+---
 
-| ID | Feature | Status | Spec | Created |
-|----|---------|--------|------|---------|
-| PROJ-1 | N8N Workflow Hub (Datei-Upload + Verarbeitung + Download) | Deployed | [PROJ-1-workflow-hub.md](PROJ-1-workflow-hub.md) | 2026-03-03 |
-| PROJ-2 | Bestellungs-Viewer (Google Drive → Supabase → Excel-Ansicht) | Deployed | [PROJ-2-orders-viewer.md](PROJ-2-orders-viewer.md) | 2026-03-03 |
-| PROJ-3 | Preisdatenbank (Sellerboard SKU/ASIN + Repricer Status) | Deployed | [PROJ-3-price-database.md](PROJ-3-price-database.md) | 2026-03-03 |
-| PROJ-4 | Login / Authentifizierung (Email + Passwort, Supabase Auth) | Deployed | [PROJ-4-login.md](PROJ-4-login.md) | 2026-03-03 |
-| PROJ-5 | Dashboard-Navigation (Sidebar Shell für alle Features) | Deployed | [PROJ-5-dashboard-nav.md](PROJ-5-dashboard-nav.md) | 2026-03-03 |
-| PROJ-6 | Custom Domain Setup (dashboard.primehubgbr.com) | Deployed | [PROJ-6-custom-domain.md](PROJ-6-custom-domain.md) | 2026-03-04 |
-| PROJ-7 | n8n Workflow Monitor (Liste, Status, Toggle, Statistiken) | Deployed | [PROJ-7-workflow-monitor.md](PROJ-7-workflow-monitor.md) | 2026-03-04 |
-| PROJ-8 | Repricer CSV Update (ISBN→EAN→BBP, Preise aktualisieren) | Deployed | [PROJ-8-repricer-update.md](PROJ-8-repricer-update.md) | 2026-03-07 |
-| PROJ-9 | Repricer Dashboard (CSV Upload + Status + Download im Browser) | Deployed | [PROJ-9-repricer-dashboard.md](PROJ-9-repricer-dashboard.md) | 2026-03-08 |
+## Workflow Hub `/dashboard/workflow-hub`
 
-<!-- Add features above this line -->
+| Feature | Status | Spec |
+|---------|--------|------|
+| Upload + N8N-Trigger + Download | Deployed | [workflow-hub/overview.md](workflow-hub/overview.md) |
+| N8N Repricer-Workflow (ISBN→EAN→BBP) | Deployed | [workflow-hub/n8n-workflow-builder.md](workflow-hub/n8n-workflow-builder.md) |
 
-## Next Available ID: PROJ-10
+## Workflow Monitor `/dashboard/workflows`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| N8N Liste + Toggle + Statistiken | Deployed | [workflow-monitor/overview.md](workflow-monitor/overview.md) |
+
+## Bestellungen `/dashboard/orders`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Google Drive → Supabase → Tabelle | Deployed | [orders/overview.md](orders/overview.md) |
+
+## Preisdatenbank `/dashboard/prices`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| SKU/ASIN + EAN-Map + Repricer Status | Deployed | [prices/overview.md](prices/overview.md) |
+
+## Repricer `/dashboard/repricer`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Dashboard (Upload + Status + Download) | Deployed | [repricer/dashboard.md](repricer/dashboard.md) |
+| N8N Updater (Preisberechnung) | Deployed | [repricer/n8n-updater.md](repricer/n8n-updater.md) |
+
+---
+
+## Foundation (kein Tab — Querschnittsfunktionen)
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Login / Authentifizierung | Deployed | [_foundation/login.md](_foundation/login.md) |
+| Dashboard-Navigation (Sidebar) | Deployed | [_foundation/navigation.md](_foundation/navigation.md) |
+| Custom Domain Setup | Deployed | [_foundation/custom-domain.md](_foundation/custom-domain.md) |
+
+---
+
+## Neues Feature anlegen
+
+1. Passenden Tab-Ordner wählen (oder `_foundation/` für Querschnitt)
+2. Spec-Datei anlegen: `features/<tab>/<slug>.md`
+3. Zeile in der passenden Tab-Tabelle oben eintragen, Status: `Planned`
+4. Commit: `feat(<tab>/<slug>): initial spec`
