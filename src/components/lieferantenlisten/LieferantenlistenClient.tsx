@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Mail, Calendar, Download, Inbox, Upload, Loader2 } from 'lucide-react'
+import { Mail, Calendar, Download, Inbox, Upload, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -37,10 +42,12 @@ interface ListEntry {
 }
 
 export function LieferantenlistenClient() {
-  const [activeTab, setActiveTab]     = useState('blank')
-  const [entries, setEntries]         = useState<ListEntry[]>([])
-  const [isLoading, setIsLoading]     = useState(true)
-  const [uploadOpen, setUploadOpen]   = useState(false)
+  const [activeTab, setActiveTab]       = useState('blank')
+  const [entries, setEntries]           = useState<ListEntry[]>([])
+  const [isLoading, setIsLoading]       = useState(true)
+  const [uploadOpen, setUploadOpen]     = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ListEntry | null>(null)
+  const [isDeleting, setIsDeleting]     = useState(false)
 
   const fetchEntries = useCallback(async () => {
     try {
@@ -56,6 +63,24 @@ export function LieferantenlistenClient() {
   }, [])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
+
+  const handleDelete = useCallback(async (entry: ListEntry) => {
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/lieferantenlisten/${entry.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Löschen fehlgeschlagen')
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id))
+      toast.success('Eintrag gelöscht')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
+    } finally {
+      setIsDeleting(false)
+      setDeleteTarget(null)
+    }
+  }, [])
 
   const handleDownload = async (id: string, filename: string, type: 'original' | 'result') => {
     try {
@@ -132,18 +157,19 @@ export function LieferantenlistenClient() {
                         <TableHead>Listendatum</TableHead>
                         <TableHead className="text-center">Original</TableHead>
                         <TableHead className="text-center">Gefiltert</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8">
+                          <TableCell colSpan={5} className="text-center py-8">
                             <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       ) : filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4}>
+                          <TableCell colSpan={5}>
                             <EmptyState lieferant={lieferant.label} onUpload={() => setUploadOpen(true)} />
                           </TableCell>
                         </TableRow>
@@ -189,6 +215,16 @@ export function LieferantenlistenClient() {
                                 <span className="text-xs text-muted-foreground/50">—</span>
                               )}
                             </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteTarget(entry)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))
                       )}
@@ -211,6 +247,33 @@ export function LieferantenlistenClient() {
           fetchEntries()
         }}
       />
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open && !isDeleting) setDeleteTarget(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eintrag wirklich löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-mono text-xs">{deleteTarget?.filename}</span> wird dauerhaft
+              gelöscht — inklusive aller gespeicherten Dateien. Diese Aktion kann nicht rückgängig
+              gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && handleDelete(deleteTarget)}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
