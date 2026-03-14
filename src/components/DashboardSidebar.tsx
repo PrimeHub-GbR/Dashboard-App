@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Workflow, ShoppingCart, Database, RefreshCw, LogOut } from 'lucide-react'
+import { LayoutDashboard, Workflow, ShoppingCart, Database, RefreshCw, LogOut, Package } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/client'
 import { McpStatus } from '@/components/McpStatus'
@@ -38,6 +38,12 @@ const navItems = [
     desc: 'Automatische Preise',
     href: '/dashboard/repricer',
     icon: RefreshCw,
+  },
+  {
+    label: 'Lieferantenlisten',
+    desc: 'Blank · A43-Kulturgut · Avus',
+    href: '/dashboard/lieferantenlisten',
+    icon: Package,
   },
 ]
 
