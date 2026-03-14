@@ -19,7 +19,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
     label: 'Sellerboard Import',
     description: 'Sellerboard-Exporte verarbeiten und in die Datenbank importieren.',
     acceptsFile: true,
-    hasResultFile: false,
+    hasResultFile: true,
     adminOnly: false,
     acceptedMimeTypes: [
       'text/csv',
