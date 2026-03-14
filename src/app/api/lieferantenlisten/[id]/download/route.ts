@@ -10,6 +10,7 @@ export async function GET(
 ) {
   try {
     const { id: entryId } = await params
+    const type = request.nextUrl.searchParams.get('type') // 'original' | 'result'
 
     // 1. Validate ID format (UUID)
     const uuidRegex =
@@ -39,7 +40,7 @@ export async function GET(
     const supabase = createSupabaseServiceClient()
     const { data: entry, error: queryError } = await supabase
       .from('lieferantenlisten')
-      .select('uploaded_by, file_path')
+      .select('uploaded_by, file_path, result_file_path')
       .eq('id', entryId)
       .single()
 
@@ -58,11 +59,22 @@ export async function GET(
       )
     }
 
-    // 4. Generate signed URL (valid for 1 hour)
+    // 4. Determine which file to serve
+    const filePath =
+      type === 'result' ? entry.result_file_path : entry.file_path
+
+    if (!filePath) {
+      return NextResponse.json(
+        { error: 'Gefilterte Datei noch nicht verfügbar' },
+        { status: 404 }
+      )
+    }
+
+    // 5. Generate signed URL (valid for 1 hour)
     const { data: signedUrlData, error: signedUrlError } =
       await supabase.storage
         .from('lieferantenlisten')
-        .createSignedUrl(entry.file_path, 3600)
+        .createSignedUrl(filePath, 3600)
 
     if (signedUrlError || !signedUrlData?.signedUrl) {
       console.error('Signed URL generation failed:', signedUrlError)
