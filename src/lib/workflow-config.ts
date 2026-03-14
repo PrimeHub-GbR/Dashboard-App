@@ -27,6 +27,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
       'application/vnd.ms-excel',
     ],
     acceptedExtensions: '.csv,.xlsx,.xls',
+    verified: true,
   },
   kulturgut: {
     key: 'kulturgut',
