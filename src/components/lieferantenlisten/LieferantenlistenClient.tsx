@@ -129,7 +129,7 @@ export function LieferantenlistenClient() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Dateiname</TableHead>
-                        <TableHead>Bestelldatum</TableHead>
+                        <TableHead>Listendatum</TableHead>
                         <TableHead className="text-center">Original</TableHead>
                         <TableHead className="text-center">Gefiltert</TableHead>
                       </TableRow>
@@ -310,9 +310,9 @@ function UploadDialog({
             </Select>
           </div>
 
-          {/* Bestelldatum */}
+          {/* Listendatum */}
           <div className="space-y-1.5">
-            <Label>Bestelldatum</Label>
+            <Label>Listendatum</Label>
             <Input
               type="date"
               value={bestelldatum}
@@ -320,7 +320,7 @@ function UploadDialog({
               max={new Date().toISOString().split('T')[0]}
             />
             <p className="text-xs text-muted-foreground">
-              Wann ist die Bestellung bei diesem Lieferanten eingegangen?
+              An welchem Tag wurde diese Liste versandt?
             </p>
           </div>
 
