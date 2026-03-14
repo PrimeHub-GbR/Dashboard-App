@@ -133,6 +133,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 9. Trigger N8N workflow in the background (fire-and-forget)
+    const n8nWebhookBase = process.env.N8N_WEBHOOK_BASE_URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://dashboard.primehubgbr.com'
+    if (n8nWebhookBase) {
+      const payload = {
+        entry_id: entry.id,
+        lieferant,
+        file_path: filePath,
+        callback_url: `${appUrl}/api/lieferantenlisten/${entry.id}/callback`,
+      }
+      fetch(`${n8nWebhookBase}/lieferantenlisten-${lieferant}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch((err) => {
+        console.error('N8N trigger failed (non-blocking):', err)
+      })
+    }
+
     return NextResponse.json(entry, { status: 201 })
   } catch (err) {
     console.error('POST /api/lieferantenlisten error:', err)
