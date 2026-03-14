@@ -39,6 +39,7 @@ interface ListEntry {
   result_file_path: string | null
   listendatum: string
   created_at: string
+  rabatt_prozent: number | null
 }
 
 type RabattMap = Record<string, number>
@@ -223,6 +224,7 @@ export function LieferantenlistenClient() {
                       <TableRow>
                         <TableHead>Dateiname</TableHead>
                         <TableHead>Listendatum</TableHead>
+                        <TableHead className="text-center">Rabatt</TableHead>
                         <TableHead className="text-center">Original</TableHead>
                         <TableHead className="text-center">Gefiltert</TableHead>
                         <TableHead className="w-10"></TableHead>
@@ -231,13 +233,13 @@ export function LieferantenlistenClient() {
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
+                          <TableCell colSpan={6} className="text-center py-8">
                             <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                           </TableCell>
                         </TableRow>
                       ) : filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5}>
+                          <TableCell colSpan={6}>
                             <EmptyState lieferant={lieferant.label} onUpload={() => setUploadOpen(true)} />
                           </TableCell>
                         </TableRow>
@@ -252,6 +254,16 @@ export function LieferantenlistenClient() {
                                   day: '2-digit', month: '2-digit', year: 'numeric',
                                 })}
                               </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {entry.rabatt_prozent != null ? (
+                                <Badge variant="secondary" className="gap-1">
+                                  <Percent className="h-3 w-3" />
+                                  {entry.rabatt_prozent}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground/50">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-center">
                               <Button
