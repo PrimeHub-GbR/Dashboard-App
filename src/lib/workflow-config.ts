@@ -17,7 +17,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
   sellerboard: {
     key: 'sellerboard',
     label: 'Sellerboard Import',
-    description: 'Sellerboard-Exporte verarbeiten und in die Datenbank importieren.',
+    description: 'Sellerboard-Exportdatei hochladen — EK-Preise aus Bestellungen werden ergänzt und die Datei steht zum Re-Import bereit.',
     acceptsFile: true,
     hasResultFile: true,
     adminOnly: false,
