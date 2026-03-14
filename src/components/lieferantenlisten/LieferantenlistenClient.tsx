@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Mail, Calendar, Download, Inbox, Upload, Loader2, Trash2 } from 'lucide-react'
+import { Mail, Calendar, Download, Inbox, Upload, Loader2, Trash2, Percent } from 'lucide-react'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -41,6 +41,9 @@ interface ListEntry {
   created_at: string
 }
 
+type RabattMap = Record<string, number>
+type SavingMap = Record<string, boolean>
+
 export function LieferantenlistenClient() {
   const [activeTab, setActiveTab]       = useState('blank')
   const [entries, setEntries]           = useState<ListEntry[]>([])
@@ -48,6 +51,34 @@ export function LieferantenlistenClient() {
   const [uploadOpen, setUploadOpen]     = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ListEntry | null>(null)
   const [isDeleting, setIsDeleting]     = useState(false)
+  const [rabatte, setRabatte]           = useState<RabattMap>({ blank: 0, 'a43-kulturgut': 0, avus: 0 })
+  const [savingKey, setSavingKey]       = useState<SavingMap>({})
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/lieferantenlisten/settings')
+      if (!res.ok) return
+      const data: RabattMap = await res.json()
+      setRabatte(data)
+    } catch { /* non-critical */ }
+  }, [])
+
+  const handleSaveRabatt = useCallback(async (key: string) => {
+    setSavingKey((prev) => ({ ...prev, [key]: true }))
+    try {
+      const res = await fetch('/api/lieferantenlisten/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lieferant: key, rabatt_prozent: rabatte[key] }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Rabatt gespeichert')
+    } catch {
+      toast.error('Speichern fehlgeschlagen')
+    } finally {
+      setSavingKey((prev) => ({ ...prev, [key]: false }))
+    }
+  }, [rabatte])
 
   const fetchEntries = useCallback(async () => {
     try {
@@ -62,7 +93,7 @@ export function LieferantenlistenClient() {
     }
   }, [])
 
-  useEffect(() => { fetchEntries() }, [fetchEntries])
+  useEffect(() => { fetchEntries(); fetchSettings() }, [fetchEntries, fetchSettings])
 
   const handleDelete = useCallback(async (entry: ListEntry) => {
     setIsDeleting(true)
@@ -122,6 +153,43 @@ export function LieferantenlistenClient() {
           Listen werden automatisch per E-Mail aktualisiert. Ältere Bestellungen können manuell hochgeladen werden.
         </AlertDescription>
       </Alert>
+
+      {/* Rabatt-Einstellungen */}
+      <div className="rounded-md border p-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Percent className="h-4 w-4 text-muted-foreground" />
+          Rabatt-Einstellungen
+        </div>
+        <div className="grid gap-2">
+          {LIEFERANTEN.map((l) => (
+            <div key={l.key} className="flex items-center gap-3">
+              <span className="w-36 text-sm text-muted-foreground">{l.label}</span>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={rabatte[l.key] ?? 0}
+                  onChange={(e) =>
+                    setRabatte((prev) => ({ ...prev, [l.key]: parseFloat(e.target.value) || 0 }))
+                  }
+                  className="w-20 text-right"
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!!savingKey[l.key]}
+                onClick={() => handleSaveRabatt(l.key)}
+              >
+                {savingKey[l.key] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Speichern'}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

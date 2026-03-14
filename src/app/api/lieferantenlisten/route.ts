@@ -137,10 +137,21 @@ export async function POST(request: NextRequest) {
     const n8nWebhookBase = process.env.N8N_WEBHOOK_BASE_URL
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://dashboard.primehubgbr.com'
     if (n8nWebhookBase) {
+      // Fetch discount for this supplier (default 0 if not set)
+      let rabattProzent = 0
+      const { data: settingRow } = await supabase
+        .from('lieferantenlisten_settings')
+        .select('rabatt_prozent')
+        .eq('user_id', user.id)
+        .eq('lieferant', lieferant)
+        .single()
+      if (settingRow) rabattProzent = Number(settingRow.rabatt_prozent)
+
       const payload = {
         entry_id: entry.id,
         lieferant,
         file_path: filePath,
+        rabatt_prozent: rabattProzent,
         callback_url: `${appUrl}/api/lieferantenlisten/${entry.id}/callback`,
       }
       fetch(`${n8nWebhookBase}/lieferantenlisten-${lieferant}`, {
