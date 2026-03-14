@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   Loader2, ArrowRight, CheckCircle2,
   BarChart3, BookOpen, FileDown, ShieldCheck,
-  FileOutput, RefreshCw, ArrowLeftRight, Hash, type LucideIcon,
+  FileOutput, RefreshCw, ArrowLeftRight, Hash, Tags, type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ const WORKFLOW_ICONS: Record<string, LucideIcon> = {
   'repricer-updater': RefreshCw,
   ean2bbp: ArrowLeftRight,
   isbn2ean: Hash,
+  ean2isbn: Tags,
 }
 
 const WORKFLOW_COLORS: Record<string, {
@@ -42,6 +43,7 @@ const WORKFLOW_COLORS: Record<string, {
   'repricer-updater': { bg: 'bg-green-500/20', icon: 'text-green-300', border: 'border-green-500/30', topColor: 'via-green-400/70',  rightColor: 'via-green-500/50',  bottomColor: 'via-green-400/70',  leftColor: 'via-green-500/50' },
   ean2bbp:          { bg: 'bg-cyan-500/20',   icon: 'text-cyan-300',   border: 'border-cyan-500/30',   topColor: 'via-cyan-400/70',   rightColor: 'via-cyan-500/50',   bottomColor: 'via-cyan-400/70',   leftColor: 'via-cyan-500/50' },
   isbn2ean:         { bg: 'bg-orange-500/20', icon: 'text-orange-300', border: 'border-orange-500/30', topColor: 'via-orange-400/70', rightColor: 'via-orange-500/50', bottomColor: 'via-orange-400/70', leftColor: 'via-orange-500/50' },
+  ean2isbn:         { bg: 'bg-teal-500/20',   icon: 'text-teal-300',   border: 'border-teal-500/30',   topColor: 'via-teal-400/70',   rightColor: 'via-teal-500/50',   bottomColor: 'via-teal-400/70',   leftColor: 'via-teal-500/50' },
 }
 
 interface WorkflowTileProps {

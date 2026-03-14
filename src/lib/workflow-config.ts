@@ -90,6 +90,20 @@ export const WORKFLOW_CONFIGS: Record<WorkflowKey, WorkflowConfig> = {
     acceptedMimeTypes: ['text/csv', 'application/vnd.ms-excel', ''],
     acceptedExtensions: '.csv',
   },
+  ean2isbn: {
+    key: 'ean2isbn',
+    label: 'EAN → ISBN10 / ASIN',
+    description: 'EAN-13-Liste hochladen und in ISBN-10- bzw. ASIN-Nummern umrechnen lassen.',
+    acceptsFile: true,
+    hasResultFile: true,
+    adminOnly: false,
+    acceptedMimeTypes: [
+      'text/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+    ],
+    acceptedExtensions: '.csv,.xlsx,.xls',
+  },
   isbn2ean: {
     key: 'isbn2ean',
     label: 'ISBN / ASIN → EAN',

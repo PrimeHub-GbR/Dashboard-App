@@ -36,6 +36,7 @@ const workflowKeySchema = z.enum([
   'repricer-updater',
   'ean2bbp',
   'isbn2ean',
+  'ean2isbn',
 ])
 
 export async function POST(request: NextRequest) {

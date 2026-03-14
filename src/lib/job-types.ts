@@ -9,6 +9,7 @@ export type WorkflowKey =
   | 'repricer-updater'
   | 'ean2bbp'
   | 'isbn2ean'
+  | 'ean2isbn'
 
 export interface Job {
   id: string
