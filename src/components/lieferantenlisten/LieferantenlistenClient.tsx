@@ -32,7 +32,7 @@ interface ListEntry {
   filename: string
   file_path: string
   result_file_path: string | null
-  bestelldatum: string
+  listendatum: string
   created_at: string
 }
 
@@ -154,7 +154,7 @@ export function LieferantenlistenClient() {
                             <TableCell className="text-muted-foreground">
                               <div className="flex items-center gap-1.5">
                                 <Calendar className="h-3.5 w-3.5" />
-                                {new Date(entry.bestelldatum).toLocaleDateString('de-DE', {
+                                {new Date(entry.listendatum).toLocaleDateString('de-DE', {
                                   day: '2-digit', month: '2-digit', year: 'numeric',
                                 })}
                               </div>
@@ -247,7 +247,7 @@ function UploadDialog({
   onSuccess: () => void
 }) {
   const [lieferant, setLieferant]     = useState(defaultLieferant)
-  const [bestelldatum, setBestelldatum] = useState('')
+  const [listendatum, setBestelldatum] = useState('')
   const [file, setFile]               = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -260,7 +260,7 @@ function UploadDialog({
     }
   }, [open, defaultLieferant])
 
-  const canSubmit = lieferant && bestelldatum && file && !isSubmitting
+  const canSubmit = lieferant && listendatum && file && !isSubmitting
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -268,7 +268,7 @@ function UploadDialog({
     try {
       const formData = new FormData()
       formData.append('lieferant', lieferant)
-      formData.append('bestelldatum', bestelldatum)
+      formData.append('listendatum', listendatum)
       formData.append('file', file)
 
       const res = await fetch('/api/lieferantenlisten', {
@@ -315,7 +315,7 @@ function UploadDialog({
             <Label>Listendatum</Label>
             <Input
               type="date"
-              value={bestelldatum}
+              value={listendatum}
               onChange={(e) => setBestelldatum(e.target.value)}
               max={new Date().toISOString().split('T')[0]}
             />

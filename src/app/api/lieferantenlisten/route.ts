@@ -14,7 +14,7 @@ const ACCEPTED_MIME_TYPES = [
 ]
 
 const lieferantSchema = z.enum(['blank', 'a43-kulturgut', 'avus'])
-const bestelldatumSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat (YYYY-MM-DD)')
+const listendatumSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ungültiges Datumsformat (YYYY-MM-DD)')
 
 // POST /api/lieferantenlisten — Upload a supplier list file
 export async function POST(request: NextRequest) {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // 2. Parse FormData
     const formData = await request.formData()
     const rawLieferant = formData.get('lieferant')
-    const rawBestelldatum = formData.get('bestelldatum')
+    const rawListendatum = formData.get('listendatum')
     const file = formData.get('file') as File | null
 
     // 3. Validate lieferant
@@ -49,18 +49,18 @@ export async function POST(request: NextRequest) {
     }
     const lieferant = lieferantResult.data
 
-    // 4. Validate bestelldatum
-    const datumResult = bestelldatumSchema.safeParse(rawBestelldatum)
+    // 4. Validate listendatum
+    const datumResult = listendatumSchema.safeParse(rawListendatum)
     if (!datumResult.success) {
       return NextResponse.json(
-        { error: 'Ungültiges Bestelldatum. Format: YYYY-MM-DD' },
+        { error: 'Ungültiges Listendatum. Format: YYYY-MM-DD' },
         { status: 400 }
       )
     }
-    const bestelldatum = datumResult.data
+    const listendatum = datumResult.data
 
     // Verify it's actually a valid date (not e.g. 2026-02-30)
-    const parsedDate = new Date(bestelldatum)
+    const parsedDate = new Date(listendatum)
     if (isNaN(parsedDate.getTime())) {
       return NextResponse.json(
         { error: 'Ungültiges Datum' },
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         lieferant,
         filename: file.name,
         file_path: filePath,
-        bestelldatum,
+        listendatum,
         uploaded_by: user.id,
       })
       .select()
@@ -163,12 +163,12 @@ export async function GET() {
     // 2. Service role client for DB query
     const supabase = createSupabaseServiceClient()
 
-    // 3. Query entries ordered by bestelldatum DESC, created_at DESC
+    // 3. Query entries ordered by listendatum DESC, created_at DESC
     const { data: entries, error: queryError } = await supabase
       .from('lieferantenlisten')
       .select('*')
       .eq('uploaded_by', user.id)
-      .order('bestelldatum', { ascending: false })
+      .order('listendatum', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(200)
 
