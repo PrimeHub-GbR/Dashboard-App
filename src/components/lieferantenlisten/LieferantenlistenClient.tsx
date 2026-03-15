@@ -273,9 +273,9 @@ export function LieferantenlistenClient() {
                       <TableCell className="text-center">
                         {entry.result_file_path ? (
                           <Button
-                            variant="default"
+                            variant="ghost"
                             size="sm"
-                            className="gap-1.5"
+                            className="gap-1.5 hover:text-green-600 hover:bg-green-500/10"
                             onClick={() => handleDownload(
                               entry.id,
                               entry.filename.replace(/(\.[^.]+)$/, '_gefiltert$1'),
