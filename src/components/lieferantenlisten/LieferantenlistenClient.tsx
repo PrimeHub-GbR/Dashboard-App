@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Mail, Calendar, Download, Inbox, Upload, Loader2, Trash2, Percent } from 'lucide-react'
+import {
+  Mail, Calendar, Download, Inbox, Upload, Loader2, Trash2,
+  Percent, ChevronDown, ChevronRight, Archive,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -46,12 +49,13 @@ type RabattMap = Record<string, number>
 type SavingMap = Record<string, boolean>
 
 export function LieferantenlistenClient() {
-  const [activeTab, setActiveTab]       = useState('blank')
   const [entries, setEntries]           = useState<ListEntry[]>([])
   const [isLoading, setIsLoading]       = useState(true)
   const [uploadOpen, setUploadOpen]     = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ListEntry | null>(null)
   const [isDeleting, setIsDeleting]     = useState(false)
+  const [archiveOpen, setArchiveOpen]   = useState(false)
+  const [archiveTab, setArchiveTab]     = useState('blank')
   const [rabatte, setRabatte]           = useState<RabattMap>({ blank: 0, 'a43-kulturgut': 0, avus: 0 })
   const [savingKey, setSavingKey]       = useState<SavingMap>({})
 
@@ -131,6 +135,14 @@ export function LieferantenlistenClient() {
     }
   }
 
+  // Latest entry per supplier (sorted by listendatum desc)
+  const latestBySupplier = LIEFERANTEN.map((l) => {
+    const sorted = entries
+      .filter((e) => e.lieferant === l.key)
+      .sort((a, b) => new Date(b.listendatum).getTime() - new Date(a.listendatum).getTime())
+    return { ...l, entry: sorted[0] ?? null }
+  })
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -192,135 +204,244 @@ export function LieferantenlistenClient() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          {LIEFERANTEN.map((l) => {
-            const count = entries.filter((e) => e.lieferant === l.key).length
-            return (
-              <TabsTrigger key={l.key} value={l.key}>
-                {l.label}
-                {count > 0 && (
-                  <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
-                    {count}
-                  </Badge>
+      {/* ── Übersicht: jeweils letzte Datei pro Lieferant ── */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          latestBySupplier.map(({ key, label, entry }) => (
+            <div key={key} className="rounded-md border overflow-hidden">
+              {/* Lieferant-Header */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b">
+                <span className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
+                  {label}
+                </span>
+                {entry && (
+                  <span className="text-xs text-muted-foreground">
+                    {entries.filter((e) => e.lieferant === key).length} Einträge gesamt
+                  </span>
                 )}
-              </TabsTrigger>
-            )
-          })}
-        </TabsList>
-
-        {LIEFERANTEN.map((lieferant) => {
-          const filtered = entries.filter((e) => e.lieferant === lieferant.key)
-          return (
-            <TabsContent key={lieferant.key} value={lieferant.key} className="mt-4">
-              <div className="space-y-2">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
-                  {lieferant.label} ({filtered.length})
-                </h2>
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Dateiname</TableHead>
-                        <TableHead>Listendatum</TableHead>
-                        <TableHead className="text-center">Rabatt</TableHead>
-                        <TableHead className="text-center">Original</TableHead>
-                        <TableHead className="text-center">Gefiltert</TableHead>
-                        <TableHead className="w-10"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoading ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8">
-                            <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-                          </TableCell>
-                        </TableRow>
-                      ) : filtered.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6}>
-                            <EmptyState lieferant={lieferant.label} onUpload={() => setUploadOpen(true)} />
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filtered.map((entry) => (
-                          <TableRow key={entry.id}>
-                            <TableCell className="font-mono text-xs">{entry.filename}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              <div className="flex items-center gap-1.5">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {new Date(entry.listendatum).toLocaleDateString('de-DE', {
-                                  day: '2-digit', month: '2-digit', year: 'numeric',
-                                })}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {entry.rabatt_prozent != null ? (
-                                <Badge variant="secondary" className="gap-1">
-                                  <Percent className="h-3 w-3" />
-                                  {entry.rabatt_prozent}
-                                </Badge>
-                              ) : (
-                                <span className="text-xs text-muted-foreground/50">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5"
-                                onClick={() => handleDownload(entry.id, entry.filename, 'original')}
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                                Download
-                              </Button>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {entry.result_file_path ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1.5"
-                                  onClick={() => handleDownload(
-                                    entry.id,
-                                    entry.filename.replace(/(\.[^.]+)$/, '_gefiltert$1'),
-                                    'result'
-                                  )}
-                                >
-                                  <Download className="h-3.5 w-3.5" />
-                                  Download
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground/50">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={() => setDeleteTarget(entry)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
               </div>
-            </TabsContent>
-          )
-        })}
-      </Tabs>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dateiname</TableHead>
+                    <TableHead>Listendatum</TableHead>
+                    <TableHead className="text-center">Rabatt</TableHead>
+                    <TableHead className="text-center">Original</TableHead>
+                    <TableHead className="text-center">Gefiltert</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entry ? (
+                    <TableRow>
+                      <TableCell className="font-mono text-xs">{entry.filename}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {new Date(entry.listendatum).toLocaleDateString('de-DE', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                          })}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {entry.rabatt_prozent != null ? (
+                          <Badge variant="secondary" className="gap-1">
+                            <Percent className="h-3 w-3" />
+                            {entry.rabatt_prozent}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => handleDownload(entry.id, entry.filename, 'original')}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {entry.result_file_path ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => handleDownload(
+                              entry.id,
+                              entry.filename.replace(/(\.[^.]+)$/, '_gefiltert$1'),
+                              'result'
+                            )}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Download
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
+                        <Inbox className="h-5 w-5 mx-auto mb-1.5 opacity-40" />
+                        Noch keine Liste vorhanden
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ── Archiv (aufklappbar) ── */}
+      <div className="rounded-md border overflow-hidden">
+        <button
+          onClick={() => setArchiveOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Archive className="h-4 w-4 text-muted-foreground" />
+            Archiv — alle Listen
+          </div>
+          {archiveOpen
+            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            : <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          }
+        </button>
+
+        {archiveOpen && (
+          <div className="p-4">
+            <Tabs value={archiveTab} onValueChange={setArchiveTab}>
+              <TabsList>
+                {LIEFERANTEN.map((l) => {
+                  const count = entries.filter((e) => e.lieferant === l.key).length
+                  return (
+                    <TabsTrigger key={l.key} value={l.key}>
+                      {l.label}
+                      {count > 0 && (
+                        <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
+                          {count}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+
+              {LIEFERANTEN.map((lieferant) => {
+                const filtered = entries
+                  .filter((e) => e.lieferant === lieferant.key)
+                  .sort((a, b) => new Date(b.listendatum).getTime() - new Date(a.listendatum).getTime())
+                return (
+                  <TabsContent key={lieferant.key} value={lieferant.key} className="mt-4">
+                    <div className="overflow-x-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Dateiname</TableHead>
+                            <TableHead>Listendatum</TableHead>
+                            <TableHead className="text-center">Rabatt</TableHead>
+                            <TableHead className="text-center">Original</TableHead>
+                            <TableHead className="text-center">Gefiltert</TableHead>
+                            <TableHead className="w-10"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filtered.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="py-8 text-center">
+                                <Inbox className="h-5 w-5 mx-auto mb-1.5 opacity-40" />
+                                <span className="text-sm text-muted-foreground">Keine Einträge</span>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filtered.map((entry) => (
+                              <TableRow key={entry.id}>
+                                <TableCell className="font-mono text-xs">{entry.filename}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {new Date(entry.listendatum).toLocaleDateString('de-DE', {
+                                      day: '2-digit', month: '2-digit', year: 'numeric',
+                                    })}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {entry.rabatt_prozent != null ? (
+                                    <Badge variant="secondary" className="gap-1">
+                                      <Percent className="h-3 w-3" />
+                                      {entry.rabatt_prozent}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/50">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5"
+                                    onClick={() => handleDownload(entry.id, entry.filename, 'original')}
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    Download
+                                  </Button>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {entry.result_file_path ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="gap-1.5"
+                                      onClick={() => handleDownload(
+                                        entry.id,
+                                        entry.filename.replace(/(\.[^.]+)$/, '_gefiltert$1'),
+                                        'result'
+                                      )}
+                                    >
+                                      <Download className="h-3.5 w-3.5" />
+                                      Download
+                                    </Button>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/50">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    onClick={() => setDeleteTarget(entry)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                )
+              })}
+            </Tabs>
+          </div>
+        )}
+      </div>
 
       {/* Upload Dialog */}
       <UploadDialog
         open={uploadOpen}
-        defaultLieferant={activeTab}
         onClose={() => setUploadOpen(false)}
         onSuccess={() => {
           setUploadOpen(false)
@@ -358,50 +479,27 @@ export function LieferantenlistenClient() {
   )
 }
 
-function EmptyState({ lieferant, onUpload }: { lieferant: string; onUpload: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 py-12 text-center">
-      <Inbox className="h-8 w-8 text-muted-foreground/50" />
-      <div>
-        <p className="text-sm font-medium">Noch keine Listen vorhanden</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Automatisch per E-Mail oder{' '}
-          <button onClick={onUpload} className="underline hover:text-foreground transition-colors">
-            manuell hochladen
-          </button>
-        </p>
-      </div>
-      <p className="text-xs text-muted-foreground/60">
-        Lieferant: <span className="font-medium text-muted-foreground">{lieferant}</span>
-      </p>
-    </div>
-  )
-}
-
 function UploadDialog({
   open,
-  defaultLieferant,
   onClose,
   onSuccess,
 }: {
   open: boolean
-  defaultLieferant: string
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [lieferant, setLieferant]     = useState(defaultLieferant)
-  const [listendatum, setBestelldatum] = useState('')
-  const [file, setFile]               = useState<File | null>(null)
+  const [lieferant, setLieferant]       = useState('blank')
+  const [listendatum, setListendatum]   = useState('')
+  const [file, setFile]                 = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Reset when dialog opens
   useEffect(() => {
     if (open) {
-      setLieferant(defaultLieferant)
-      setBestelldatum('')
+      setLieferant('blank')
+      setListendatum('')
       setFile(null)
     }
-  }, [open, defaultLieferant])
+  }, [open])
 
   const canSubmit = lieferant && listendatum && file && !isSubmitting
 
@@ -438,7 +536,6 @@ function UploadDialog({
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          {/* Lieferant */}
           <div className="space-y-1.5">
             <Label>Lieferant</Label>
             <Select value={lieferant} onValueChange={setLieferant}>
@@ -453,21 +550,16 @@ function UploadDialog({
             </Select>
           </div>
 
-          {/* Listendatum */}
           <div className="space-y-1.5">
             <Label>Listendatum</Label>
             <Input
               type="date"
               value={listendatum}
-              onChange={(e) => setBestelldatum(e.target.value)}
+              onChange={(e) => setListendatum(e.target.value)}
               max={new Date().toISOString().split('T')[0]}
             />
-            <p className="text-xs text-muted-foreground">
-              An welchem Tag wurde diese Liste versandt?
-            </p>
           </div>
 
-          {/* File */}
           <div className="space-y-1.5">
             <Label>Datei</Label>
             <Input
@@ -482,12 +574,7 @@ function UploadDialog({
             )}
           </div>
 
-          {/* Submit */}
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="w-full gap-2"
-          >
+          <Button onClick={handleSubmit} disabled={!canSubmit} className="w-full gap-2">
             {isSubmitting ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Wird hochgeladen…</>
             ) : (
