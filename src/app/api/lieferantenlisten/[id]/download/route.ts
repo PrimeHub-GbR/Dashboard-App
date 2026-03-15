@@ -71,10 +71,15 @@ export async function GET(
     }
 
     // 5. Generate signed URL (valid for 1 hour)
+    // Strip bucket prefix if stored with it (e.g. "lieferantenlisten/gmail/...")
+    const storagePath = filePath.startsWith('lieferantenlisten/')
+      ? filePath.slice('lieferantenlisten/'.length)
+      : filePath
+
     const { data: signedUrlData, error: signedUrlError } =
       await supabase.storage
         .from('lieferantenlisten')
-        .createSignedUrl(filePath, 3600)
+        .createSignedUrl(storagePath, 3600)
 
     if (signedUrlError || !signedUrlData?.signedUrl) {
       console.error('Signed URL generation failed:', signedUrlError)
