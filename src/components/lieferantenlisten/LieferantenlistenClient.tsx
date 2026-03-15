@@ -205,38 +205,41 @@ export function LieferantenlistenClient() {
       </div>
 
       {/* ── Übersicht: jeweils letzte Datei pro Lieferant ── */}
-      <div className="space-y-4">
+      <div className="rounded-md border overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          latestBySupplier.map(({ key, label, entry }) => (
-            <div key={key} className="rounded-md border overflow-hidden">
-              {/* Lieferant-Header */}
-              <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b">
-                <span className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
-                  {label}
-                </span>
-                {entry && (
-                  <span className="text-xs text-muted-foreground">
-                    {entries.filter((e) => e.lieferant === key).length} Einträge gesamt
-                  </span>
-                )}
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dateiname</TableHead>
-                    <TableHead>Listendatum</TableHead>
-                    <TableHead className="text-center">Rabatt</TableHead>
-                    <TableHead className="text-center">Original</TableHead>
-                    <TableHead className="text-center">Gefiltert</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[340px]">Dateiname</TableHead>
+                <TableHead className="w-[160px]">Listendatum</TableHead>
+                <TableHead className="w-[100px] text-center">Rabatt</TableHead>
+                <TableHead className="w-[140px] text-center">Original</TableHead>
+                <TableHead className="w-[140px] text-center">Gefiltert</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {latestBySupplier.map(({ key, label, entry }) => (
+                <>
+                  {/* Lieferant-Trennzeile */}
+                  <TableRow key={`header-${key}`} className="bg-muted/40 hover:bg-muted/40">
+                    <TableCell colSpan={5} className="py-2 px-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
+                          {label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {entries.filter((e) => e.lieferant === key).length} Einträge gesamt
+                        </span>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
+                  {/* Datei-Zeile */}
                   {entry ? (
-                    <TableRow>
+                    <TableRow key={`entry-${key}`}>
                       <TableCell className="font-mono text-xs">{entry.filename}</TableCell>
                       <TableCell className="text-muted-foreground">
                         <div className="flex items-center gap-1.5">
@@ -288,17 +291,17 @@ export function LieferantenlistenClient() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                        <Inbox className="h-5 w-5 mx-auto mb-1.5 opacity-40" />
+                    <TableRow key={`empty-${key}`}>
+                      <TableCell colSpan={5} className="py-5 text-center text-sm text-muted-foreground">
+                        <Inbox className="h-4 w-4 mx-auto mb-1 opacity-40" />
                         Noch keine Liste vorhanden
                       </TableCell>
                     </TableRow>
                   )}
-                </TableBody>
-              </Table>
-            </div>
-          ))
+                </>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
 
