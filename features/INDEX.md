@@ -43,6 +43,12 @@
 | Dashboard (Upload + Status + Download) | Deployed | [repricer/dashboard.md](repricer/dashboard.md) |
 | N8N Updater (Preisberechnung) | Deployed | [repricer/n8n-updater.md](repricer/n8n-updater.md) |
 
+## Rebuy Scraper `/dashboard/rebuy`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Rebuy Buch-Scraper (LXC + Live-Status + Excel) | In Progress | [rebuy-scraper/overview.md](rebuy-scraper/overview.md) |
+
 ---
 
 ## Foundation (kein Tab — Querschnittsfunktionen)

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
-  RefreshCw, LogOut, Package, ChevronLeft, ChevronRight,
+  RefreshCw, LogOut, Package, BookOpen, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/client'
@@ -48,6 +48,12 @@ const navItems = [
     desc: 'Blank · A43-Kulturgut · Avus',
     href: '/dashboard/lieferantenlisten',
     icon: Package,
+  },
+  {
+    label: 'Rebuy Scraper',
+    desc: 'Bücher · wöchentlich · Excel',
+    href: '/dashboard/rebuy',
+    icon: BookOpen,
   },
 ]
 
