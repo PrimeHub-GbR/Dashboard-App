@@ -47,7 +47,7 @@
 
 | Feature | Status | Spec |
 |---------|--------|------|
-| Rebuy Buch-Scraper (LXC + Live-Status + Excel) | In Progress | [rebuy-scraper/overview.md](rebuy-scraper/overview.md) |
+| Rebuy Buch-Scraper (LXC + Live-Status + Excel) | Deployed | [rebuy-scraper/overview.md](rebuy-scraper/overview.md) |
 
 ---
 

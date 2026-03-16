@@ -1,7 +1,7 @@
 # Feature: Rebuy Buch-Scraper
 
 **Tab:** `/dashboard/rebuy`
-**Status:** In Progress
+**Status:** Deployed
 **Spec erstellt:** 2026-03-16
 
 ---
@@ -113,3 +113,10 @@ created_at TIMESTAMPTZ
 - [ ] Archiv-Tabelle zeigt letzte Runs (Datum, Anzahl Bücher, Dauer, Status)
 - [ ] systemd Timer mit `Persistent=true` — kein Run wird übersprungen
 - [ ] Container überlebt Neustart ohne manuellen Eingriff
+
+## Deployment
+
+**Production URL:** https://dashboard.primehubgbr.com
+**Deployed:** 2026-03-16
+**Build:** Ready
+**Vercel Deployment:** https://app-rmsphnuk5-primehubgbr-2551s-projects.vercel.app
