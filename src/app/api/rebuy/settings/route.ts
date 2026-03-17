@@ -84,7 +84,10 @@ export async function PUT(request: NextRequest) {
     if (result.data.schedule && updated?.container_url) {
       const hmacSecret = process.env.REBUY_HMAC_SECRET
       const body = JSON.stringify({ schedule: result.data.schedule })
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Api-Key': process.env.REBUY_FLASK_API_KEY ?? '',
+      }
       if (hmacSecret) {
         const { createHmac } = await import('crypto')
         const sig = createHmac('sha256', hmacSecret).update(body, 'utf8').digest('hex')

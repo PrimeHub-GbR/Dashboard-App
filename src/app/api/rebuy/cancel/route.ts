@@ -28,6 +28,7 @@ export async function POST() {
     try {
       const res = await fetch(`${settings.container_url}/cancel`, {
         method: 'POST',
+        headers: { 'X-Api-Key': process.env.REBUY_FLASK_API_KEY ?? '' },
         signal: controller.signal,
       })
       clearTimeout(timeout)
