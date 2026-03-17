@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
-  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp,
+  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, RotateCcw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -149,6 +149,7 @@ export default function RebuyClient() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [isRotatingIp, setIsRotatingIp] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
   const [logEntries, setLogEntries] = useState<LogEntry[]>([])
   const [logFilter, setLogFilter] = useState<LogLevel | 'all'>('all')
@@ -220,6 +221,28 @@ export default function RebuyClient() {
       if (pollRef.current) clearInterval(pollRef.current)
     }
   }, [scrapes, loadScrapes])
+
+  const handleRotateIp = async () => {
+    setIsRotatingIp(true)
+    try {
+      const res = await fetch('/api/rebuy/rotate-ip', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 503) {
+          toast.error('Cloudflare Warp nicht installiert — siehe Dokumentation')
+        } else {
+          toast.error(data.error ?? 'IP-Rotation fehlgeschlagen')
+        }
+        return
+      }
+      toast.success('IP rotiert — neue Cloudflare Warp IP aktiv')
+      setTimeout(checkContainer, 3000)
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsRotatingIp(false)
+    }
+  }
 
   const loadLogs = useCallback(async () => {
     setIsLoadingLogs(true)
@@ -504,15 +527,35 @@ export default function RebuyClient() {
                   </div>
                 )
             }
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2 h-7 px-2 text-xs"
-              onClick={checkContainer}
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Prüfen
-            </Button>
+            <div className="mt-2 flex flex-col gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs w-fit"
+                onClick={checkContainer}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Prüfen
+              </Button>
+              <div className="space-y-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs w-full text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                  onClick={handleRotateIp}
+                  disabled={isRotatingIp}
+                >
+                  {isRotatingIp
+                    ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    : <RotateCcw className="h-3 w-3 mr-1" />
+                  }
+                  IP rotieren
+                </Button>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Bei Rate-Limit (429) von rebuy.de: Wechselt die IP des Containers über Cloudflare Warp. Nützlich wenn rebuy.de nach mehreren Testläufen Anfragen blockiert.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
