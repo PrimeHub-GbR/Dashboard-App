@@ -129,6 +129,7 @@ export default function RebuyClient() {
   const [editContainerUrl, setEditContainerUrl] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   const loadScrapes = useCallback(async () => {
@@ -338,47 +339,68 @@ export default function RebuyClient() {
       })()}
 
       {/* Aktiver Scrape — Fortschrittsanzeige (nur wenn läuft) */}
-      {activeScrape && (
-        <Card className="border-blue-500/40 bg-blue-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center justify-between">
-              <span className="flex items-center gap-2 text-blue-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Scraping läuft…
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={handleCancel}
-                disabled={isCancelling}
-              >
-                {isCancelling
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : <><Square className="h-3 w-3 mr-1" />Abbrechen</>
-                }
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {(activeScrape.progress_pages ?? 0).toLocaleString('de-DE')} / {activeScrape.total_pages?.toLocaleString('de-DE') ?? '?'} Seiten
-              </span>
-              <span className="font-semibold">{progressPercent}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-2.5" />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Gestartet: {formatDate(activeScrape.started_at)} · Laufzeit: {formatDuration(activeScrape.started_at, null)}</span>
-              {activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0 && (
-                <span className="font-medium text-blue-600">
-                  Noch ca. {formatEta(activeScrape.eta_seconds)}
+      {activeScrape && (() => {
+        const pages = activeScrape.progress_pages ?? 0
+        const total = activeScrape.total_pages ?? 0
+        const isPreparing = pages === 0
+        // ETA nur anzeigen wenn pages > 0 und eta realistisch (<= 72h)
+        const showEta = !isPreparing && activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0 && activeScrape.eta_seconds <= 259200
+        return (
+          <Card className="border-blue-500/40 bg-blue-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center justify-between">
+                <span className="flex items-center gap-2 text-blue-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {isPreparing ? 'Vorbereitung läuft…' : 'Scraping läuft…'}
                 </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={handleCancel}
+                  disabled={isCancelling}
+                >
+                  {isCancelling
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <><Square className="h-3 w-3 mr-1" />Abbrechen</>
+                  }
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isPreparing ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Der Scraper zählt alle Formate und Jahre auf rebuy.de — das dauert 30–90 Minuten bevor die erste Seite erscheint.
+                  </p>
+                  <Progress value={null} className="h-2.5 animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {pages.toLocaleString('de-DE')} / {total > 0 ? total.toLocaleString('de-DE') : '?'} Seiten
+                    </span>
+                    <span className="font-semibold">{progressPercent}%</span>
+                  </div>
+                  <Progress value={progressPercent} className="h-2.5" />
+                </>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Gestartet: {formatDate(activeScrape.started_at)} · Laufzeit: {formatDuration(activeScrape.started_at, null)}</span>
+                {showEta && (
+                  <span className="font-medium text-blue-600">
+                    Noch ca. {formatEta(activeScrape.eta_seconds!)}
+                  </span>
+                )}
+                {!isPreparing && !showEta && activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0 && (
+                  <span className="text-muted-foreground">ETA wird berechnet…</span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Top Row: 3 Karten */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -520,15 +542,28 @@ export default function RebuyClient() {
               </p>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Container-URL</Label>
-              <Input
-                className="h-8 text-xs"
-                placeholder="https://rebuy-scraper.domain.com"
-                value={editContainerUrl}
-                onChange={(e) => setEditContainerUrl(e.target.value)}
-              />
-            </div>
+            {/* Erweitert */}
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
+              {showAdvanced ? '▾' : '▸'} Erweitert
+            </button>
+            {showAdvanced && (
+              <div className="space-y-1">
+                <Label className="text-xs">Container-URL</Label>
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="https://rebuy-scraper.domain.com"
+                  value={editContainerUrl}
+                  onChange={(e) => setEditContainerUrl(e.target.value)}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Cloudflare-Tunnel-URL des Scraper-Containers. Nur ändern wenn sich die URL ändert.
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button
