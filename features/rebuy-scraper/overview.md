@@ -129,3 +129,9 @@ created_at TIMESTAMPTZ
 - Neuer Endpoint `DELETE /api/rebuy/clear-history` loescht alle abgeschlossenen Scrape-Eintraege (status = success | failed)
 - RebuyClient.tsx: "Verlauf leeren" Button im Archiv-Card-Header (sichtbar wenn completedScrapes > 0)
 - **Vercel Deployment:** https://app-l1tserudo-primehubgbr-2551s-projects.vercel.app
+
+### Update 2026-03-17 — Vorbereitung-State, ETA-Filter, Erweitert-Sektion
+- pages=0: zeigt "Vorbereitung läuft…" mit erklärendem Text und pulsierendem Progress statt 0% + falscher ETA
+- ETA nur sichtbar wenn pages>0 und eta_seconds<=259200 (72h), unrealistische Platzhalterwerte werden gefiltert
+- Container-URL in einklappbarer "Erweitert"-Sektion versteckt
+- **Vercel Deployment:** https://app-cpr4dujyr-primehubgbr-2551s-projects.vercel.app
