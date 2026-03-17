@@ -117,6 +117,10 @@ created_at TIMESTAMPTZ
 ## Deployment
 
 **Production URL:** https://dashboard.primehubgbr.com
-**Deployed:** 2026-03-16
+**Deployed:** 2026-03-17
 **Build:** Ready
-**Vercel Deployment:** https://app-rmsphnuk5-primehubgbr-2551s-projects.vercel.app
+**Vercel Deployment:** https://app-qf753rjog-primehubgbr-2551s-projects.vercel.app
+
+### Update 2026-03-17 — Cancel-Endpoint + UI-Rewrite
+- Neuer Endpoint `POST /api/rebuy/cancel` zum Abbrechen laufender Scrapes
+- RebuyClient.tsx: Wochentag-Checkboxen für Schedule, Abbrechen-Button, ETA-Anzeige, Archiv-Filter
