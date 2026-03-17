@@ -88,7 +88,11 @@ type LogLevel = 'error' | 'warning' | 'info'
 interface LogEntry {
   raw: string
   level: LogLevel
+  timestamp: string
+  message: string
 }
+
+const LOG_RE = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d{3} (INFO|WARNING|ERROR|CRITICAL|DEBUG)\s+(.+)$/
 
 function classifyLine(line: string): LogLevel {
   if (/ ERROR | CRITICAL /i.test(line) || /Traceback|Exception/.test(line)) return 'error'
@@ -97,7 +101,15 @@ function classifyLine(line: string): LogLevel {
 }
 
 function parseLogLines(lines: string[]): LogEntry[] {
-  return lines.map((raw) => ({ raw, level: classifyLine(raw) }))
+  return [...lines].reverse().map((raw) => {
+    const m = LOG_RE.exec(raw)
+    return {
+      raw,
+      level: classifyLine(raw),
+      timestamp: m ? m[1] : '',
+      message: m ? m[3] : raw,
+    }
+  })
 }
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -154,6 +166,7 @@ export default function RebuyClient() {
   const [logEntries, setLogEntries] = useState<LogEntry[]>([])
   const [logFilter, setLogFilter] = useState<LogLevel | 'all'>('all')
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [isClearingLogs, setIsClearingLogs] = useState(false)
   const [logError, setLogError] = useState<string | null>(null)
   const logHasErrors = logEntries.some((e) => e.level === 'error')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
@@ -281,6 +294,21 @@ export default function RebuyClient() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showLogs])
+
+  const handleClearLogs = async () => {
+    setIsClearingLogs(true)
+    try {
+      const res = await fetch('/api/rebuy/logs/clear', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? 'Fehler beim Leeren'); return }
+      setLogEntries([])
+      toast.success('Logs geleert')
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsClearingLogs(false)
+    }
+  }
 
   const handleTrigger = async () => {
     setIsTriggeringNow(true)
@@ -721,72 +749,91 @@ export default function RebuyClient() {
 
         {showLogs && (
           <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-sm font-medium">Container-Logs</CardTitle>
-                {logEntries.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    ({logEntries.length} Zeilen)
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5">
-                {(['all', 'error', 'warning', 'info'] as const).map((f) => {
-                  const count = f === 'all' ? logEntries.length : logEntries.filter((e) => e.level === f).length
-                  const labels = { all: 'Alle', error: 'Fehler', warning: 'Warnung', info: 'Info' }
-                  const colors: Record<string, string> = {
-                    all: logFilter === 'all' ? 'bg-foreground text-background' : 'hover:bg-muted',
-                    error: logFilter === 'error' ? 'bg-red-600 text-white' : 'text-red-600 hover:bg-red-50',
-                    warning: logFilter === 'warning' ? 'bg-amber-500 text-white' : 'text-amber-600 hover:bg-amber-50',
-                    info: logFilter === 'info' ? 'bg-muted text-foreground' : 'hover:bg-muted',
-                  }
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setLogFilter(f)}
-                      className={`text-[11px] px-2 py-0.5 rounded border border-transparent transition-colors ${colors[f]}`}
-                    >
-                      {labels[f]}{count > 0 ? ` (${count})` : ''}
-                    </button>
-                  )
-                })}
-                <button
-                  type="button"
-                  onClick={loadLogs}
-                  disabled={isLoadingLogs}
-                  className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
-                  title="Aktualisieren"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} />
-                </button>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium">Container-Logs</CardTitle>
+                  {logEntries.length > 0 && (
+                    <span className="text-xs text-muted-foreground">({logEntries.length} Einträge)</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(['all', 'error', 'warning', 'info'] as const).map((f) => {
+                    const count = f === 'all' ? logEntries.length : logEntries.filter((e) => e.level === f).length
+                    const labels = { all: 'Alle', error: 'Fehler', warning: 'Warnung', info: 'Info' }
+                    const colors: Record<string, string> = {
+                      all: logFilter === 'all' ? 'bg-foreground text-background' : 'hover:bg-muted',
+                      error: logFilter === 'error' ? 'bg-red-600 text-white' : 'text-red-600 hover:bg-red-50',
+                      warning: logFilter === 'warning' ? 'bg-amber-500 text-white' : 'text-amber-600 hover:bg-amber-50',
+                      info: logFilter === 'info' ? 'bg-muted text-foreground' : 'hover:bg-muted',
+                    }
+                    return (
+                      <button key={f} type="button" onClick={() => setLogFilter(f)}
+                        className={`text-[11px] px-2 py-0.5 rounded border border-transparent transition-colors ${colors[f]}`}>
+                        {labels[f]}{count > 0 ? ` (${count})` : ''}
+                      </button>
+                    )
+                  })}
+                  <button type="button" onClick={loadLogs} disabled={isLoadingLogs}
+                    className="text-muted-foreground hover:text-foreground transition-colors" title="Aktualisieren">
+                    <RefreshCw className={`h-3.5 w-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button type="button" onClick={handleClearLogs} disabled={isClearingLogs || logEntries.length === 0}
+                    className="text-[11px] px-2 py-0.5 rounded border border-transparent text-red-500 hover:bg-red-50 hover:text-red-700 transition-colors disabled:opacity-40">
+                    {isClearingLogs ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Trash2 className="h-3 w-3 inline mr-0.5" />Leeren</>}
+                  </button>
+                </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {logError ? (
-                <p className="text-sm text-red-500 py-4 text-center">{logError}</p>
+                <p className="text-sm text-red-500 py-4 text-center px-4">{logError}</p>
               ) : logEntries.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
+                <p className="text-sm text-muted-foreground py-6 text-center">
                   {isLoadingLogs ? 'Lade Logs…' : 'Keine Log-Einträge vorhanden'}
                 </p>
               ) : (
-                <div className="font-mono text-[11px] leading-relaxed max-h-96 overflow-y-auto rounded-md bg-zinc-950 text-zinc-100 p-3 space-y-0.5">
-                  {logEntries
-                    .filter((e) => logFilter === 'all' || e.level === logFilter)
-                    .map((entry, i) => (
-                      <div
-                        key={i}
-                        className={[
-                          'px-1 rounded',
-                          entry.level === 'error' ? 'text-red-400 bg-red-950/30' : '',
-                          entry.level === 'warning' ? 'text-amber-300 bg-amber-950/20' : '',
-                          entry.level === 'info' ? 'text-zinc-300' : '',
-                        ].join(' ')}
-                      >
-                        {entry.raw}
-                      </div>
-                    ))
-                  }
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-20 text-xs py-2">Art</TableHead>
+                        <TableHead className="w-36 text-xs py-2">Datum</TableHead>
+                        <TableHead className="text-xs py-2">Meldung</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logEntries
+                        .filter((e) => logFilter === 'all' || e.level === logFilter)
+                        .map((entry, i) => (
+                          <TableRow key={i} className="hover:bg-muted/30">
+                            <TableCell className="py-1.5">
+                              {entry.level === 'error' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-50 rounded px-1.5 py-0.5">
+                                  <XCircle className="h-2.5 w-2.5" />Fehler
+                                </span>
+                              )}
+                              {entry.level === 'warning' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">
+                                  <AlertCircle className="h-2.5 w-2.5" />Warnung
+                                </span>
+                              )}
+                              {entry.level === 'info' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+                                  <Info className="h-2.5 w-2.5" />Info
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs text-muted-foreground font-mono whitespace-nowrap">
+                              {entry.timestamp || '—'}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs font-mono break-all">
+                              {entry.message}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
