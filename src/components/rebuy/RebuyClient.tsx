@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
-  Square, Info, Trash2,
+  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -81,6 +81,25 @@ function scheduleLabel(schedule: string): string {
   return `${dayLabels.join(', ')} um ${time} Uhr`
 }
 
+// ─── Log helpers ──────────────────────────────────────────────────────────────
+
+type LogLevel = 'error' | 'warning' | 'info'
+
+interface LogEntry {
+  raw: string
+  level: LogLevel
+}
+
+function classifyLine(line: string): LogLevel {
+  if (/ ERROR | CRITICAL /i.test(line) || /Traceback|Exception/.test(line)) return 'error'
+  if (/ WARNING /i.test(line) || /\b429\b|rate.?limit/i.test(line)) return 'warning'
+  return 'info'
+}
+
+function parseLogLines(lines: string[]): LogEntry[] {
+  return lines.map((raw) => ({ raw, level: classifyLine(raw) }))
+}
+
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
 function formatEta(seconds: number): string {
@@ -130,7 +149,14 @@ export default function RebuyClient() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([])
+  const [logFilter, setLogFilter] = useState<LogLevel | 'all'>('all')
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [logError, setLogError] = useState<string | null>(null)
+  const logHasErrors = logEntries.some((e) => e.level === 'error')
   const pollRef = useRef<NodeJS.Timeout | null>(null)
+  const logPollRef = useRef<NodeJS.Timeout | null>(null)
 
   const loadScrapes = useCallback(async () => {
     const res = await fetch('/api/rebuy')
@@ -194,6 +220,44 @@ export default function RebuyClient() {
       if (pollRef.current) clearInterval(pollRef.current)
     }
   }, [scrapes, loadScrapes])
+
+  const loadLogs = useCallback(async () => {
+    setIsLoadingLogs(true)
+    setLogError(null)
+    try {
+      const res = await fetch('/api/rebuy/logs')
+      const data = await res.json()
+      if (data.error && !data.lines?.length) {
+        setLogError(data.error)
+      } else {
+        setLogEntries(parseLogLines(data.lines ?? []))
+      }
+    } catch {
+      setLogError('Netzwerkfehler')
+    } finally {
+      setIsLoadingLogs(false)
+    }
+  }, [])
+
+  // Logs-Polling: alle 15s wenn Panel offen und Scrape läuft
+  useEffect(() => {
+    if (showLogs) {
+      loadLogs()
+      const hasRunning = scrapes.some((s) => s.status === 'running' || s.status === 'pending')
+      if (hasRunning) {
+        logPollRef.current = setInterval(loadLogs, 15_000)
+      }
+    } else {
+      if (logPollRef.current) {
+        clearInterval(logPollRef.current)
+        logPollRef.current = null
+      }
+    }
+    return () => {
+      if (logPollRef.current) clearInterval(logPollRef.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLogs])
 
   const handleTrigger = async () => {
     setIsTriggeringNow(true)
@@ -590,6 +654,101 @@ export default function RebuyClient() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Logs-Panel */}
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowLogs((v) => !v)}
+          className={[
+            'flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-md border transition-all',
+            logHasErrors && !showLogs
+              ? 'border-red-400 text-red-600 bg-red-50 animate-pulse hover:animate-none'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+          ].join(' ')}
+        >
+          <Terminal className="h-4 w-4" />
+          Container-Logs
+          {logHasErrors && !showLogs && (
+            <span className="ml-1 h-2 w-2 rounded-full bg-red-500" />
+          )}
+          {showLogs ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+        </button>
+
+        {showLogs && (
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Container-Logs</CardTitle>
+                {logEntries.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    ({logEntries.length} Zeilen)
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                {(['all', 'error', 'warning', 'info'] as const).map((f) => {
+                  const count = f === 'all' ? logEntries.length : logEntries.filter((e) => e.level === f).length
+                  const labels = { all: 'Alle', error: 'Fehler', warning: 'Warnung', info: 'Info' }
+                  const colors: Record<string, string> = {
+                    all: logFilter === 'all' ? 'bg-foreground text-background' : 'hover:bg-muted',
+                    error: logFilter === 'error' ? 'bg-red-600 text-white' : 'text-red-600 hover:bg-red-50',
+                    warning: logFilter === 'warning' ? 'bg-amber-500 text-white' : 'text-amber-600 hover:bg-amber-50',
+                    info: logFilter === 'info' ? 'bg-muted text-foreground' : 'hover:bg-muted',
+                  }
+                  return (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setLogFilter(f)}
+                      className={`text-[11px] px-2 py-0.5 rounded border border-transparent transition-colors ${colors[f]}`}
+                    >
+                      {labels[f]}{count > 0 ? ` (${count})` : ''}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={loadLogs}
+                  disabled={isLoadingLogs}
+                  className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
+                  title="Aktualisieren"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {logError ? (
+                <p className="text-sm text-red-500 py-4 text-center">{logError}</p>
+              ) : logEntries.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  {isLoadingLogs ? 'Lade Logs…' : 'Keine Log-Einträge vorhanden'}
+                </p>
+              ) : (
+                <div className="font-mono text-[11px] leading-relaxed max-h-96 overflow-y-auto rounded-md bg-zinc-950 text-zinc-100 p-3 space-y-0.5">
+                  {logEntries
+                    .filter((e) => logFilter === 'all' || e.level === logFilter)
+                    .map((entry, i) => (
+                      <div
+                        key={i}
+                        className={[
+                          'px-1 rounded',
+                          entry.level === 'error' ? 'text-red-400 bg-red-950/30' : '',
+                          entry.level === 'warning' ? 'text-amber-300 bg-amber-950/20' : '',
+                          entry.level === 'info' ? 'text-zinc-300' : '',
+                        ].join(' ')}
+                      >
+                        {entry.raw}
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Archiv-Tabelle — nur abgeschlossene Scrapes */}
