@@ -5,6 +5,7 @@ import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/s
 const settingsUpdateSchema = z.object({
   schedule: z.string().min(1).optional(),
   container_url: z.string().url().optional().or(z.literal('')),
+  backup_proxy_url: z.string().optional(),
 })
 
 // GET /api/rebuy/settings — Aktuelle Einstellungen laden
@@ -68,6 +69,7 @@ export async function PUT(request: NextRequest) {
     const updateData: Record<string, string> = {}
     if (result.data.schedule !== undefined) updateData.schedule = result.data.schedule
     if (result.data.container_url !== undefined) updateData.container_url = result.data.container_url
+    if (result.data.backup_proxy_url !== undefined) updateData.backup_proxy_url = result.data.backup_proxy_url
 
     const { data: updated, error: updateError } = await supabase
       .from('rebuy_settings')
@@ -80,22 +82,32 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
+    const containerUrl = updated?.container_url
+    const apiKey = process.env.REBUY_FLASK_API_KEY ?? ''
+
     // Container über neuen Schedule informieren (fire-and-forget)
-    if (result.data.schedule && updated?.container_url) {
+    if (result.data.schedule && containerUrl) {
       const hmacSecret = process.env.REBUY_HMAC_SECRET
-      const body = JSON.stringify({ schedule: result.data.schedule })
+      const scheduleBody = JSON.stringify({ schedule: result.data.schedule })
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'X-Api-Key': process.env.REBUY_FLASK_API_KEY ?? '',
+        'X-Api-Key': apiKey,
       }
       if (hmacSecret) {
         const { createHmac } = await import('crypto')
-        const sig = createHmac('sha256', hmacSecret).update(body, 'utf8').digest('hex')
+        const sig = createHmac('sha256', hmacSecret).update(scheduleBody, 'utf8').digest('hex')
         headers['x-rebuy-signature'] = `sha256=${sig}`
       }
-      fetch(`${updated.container_url}/schedule`, { method: 'POST', headers, body }).catch(() => {
-        // Nicht kritisch — Container liest Schedule beim nächsten Start aus DB
-      })
+      fetch(`${containerUrl}/schedule`, { method: 'POST', headers, body: scheduleBody }).catch(() => {})
+    }
+
+    // Container über neuen Proxy informieren (fire-and-forget)
+    if (result.data.backup_proxy_url !== undefined && containerUrl) {
+      fetch(`${containerUrl}/proxy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+        body: JSON.stringify({ backup_proxy_url: result.data.backup_proxy_url }),
+      }).catch(() => {})
     }
 
     return NextResponse.json(updated)

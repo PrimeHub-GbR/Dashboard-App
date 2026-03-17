@@ -26,6 +26,7 @@ interface RebuySettings {
   id: string
   schedule: string
   container_url: string | null
+  backup_proxy_url: string | null
 }
 
 interface RebuyScrape {
@@ -158,6 +159,7 @@ export default function RebuyClient() {
   const [editDays, setEditDays] = useState<string[]>(['Sun'])
   const [editTime, setEditTime] = useState('02:00')
   const [editContainerUrl, setEditContainerUrl] = useState('')
+  const [editBackupProxyUrl, setEditBackupProxyUrl] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -191,6 +193,7 @@ export default function RebuyClient() {
       setEditDays(parsed.days)
       setEditTime(parsed.time)
       setEditContainerUrl(data.container_url ?? '')
+      setEditBackupProxyUrl(data.backup_proxy_url ?? '')
     }
   }, [])
 
@@ -360,7 +363,7 @@ export default function RebuyClient() {
       const res = await fetch('/api/rebuy/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, container_url: editContainerUrl || '' }),
+        body: JSON.stringify({ schedule, container_url: editContainerUrl || '', backup_proxy_url: editBackupProxyUrl }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -686,17 +689,31 @@ export default function RebuyClient() {
               {showAdvanced ? '▾' : '▸'} Erweitert
             </button>
             {showAdvanced && (
-              <div className="space-y-1">
-                <Label className="text-xs">Container-URL</Label>
-                <Input
-                  className="h-8 text-xs"
-                  placeholder="https://rebuy-scraper.domain.com"
-                  value={editContainerUrl}
-                  onChange={(e) => setEditContainerUrl(e.target.value)}
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Cloudflare-Tunnel-URL des Scraper-Containers. Nur ändern wenn sich die URL ändert.
-                </p>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Container-URL</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder="https://rebuy-scraper.domain.com"
+                    value={editContainerUrl}
+                    onChange={(e) => setEditContainerUrl(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Cloudflare-Tunnel-URL des Scraper-Containers. Nur ändern wenn sich die URL ändert.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Backup-Proxy-URL <span className="text-muted-foreground">(optional)</span></Label>
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder="http://user:pass@gw.dataimpulse.com:823"
+                    value={editBackupProxyUrl}
+                    onChange={(e) => setEditBackupProxyUrl(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Scraper startet immer mit deiner Home-IP. Nach 5× Rate-Limit (429) wechselt er automatisch zu diesem Proxy. Empfehlung: DataImpulse.com ($1–2/GB, kein Ablaufdatum).
+                  </p>
+                </div>
               </div>
             )}
 
