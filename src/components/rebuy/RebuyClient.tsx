@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
+  Square, Info,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -16,12 +17,10 @@ import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
 } from '@/components/ui/table'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface RebuySettings {
   id: string
@@ -44,13 +43,45 @@ interface RebuyScrape {
   created_at: string
 }
 
-const SCHEDULE_OPTIONS = [
-  { value: 'Sun *-*-* 02:00:00', label: 'Jeden Sonntag (02:00 Uhr)' },
-  { value: '*-*-* 02:00:00', label: 'Täglich (02:00 Uhr)' },
-  { value: 'Mon,Thu *-*-* 02:00:00', label: 'Mo + Do (02:00 Uhr)' },
-  { value: '*-*-1 02:00:00', label: 'Jeden 1. des Monats' },
-  { value: 'manual', label: 'Manuell (kein Auto-Run)' },
+// ─── Schedule helpers ─────────────────────────────────────────────────────────
+
+const WEEKDAYS = [
+  { value: 'Mon', label: 'Mo' },
+  { value: 'Tue', label: 'Di' },
+  { value: 'Wed', label: 'Mi' },
+  { value: 'Thu', label: 'Do' },
+  { value: 'Fri', label: 'Fr' },
+  { value: 'Sat', label: 'Sa' },
+  { value: 'Sun', label: 'So' },
 ]
+
+function buildSchedule(days: string[], time: string): string {
+  if (days.length === 0) return 'manual'
+  return `${days.join(',')} *-*-* ${time}:00`
+}
+
+function parseSchedule(schedule: string): { days: string[]; time: string } {
+  if (!schedule || schedule === 'manual') return { days: [], time: '02:00' }
+  // e.g. "Sun *-*-* 02:00:00" or "Mon,Thu *-*-* 02:00:00"
+  const match = schedule.match(/^([\w,]+)\s+\*-\*-\*\s+(\d{2}:\d{2})/)
+  if (match) return { days: match[1].split(','), time: match[2] }
+  // "*-*-* 02:00:00" → all days
+  if (schedule.startsWith('*-*-*')) {
+    const timeMatch = schedule.match(/(\d{2}:\d{2})/)
+    return { days: WEEKDAYS.map((d) => d.value), time: timeMatch?.[1] ?? '02:00' }
+  }
+  return { days: ['Sun'], time: '02:00' }
+}
+
+function scheduleLabel(schedule: string): string {
+  if (!schedule || schedule === 'manual') return 'Manuell'
+  const { days, time } = parseSchedule(schedule)
+  if (days.length === 0) return 'Manuell'
+  const dayLabels = days.map((d) => WEEKDAYS.find((w) => w.value === d)?.label ?? d)
+  return `${dayLabels.join(', ')} um ${time} Uhr`
+}
+
+// ─── Formatters ───────────────────────────────────────────────────────────────
 
 function formatEta(seconds: number): string {
   if (seconds < 60) return `${seconds} Sek.`
@@ -82,6 +113,8 @@ function StatusBadge({ status }: { status: RebuyScrape['status'] }) {
   return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Ausstehend</Badge>
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function RebuyClient() {
   const [scrapes, setScrapes] = useState<RebuyScrape[]>([])
   const [settings, setSettings] = useState<RebuySettings | null>(null)
@@ -89,8 +122,10 @@ export default function RebuyClient() {
   const [containerReason, setContainerReason] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [isTriggeringNow, setIsTriggeringNow] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
-  const [editSchedule, setEditSchedule] = useState('')
+  const [editDays, setEditDays] = useState<string[]>(['Sun'])
+  const [editTime, setEditTime] = useState('02:00')
   const [editContainerUrl, setEditContainerUrl] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
@@ -110,7 +145,9 @@ export default function RebuyClient() {
     if (res.ok) {
       const data: RebuySettings = await res.json()
       setSettings(data)
-      setEditSchedule(data.schedule)
+      const parsed = parseSchedule(data.schedule)
+      setEditDays(parsed.days)
+      setEditTime(parsed.time)
       setEditContainerUrl(data.container_url ?? '')
     }
   }, [])
@@ -127,7 +164,6 @@ export default function RebuyClient() {
     }
   }, [])
 
-  // Initiales Laden
   useEffect(() => {
     Promise.all([loadScrapes(), loadSettings(), checkContainer()]).finally(() =>
       setIsLoading(false)
@@ -175,16 +211,39 @@ export default function RebuyClient() {
     }
   }
 
+  const handleCancel = async () => {
+    if (!confirm('Scrape wirklich abbrechen?')) return
+    setIsCancelling(true)
+    try {
+      const res = await fetch('/api/rebuy/cancel', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Fehler beim Abbrechen')
+        return
+      }
+      toast.success('Scrape abgebrochen')
+      await loadScrapes()
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
+  const toggleDay = (day: string) => {
+    setEditDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    )
+  }
+
   const handleSaveSettings = async () => {
     setIsSavingSettings(true)
     try {
+      const schedule = buildSchedule(editDays, editTime)
       const res = await fetch('/api/rebuy/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schedule: editSchedule,
-          container_url: editContainerUrl || '',
-        }),
+        body: JSON.stringify({ schedule, container_url: editContainerUrl || '' }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -193,7 +252,6 @@ export default function RebuyClient() {
       }
       setSettings(data)
       toast.success('Einstellungen gespeichert')
-      // Container-Status neu prüfen falls URL geändert
       checkContainer()
     } catch {
       toast.error('Netzwerkfehler')
@@ -224,8 +282,9 @@ export default function RebuyClient() {
     }
   }
 
-  const latestScrape = scrapes[0] ?? null
   const activeScrape = scrapes.find((s) => s.status === 'running' || s.status === 'pending') ?? null
+  const completedScrapes = scrapes.filter((s) => s.status === 'success' || s.status === 'failed')
+  const latestSuccess = completedScrapes.find((s) => s.status === 'success') ?? null
   const progressPercent = activeScrape?.total_pages && activeScrape.total_pages > 0
     ? Math.round(((activeScrape.progress_pages ?? 0) / activeScrape.total_pages) * 100)
     : 0
@@ -246,8 +305,8 @@ export default function RebuyClient() {
       </div>
 
       {/* Stale-Warnung */}
-      {latestScrape && latestScrape.status === 'success' && latestScrape.scrape_date && (() => {
-        const daysSince = Math.floor((Date.now() - new Date(latestScrape.scrape_date).getTime()) / 86400000)
+      {latestSuccess && latestSuccess.scrape_date && (() => {
+        const daysSince = Math.floor((Date.now() - new Date(latestSuccess.scrape_date).getTime()) / 86400000)
         return daysSince > 8 ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -257,6 +316,49 @@ export default function RebuyClient() {
           </Alert>
         ) : null
       })()}
+
+      {/* Aktiver Scrape — Fortschrittsanzeige (nur wenn läuft) */}
+      {activeScrape && (
+        <Card className="border-blue-500/40 bg-blue-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              <span className="flex items-center gap-2 text-blue-600">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Scraping läuft…
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={handleCancel}
+                disabled={isCancelling}
+              >
+                {isCancelling
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <><Square className="h-3 w-3 mr-1" />Abbrechen</>
+                }
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {(activeScrape.progress_pages ?? 0).toLocaleString('de-DE')} / {activeScrape.total_pages?.toLocaleString('de-DE') ?? '?'} Seiten
+              </span>
+              <span className="font-semibold">{progressPercent}%</span>
+            </div>
+            <Progress value={progressPercent} className="h-2.5" />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Gestartet: {formatDate(activeScrape.started_at)} · Laufzeit: {formatDuration(activeScrape.started_at, null)}</span>
+              {activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0 && (
+                <span className="font-medium text-blue-600">
+                  Noch ca. {formatEta(activeScrape.eta_seconds)}
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top Row: 3 Karten */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -308,64 +410,44 @@ export default function RebuyClient() {
           </CardContent>
         </Card>
 
-        {/* Karte 2: Scraping-Status / Letztes Ergebnis */}
+        {/* Karte 2: Letztes Ergebnis */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              {activeScrape ? 'Scraping läuft…' : 'Letztes Ergebnis'}
+              Letztes Ergebnis
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {activeScrape ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {activeScrape.progress_pages ?? 0} / {activeScrape.total_pages ?? '?'} Seiten
-                  </span>
-                  <span className="font-medium">{progressPercent}%</span>
-                </div>
-                <Progress value={progressPercent} className="h-2" />
-                {activeScrape.eta_seconds != null && (
-                  <p className="text-xs text-muted-foreground">
-                    ETA: ~{formatEta(activeScrape.eta_seconds)}
-                  </p>
-                )}
-              </div>
-            ) : latestScrape?.status === 'success' ? (
+            {latestSuccess ? (
               <div className="space-y-2">
                 <p className="font-semibold text-green-600">
-                  {latestScrape.row_count?.toLocaleString('de-DE')} Bücher
+                  {latestSuccess.row_count?.toLocaleString('de-DE')} Einträge
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(latestScrape.scrape_date)}
+                  {formatDate(latestSuccess.scrape_date)} · Preise: Brutto (inkl. MwSt.)
                 </p>
                 <Button
                   size="sm"
                   className="h-7 bg-green-600 hover:bg-green-700 text-white text-xs"
-                  onClick={() => handleDownload(latestScrape)}
-                  disabled={downloadingId === latestScrape.id}
+                  onClick={() => handleDownload(latestSuccess)}
+                  disabled={downloadingId === latestSuccess.id}
                 >
-                  {downloadingId === latestScrape.id
+                  {downloadingId === latestSuccess.id
                     ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                     : <Download className="h-3 w-3 mr-1" />
                   }
                   Excel herunterladen
                 </Button>
               </div>
-            ) : latestScrape?.status === 'failed' ? (
-              <div className="space-y-1">
-                <p className="font-semibold text-red-600">Letzter Scrape fehlgeschlagen</p>
-                {latestScrape.error_message && (
-                  <p className="text-xs text-muted-foreground">{latestScrape.error_message}</p>
-                )}
-              </div>
+            ) : activeScrape ? (
+              <p className="text-sm text-muted-foreground">Scrape läuft — noch kein fertiges Ergebnis</p>
             ) : (
-              <p className="text-sm text-muted-foreground">Noch kein Scrape durchgeführt</p>
+              <p className="text-sm text-muted-foreground">Noch kein Scrape abgeschlossen</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Karte 3: Einstellungen + Manuell starten */}
+        {/* Karte 3: Einstellungen */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -374,21 +456,50 @@ export default function RebuyClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Intervall</Label>
-              <Select value={editSchedule} onValueChange={setEditSchedule}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Intervall wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCHEDULE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Wochentage */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Automatisch scrapen an:</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKDAYS.map((day) => (
+                  <label
+                    key={day.value}
+                    className="flex items-center gap-1 cursor-pointer select-none"
+                  >
+                    <Checkbox
+                      checked={editDays.includes(day.value)}
+                      onCheckedChange={() => toggleDay(day.value)}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="text-xs">{day.label}</span>
+                  </label>
+                ))}
+              </div>
+              {editDays.length === 0 && (
+                <p className="text-xs text-muted-foreground">Kein Auto-Run (nur manuell)</p>
+              )}
             </div>
+
+            {/* Uhrzeit */}
+            {editDays.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Uhrzeit (Uhr)</Label>
+                <Input
+                  type="time"
+                  className="h-7 text-xs w-28"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Dauer-Hinweis */}
+            <div className="flex items-start gap-1.5 rounded-md bg-muted/50 px-2 py-1.5">
+              <Info className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Ein vollständiger Scrape dauert <strong>24–48 Stunden</strong>. Für wöchentliche Nutzung empfehlen wir <strong>Sonntag</strong>, damit die Datei montags bereitsteht.
+              </p>
+            </div>
+
             <div className="space-y-1">
               <Label className="text-xs">Container-URL</Label>
               <Input
@@ -398,6 +509,7 @@ export default function RebuyClient() {
                 onChange={(e) => setEditContainerUrl(e.target.value)}
               />
             </div>
+
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -425,29 +537,29 @@ export default function RebuyClient() {
         </Card>
       </div>
 
-      {/* Archiv-Tabelle */}
+      {/* Archiv-Tabelle — nur abgeschlossene Scrapes */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Scrape-Verlauf</CardTitle>
         </CardHeader>
         <CardContent>
-          {scrapes.length === 0 ? (
+          {completedScrapes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Noch keine Scrapes vorhanden. Starte den ersten Scrape über &quot;Jetzt starten&quot;.
+              Noch kein abgeschlossener Scrape vorhanden. Starte den ersten Scrape über &quot;Jetzt starten&quot;.
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Datum</TableHead>
-                  <TableHead>Bücher</TableHead>
+                  <TableHead>Einträge</TableHead>
                   <TableHead>Dauer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Download</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {scrapes.map((scrape) => (
+                {completedScrapes.map((scrape) => (
                   <TableRow key={scrape.id}>
                     <TableCell className="text-sm">
                       {formatDate(scrape.scrape_date ?? scrape.created_at)}
@@ -455,18 +567,11 @@ export default function RebuyClient() {
                     <TableCell className="text-sm">
                       {scrape.row_count != null
                         ? scrape.row_count.toLocaleString('de-DE')
-                        : scrape.status === 'running' && scrape.total_pages
-                          ? <span className="text-muted-foreground text-xs">{scrape.progress_pages ?? 0}/{scrape.total_pages} Seiten</span>
-                          : '—'
+                        : '—'
                       }
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {scrape.status === 'running'
-                        ? scrape.eta_seconds != null
-                          ? <span className="text-blue-600 text-xs">~{formatEta(scrape.eta_seconds)} verbleibend</span>
-                          : <span className="text-xs">läuft…</span>
-                        : formatDuration(scrape.started_at, scrape.finished_at)
-                      }
+                      {formatDuration(scrape.started_at, scrape.finished_at)}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={scrape.status} />
