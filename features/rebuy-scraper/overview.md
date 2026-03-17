@@ -124,3 +124,8 @@ created_at TIMESTAMPTZ
 ### Update 2026-03-17 — Cancel-Endpoint + UI-Rewrite
 - Neuer Endpoint `POST /api/rebuy/cancel` zum Abbrechen laufender Scrapes
 - RebuyClient.tsx: Wochentag-Checkboxen für Schedule, Abbrechen-Button, ETA-Anzeige, Archiv-Filter
+
+### Update 2026-03-17 — Verlauf leeren
+- Neuer Endpoint `DELETE /api/rebuy/clear-history` loescht alle abgeschlossenen Scrape-Eintraege (status = success | failed)
+- RebuyClient.tsx: "Verlauf leeren" Button im Archiv-Card-Header (sichtbar wenn completedScrapes > 0)
+- **Vercel Deployment:** https://app-l1tserudo-primehubgbr-2551s-projects.vercel.app
