@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
-  Square, Info,
+  Square, Info, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -128,6 +128,7 @@ export default function RebuyClient() {
   const [editTime, setEditTime] = useState('02:00')
   const [editContainerUrl, setEditContainerUrl] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [isClearingHistory, setIsClearingHistory] = useState(false)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
 
   const loadScrapes = useCallback(async () => {
@@ -257,6 +258,25 @@ export default function RebuyClient() {
       toast.error('Netzwerkfehler')
     } finally {
       setIsSavingSettings(false)
+    }
+  }
+
+  const handleClearHistory = async () => {
+    if (!confirm('Verlauf wirklich leeren? Alle Einträge (inkl. Fehler-Logs) werden gelöscht.')) return
+    setIsClearingHistory(true)
+    try {
+      const res = await fetch('/api/rebuy/clear-history', { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Fehler beim Löschen')
+        return
+      }
+      toast.success('Verlauf geleert')
+      await loadScrapes()
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsClearingHistory(false)
     }
   }
 
@@ -539,8 +559,23 @@ export default function RebuyClient() {
 
       {/* Archiv-Tabelle — nur abgeschlossene Scrapes */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Scrape-Verlauf</CardTitle>
+          {completedScrapes.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50"
+              onClick={handleClearHistory}
+              disabled={isClearingHistory}
+            >
+              {isClearingHistory
+                ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                : <Trash2 className="h-3 w-3 mr-1" />
+              }
+              Verlauf leeren
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {completedScrapes.length === 0 ? (
