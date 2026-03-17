@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
-  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, RotateCcw,
+  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, Shield, ShieldOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -152,10 +152,13 @@ export default function RebuyClient() {
   const [settings, setSettings] = useState<RebuySettings | null>(null)
   const [containerOnline, setContainerOnline] = useState<boolean | null>(null)
   const [containerReason, setContainerReason] = useState<string>('')
+  const [backupProxyConfigured, setBackupProxyConfigured] = useState<boolean | null>(null)
+  const [usingProxy, setUsingProxy] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isTriggeringNow, setIsTriggeringNow] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [isCheckingContainer, setIsCheckingContainer] = useState(false)
   const [editDays, setEditDays] = useState<string[]>(['Sun'])
   const [editTime, setEditTime] = useState('02:00')
   const [editContainerUrl, setEditContainerUrl] = useState('')
@@ -163,7 +166,6 @@ export default function RebuyClient() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [isRotatingIp, setIsRotatingIp] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
   const [logEntries, setLogEntries] = useState<LogEntry[]>([])
   const [logFilter, setLogFilter] = useState<LogLevel | 'all'>('all')
@@ -197,15 +199,27 @@ export default function RebuyClient() {
     }
   }, [])
 
-  const checkContainer = useCallback(async () => {
-    const res = await fetch('/api/rebuy/container')
-    if (res.ok) {
-      const data = await res.json()
-      setContainerOnline(data.online ?? false)
-      setContainerReason(data.reason ?? '')
-    } else {
-      setContainerOnline(false)
-      setContainerReason('API-Fehler')
+  const checkContainer = useCallback(async (showFeedback = false) => {
+    if (showFeedback) setIsCheckingContainer(true)
+    try {
+      const res = await fetch('/api/rebuy/container')
+      if (res.ok) {
+        const data = await res.json()
+        setContainerOnline(data.online ?? false)
+        setContainerReason(data.reason ?? '')
+        if (data.backup_proxy_configured !== undefined) setBackupProxyConfigured(data.backup_proxy_configured)
+        if (data.using_proxy !== undefined) setUsingProxy(data.using_proxy)
+        if (showFeedback) {
+          if (data.online) toast.success('Container ist online und erreichbar')
+          else toast.error(`Container offline: ${data.reason ?? 'Nicht erreichbar'}`)
+        }
+      } else {
+        setContainerOnline(false)
+        setContainerReason('API-Fehler')
+        if (showFeedback) toast.error('Verbindungsfehler beim Container-Check')
+      }
+    } finally {
+      if (showFeedback) setIsCheckingContainer(false)
     }
   }, [])
 
@@ -237,28 +251,6 @@ export default function RebuyClient() {
       if (pollRef.current) clearInterval(pollRef.current)
     }
   }, [scrapes, loadScrapes])
-
-  const handleRotateIp = async () => {
-    setIsRotatingIp(true)
-    try {
-      const res = await fetch('/api/rebuy/rotate-ip', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) {
-        if (res.status === 503) {
-          toast.error('Cloudflare Warp nicht installiert — siehe Dokumentation')
-        } else {
-          toast.error(data.error ?? 'IP-Rotation fehlgeschlagen')
-        }
-        return
-      }
-      toast.success('IP rotiert — neue Cloudflare Warp IP aktiv')
-      setTimeout(checkContainer, 3000)
-    } catch {
-      toast.error('Netzwerkfehler')
-    } finally {
-      setIsRotatingIp(false)
-    }
-  }
 
   const loadLogs = useCallback(async () => {
     setIsLoadingLogs(true)
@@ -372,7 +364,7 @@ export default function RebuyClient() {
       }
       setSettings(data)
       toast.success('Einstellungen gespeichert')
-      checkContainer()
+      checkContainer(false)
     } catch {
       toast.error('Netzwerkfehler')
     } finally {
@@ -536,7 +528,7 @@ export default function RebuyClient() {
               Container-Status
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {containerOnline === null
               ? <p className="text-sm text-muted-foreground">Prüfe…</p>
               : containerOnline
@@ -558,35 +550,47 @@ export default function RebuyClient() {
                   </div>
                 )
             }
-            <div className="mt-2 flex flex-col gap-1.5">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs w-fit"
-                onClick={checkContainer}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Prüfen
-              </Button>
-              <div className="space-y-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs w-full text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700"
-                  onClick={handleRotateIp}
-                  disabled={isRotatingIp}
-                >
-                  {isRotatingIp
-                    ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    : <RotateCcw className="h-3 w-3 mr-1" />
+
+            {/* Proxy-Status */}
+            {containerOnline === true && backupProxyConfigured !== null && (
+              <div className={[
+                'flex items-start gap-1.5 rounded-md px-2 py-1.5 text-[11px]',
+                usingProxy
+                  ? 'bg-amber-50 text-amber-700'
+                  : backupProxyConfigured
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'bg-muted/50 text-muted-foreground',
+              ].join(' ')}>
+                {usingProxy
+                  ? <Shield className="h-3 w-3 mt-0.5 shrink-0" />
+                  : backupProxyConfigured
+                    ? <ShieldOff className="h-3 w-3 mt-0.5 shrink-0" />
+                    : <ShieldOff className="h-3 w-3 mt-0.5 shrink-0" />
+                }
+                <span>
+                  {usingProxy
+                    ? <><strong>DataImpulse Proxy aktiv</strong> — Scraper nutzt Backup-IP</>
+                    : backupProxyConfigured
+                      ? <><strong>Home-IP aktiv</strong> — wechselt bei 5× 429 automatisch zu DataImpulse</>
+                      : 'Kein Backup-Proxy konfiguriert'
                   }
-                  IP rotieren
-                </Button>
-                <p className="text-[10px] text-muted-foreground leading-snug">
-                  Bei Rate-Limit (429) von rebuy.de: Wechselt die IP des Containers über Cloudflare Warp. Nützlich wenn rebuy.de nach mehreren Testläufen Anfragen blockiert.
-                </p>
+                </span>
               </div>
-            </div>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs w-fit"
+              onClick={() => checkContainer(true)}
+              disabled={isCheckingContainer}
+            >
+              {isCheckingContainer
+                ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                : <RefreshCw className="h-3 w-3 mr-1" />
+              }
+              Prüfen
+            </Button>
           </CardContent>
         </Card>
 
@@ -676,7 +680,7 @@ export default function RebuyClient() {
             <div className="flex items-start gap-1.5 rounded-md bg-muted/50 px-2 py-1.5">
               <Info className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Ein vollständiger Scrape dauert <strong>24–48 Stunden</strong>. Für wöchentliche Nutzung empfehlen wir <strong>Sonntag</strong>, damit die Datei montags bereitsteht.
+                Ein vollständiger Scrape dauert <strong>3–7 Tage</strong>. Für wöchentliche Nutzung empfehlen wir <strong>Sonntag</strong>, damit die Datei eine Woche später bereitsteht.
               </p>
             </div>
 
