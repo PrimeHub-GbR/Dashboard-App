@@ -8,6 +8,7 @@ const statusSchema = z.object({
   progress_pages: z.number().int().min(0),
   total_pages: z.number().int().min(0),
   eta_seconds: z.number().int().min(0),
+  products_saved: z.number().int().min(0).optional(),
 })
 
 function verifyHmac(rawBody: string, signature: string | null, secret: string): boolean {
@@ -47,13 +48,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 })
     }
 
-    const { scrape_id, progress_pages, total_pages, eta_seconds } = result.data
+    const { scrape_id, progress_pages, total_pages, eta_seconds, products_saved } = result.data
 
     const supabase = createSupabaseServiceClient()
 
     const { error } = await supabase
       .from('rebuy_scrapes')
-      .update({ progress_pages, total_pages, eta_seconds, status: 'running' })
+      .update({
+        progress_pages,
+        total_pages,
+        eta_seconds,
+        status: 'running',
+        ...(products_saved != null ? { row_count: products_saved } : {}),
+      })
       .eq('id', scrape_id)
 
     if (error) {

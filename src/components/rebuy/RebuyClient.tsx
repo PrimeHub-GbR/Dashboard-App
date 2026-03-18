@@ -596,6 +596,11 @@ export default function RebuyClient() {
                     <span className="font-semibold">{progressPercent}%</span>
                   </div>
                   <Progress value={progressPercent} className="h-2.5" />
+                  {activeScrape.row_count != null && activeScrape.row_count > 0 && (
+                    <p className="text-xs text-emerald-600 font-medium">
+                      {activeScrape.row_count.toLocaleString('de-DE')} Produkte gesammelt
+                    </p>
+                  )}
                 </>
               )}
               <div className="flex items-center justify-between text-xs text-muted-foreground">
