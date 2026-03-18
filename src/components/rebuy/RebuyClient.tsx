@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
-  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, Shield, ShieldOff,
+  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, Shield, ShieldOff, FileDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -157,6 +157,7 @@ export default function RebuyClient() {
   const [isLoading, setIsLoading] = useState(true)
   const [isTriggeringNow, setIsTriggeringNow] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [isFinalizing, setIsFinalizing] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isCheckingContainer, setIsCheckingContainer] = useState(false)
   const [editDays, setEditDays] = useState<string[]>(['Sun'])
@@ -323,8 +324,27 @@ export default function RebuyClient() {
     }
   }
 
+  const handleFinalize = async () => {
+    if (!confirm('Scraping jetzt abschließen? Es wird eine Excel mit den bisher gescrapten Daten erstellt. Das kann 1–2 Minuten dauern.')) return
+    setIsFinalizing(true)
+    try {
+      const res = await fetch('/api/rebuy/finalize', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Fehler beim Abschließen')
+        return
+      }
+      toast.success('Scrape abgeschlossen — Excel wird erstellt')
+      await loadScrapes()
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsFinalizing(false)
+    }
+  }
+
   const handleCancel = async () => {
-    if (!confirm('Scrape wirklich abbrechen?')) return
+    if (!confirm('Scrape wirklich abbrechen? Alle bisher gescrapten Daten gehen verloren.')) return
     setIsCancelling(true)
     try {
       const res = await fetch('/api/rebuy/cancel', { method: 'POST' })
@@ -463,18 +483,33 @@ export default function RebuyClient() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   {isPreparing ? 'Vorbereitung läuft…' : 'Scraping läuft…'}
                 </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={handleCancel}
-                  disabled={isCancelling}
-                >
-                  {isCancelling
-                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <><Square className="h-3 w-3 mr-1" />Abbrechen</>
-                  }
-                </Button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                    onClick={handleFinalize}
+                    disabled={isFinalizing || isCancelling}
+                    title="Scraping stoppen und Excel mit bisherigen Daten erstellen"
+                  >
+                    {isFinalizing
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <><FileDown className="h-3 w-3 mr-1" />Abschließen</>
+                    }
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                    onClick={handleCancel}
+                    disabled={isCancelling || isFinalizing}
+                  >
+                    {isCancelling
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <><Square className="h-3 w-3 mr-1" />Abbrechen</>
+                    }
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
