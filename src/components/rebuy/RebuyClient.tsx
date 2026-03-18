@@ -33,7 +33,7 @@ interface RebuyScrape {
   id: string
   scrape_date: string | null
   file_path: string | null
-  status: 'pending' | 'running' | 'success' | 'failed'
+  status: 'pending' | 'running' | 'paused' | 'success' | 'failed'
   row_count: number | null
   progress_pages: number | null
   total_pages: number | null
@@ -140,6 +140,7 @@ function formatDate(dateStr: string | null): string {
 
 function StatusBadge({ status }: { status: RebuyScrape['status'] }) {
   if (status === 'running') return <Badge className="bg-blue-500 text-white"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Läuft</Badge>
+  if (status === 'paused') return <Badge className="bg-amber-500 text-white"><AlertCircle className="h-3 w-3 mr-1" />Pausiert</Badge>
   if (status === 'success') return <Badge className="bg-green-600 text-white"><CheckCircle2 className="h-3 w-3 mr-1" />Fertig</Badge>
   if (status === 'failed') return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Fehler</Badge>
   return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Ausstehend</Badge>
@@ -158,6 +159,7 @@ export default function RebuyClient() {
   const [isTriggeringNow, setIsTriggeringNow] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [isFinalizing, setIsFinalizing] = useState(false)
+  const [isResuming, setIsResuming] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isCheckingContainer, setIsCheckingContainer] = useState(false)
   const [editDays, setEditDays] = useState<string[]>(['Sun'])
@@ -232,12 +234,12 @@ export default function RebuyClient() {
 
   // Live-Polling wenn Scrape läuft
   useEffect(() => {
-    const hasRunning = scrapes.some((s) => s.status === 'running' || s.status === 'pending')
+    const hasRunning = scrapes.some((s) => s.status === 'running' || s.status === 'pending' || s.status === 'paused')
 
     if (hasRunning && !pollRef.current) {
       pollRef.current = setInterval(async () => {
         const updated = await loadScrapes()
-        const stillRunning = updated.some((s) => s.status === 'running' || s.status === 'pending')
+        const stillRunning = updated.some((s) => s.status === 'running' || s.status === 'pending' || s.status === 'paused')
         if (!stillRunning && pollRef.current) {
           clearInterval(pollRef.current)
           pollRef.current = null
@@ -321,6 +323,24 @@ export default function RebuyClient() {
       toast.error('Netzwerkfehler')
     } finally {
       setIsTriggeringNow(false)
+    }
+  }
+
+  const handleResume = async () => {
+    setIsResuming(true)
+    try {
+      const res = await fetch('/api/rebuy/resume', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Fehler beim Fortsetzen')
+        return
+      }
+      toast.success('Scrape wird fortgesetzt…')
+      await loadScrapes()
+    } catch {
+      toast.error('Netzwerkfehler')
+    } finally {
+      setIsResuming(false)
     }
   }
 
@@ -433,7 +453,7 @@ export default function RebuyClient() {
     }
   }
 
-  const activeScrape = scrapes.find((s) => s.status === 'running' || s.status === 'pending') ?? null
+  const activeScrape = scrapes.find((s) => s.status === 'running' || s.status === 'pending' || s.status === 'paused') ?? null
   const completedScrapes = scrapes.filter((s) => s.status === 'success' || s.status === 'failed')
   const latestSuccess = completedScrapes.find((s) => s.status === 'success') ?? null
   const progressPercent = activeScrape?.total_pages && activeScrape.total_pages > 0
@@ -468,8 +488,50 @@ export default function RebuyClient() {
         ) : null
       })()}
 
+      {/* Pausierter Scrape — Proxy-Guthaben aufgebraucht */}
+      {activeScrape?.status === 'paused' && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              <span className="flex items-center gap-2 text-amber-700">
+                <AlertCircle className="h-4 w-4" />
+                Scraping pausiert — Proxy-Guthaben aufgebraucht
+              </span>
+              <Button
+                size="sm"
+                className="h-7 px-3 text-xs bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={handleResume}
+                disabled={isResuming}
+              >
+                {isResuming
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <><Play className="h-3 w-3 mr-1" />Fortsetzen</>
+                }
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-amber-700">
+              {activeScrape.error_message ?? 'DataImpulse-Guthaben aufgebraucht.'}
+            </p>
+            {activeScrape.progress_pages != null && activeScrape.total_pages != null && activeScrape.total_pages > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{activeScrape.progress_pages.toLocaleString('de-DE')} / {activeScrape.total_pages.toLocaleString('de-DE')} Seiten gesichert</span>
+                  <span className="font-medium">{Math.round((activeScrape.progress_pages / activeScrape.total_pages) * 100)}%</span>
+                </div>
+                <Progress value={Math.round((activeScrape.progress_pages / activeScrape.total_pages) * 100)} className="h-2" />
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Lade Guthaben auf <strong>app.dataimpulse.com</strong> auf und klicke dann auf &quot;Fortsetzen&quot; — der Scraper macht genau dort weiter wo er aufgehört hat.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Aktiver Scrape — Fortschrittsanzeige (nur wenn läuft) */}
-      {activeScrape && (() => {
+      {activeScrape && activeScrape.status !== 'paused' && (() => {
         const pages = activeScrape.progress_pages ?? 0
         const total = activeScrape.total_pages ?? 0
         const isPreparing = pages === 0
@@ -762,7 +824,7 @@ export default function RebuyClient() {
                 size="sm"
                 className="h-7 text-xs flex-1"
                 onClick={handleTrigger}
-                disabled={isTriggeringNow || !!activeScrape || !containerOnline}
+                disabled={isTriggeringNow || !!activeScrape || !containerOnline || isResuming}
               >
                 {isTriggeringNow
                   ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />

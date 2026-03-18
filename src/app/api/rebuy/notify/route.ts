@@ -4,12 +4,14 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 const notifySchema = z.object({
-  scrape_id: z.string().uuid(),
-  scrape_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  file_path: z.string().min(1),
-  row_count: z.number().int().min(0),
-  status: z.enum(['success', 'failed']),
-  error_message: z.string().optional(),
+  scrape_id:      z.string().uuid(),
+  scrape_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  file_path:      z.string().optional(),
+  row_count:      z.number().int().min(0).optional(),
+  status:         z.enum(['success', 'failed', 'paused']),
+  error_message:  z.string().optional(),
+  progress_pages: z.number().int().min(0).optional(),
+  total_pages:    z.number().int().min(0).optional(),
 })
 
 function verifyHmac(rawBody: string, signature: string | null, secret: string): boolean {
@@ -49,23 +51,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 })
     }
 
-    const { scrape_id, scrape_date, file_path, row_count, status, error_message } = result.data
+    const { scrape_id, scrape_date, file_path, row_count, status, error_message, progress_pages, total_pages } = result.data
 
     const supabase = createSupabaseServiceClient()
 
+    // paused: keep progress visible, no finished_at, no file
+    const updatePayload = status === 'paused'
+      ? {
+          status,
+          scrape_date,
+          error_message: error_message ?? 'Proxy-Guthaben aufgebraucht',
+          progress_pages: progress_pages ?? null,
+          total_pages: total_pages ?? null,
+          eta_seconds: null,
+          file_path: null,
+          row_count: null,
+          finished_at: null,
+        }
+      : {
+          scrape_date,
+          file_path: status === 'success' ? (file_path ?? null) : null,
+          status,
+          row_count: status === 'success' ? (row_count ?? null) : null,
+          error_message: error_message ?? null,
+          finished_at: new Date().toISOString(),
+          progress_pages: null,
+          total_pages: null,
+          eta_seconds: null,
+        }
+
     const { error } = await supabase
       .from('rebuy_scrapes')
-      .update({
-        scrape_date,
-        file_path: status === 'success' ? file_path : null,
-        status,
-        row_count: status === 'success' ? row_count : null,
-        error_message: error_message ?? null,
-        finished_at: new Date().toISOString(),
-        progress_pages: null,
-        total_pages: null,
-        eta_seconds: null,
-      })
+      .update(updatePayload)
       .eq('id', scrape_id)
 
     if (error) {
