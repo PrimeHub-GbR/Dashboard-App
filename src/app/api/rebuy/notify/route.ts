@@ -90,6 +90,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Automatische Bereinigung: nur die letzten 3 abgeschlossenen Scrapes behalten
+    if (status === 'success' || status === 'failed') {
+      try {
+        const { data: oldScrapes } = await supabase
+          .from('rebuy_scrapes')
+          .select('id, file_path')
+          .in('status', ['success', 'failed'])
+          .order('finished_at', { ascending: false })
+          .range(3, 100)
+
+        if (oldScrapes && oldScrapes.length > 0) {
+          const filesToDelete = oldScrapes.map((s: { file_path: string | null }) => s.file_path).filter(Boolean) as string[]
+          if (filesToDelete.length > 0) {
+            await supabase.storage.from('rebuy-results').remove(filesToDelete)
+          }
+          const ids = oldScrapes.map((s: { id: string }) => s.id)
+          await supabase.from('rebuy_scrapes').delete().in('id', ids)
+        }
+      } catch {
+        // Bereinigung ist best-effort — Fehler nicht propagieren
+      }
+    }
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[POST /api/rebuy/notify]', err)

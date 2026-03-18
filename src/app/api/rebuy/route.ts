@@ -18,7 +18,7 @@ export async function GET() {
       .from('rebuy_scrapes')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(10)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
