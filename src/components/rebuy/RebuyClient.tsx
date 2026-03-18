@@ -715,7 +715,7 @@ export default function RebuyClient() {
                     onChange={(e) => setEditBackupProxyUrl(e.target.value)}
                   />
                   <p className="text-[10px] text-muted-foreground leading-snug">
-                    Scraper startet immer mit deiner Home-IP. Nach 5× Rate-Limit (429) wechselt er automatisch zu diesem Proxy. Empfehlung: DataImpulse.com ($1–2/GB, kein Ablaufdatum).
+                    Alle Anfragen laufen direkt über diesen Proxy (per-Request IP-Rotation). Empfehlung: DataImpulse.com (~$2/GB, kein Ablaufdatum).
                   </p>
                 </div>
               </div>
