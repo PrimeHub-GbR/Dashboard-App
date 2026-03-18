@@ -454,7 +454,7 @@ export default function RebuyClient() {
         const total = activeScrape.total_pages ?? 0
         const isPreparing = pages === 0
         // ETA nur anzeigen wenn pages > 0 und eta realistisch (<= 72h)
-        const showEta = !isPreparing && activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0 && activeScrape.eta_seconds <= 259200
+        const showEta = !isPreparing && activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0
         return (
           <Card className="border-blue-500/40 bg-blue-500/5">
             <CardHeader className="pb-2">
@@ -500,11 +500,11 @@ export default function RebuyClient() {
                 <span>Gestartet: {formatDate(activeScrape.started_at)} · Laufzeit: {formatDuration(activeScrape.started_at, null)}</span>
                 {showEta && (
                   <span className="font-medium text-blue-600">
-                    Noch ca. {formatEta(activeScrape.eta_seconds!)}
+                    Fertig in ca. {formatEta(activeScrape.eta_seconds!)}
                   </span>
                 )}
                 {!isPreparing && !showEta && activeScrape.eta_seconds != null && activeScrape.eta_seconds > 0 && (
-                  <span className="text-muted-foreground">ETA wird berechnet…</span>
+                  <span className="text-muted-foreground">Restzeit wird berechnet…</span>
                 )}
               </div>
             </CardContent>
@@ -680,7 +680,7 @@ export default function RebuyClient() {
             <div className="flex items-start gap-1.5 rounded-md bg-muted/50 px-2 py-1.5">
               <Info className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Ein vollständiger Scrape dauert <strong>3–7 Tage</strong>. Für wöchentliche Nutzung empfehlen wir <strong>Sonntag</strong>, damit die Datei eine Woche später bereitsteht.
+                Ein vollständiger Scrape dauert <strong>2–3 Tage</strong> (mit DataImpulse-Proxy). Für wöchentliche Nutzung empfehlen wir <strong>Freitag</strong>, damit die Datei am Montag bereitsteht.
               </p>
             </div>
 
