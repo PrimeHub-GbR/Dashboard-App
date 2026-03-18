@@ -135,3 +135,8 @@ created_at TIMESTAMPTZ
 - ETA nur sichtbar wenn pages>0 und eta_seconds<=259200 (72h), unrealistische Platzhalterwerte werden gefiltert
 - Container-URL in einklappbarer "Erweitert"-Sektion versteckt
 - **Vercel Deployment:** https://app-cpr4dujyr-primehubgbr-2551s-projects.vercel.app
+
+### Update 2026-03-18 — Abschließen-Button + Finalize-API
+- Neuer Endpoint `POST /api/rebuy/finalize` erzeugt vorzeitig eine Excel-Ausgabe aus den bisher gescrapten Daten
+- RebuyClient.tsx: "Abschließen"-Button mit isFinalizing-State, sichtbar waehrend laufender Scrapes
+- **Vercel Deployment:** https://app-n4xy086jz-primehubgbr-2551s-projects.vercel.app
