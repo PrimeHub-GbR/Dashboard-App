@@ -161,6 +161,7 @@ export default function RebuyClient() {
   const [isFinalizing, setIsFinalizing] = useState(false)
   const [isResuming, setIsResuming] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [boostLevel, setBoostLevel] = useState(0)
   const [isCheckingContainer, setIsCheckingContainer] = useState(false)
   const [editDays, setEditDays] = useState<string[]>(['Sun'])
   const [editTime, setEditTime] = useState('02:00')
@@ -311,7 +312,11 @@ export default function RebuyClient() {
   const handleTrigger = async () => {
     setIsTriggeringNow(true)
     try {
-      const res = await fetch('/api/rebuy/trigger', { method: 'POST' })
+      const res = await fetch('/api/rebuy/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ boostLevel }),
+      })
       const data = await res.json()
       if (!res.ok) {
         toast.error(data.error ?? 'Fehler beim Starten')
@@ -810,6 +815,60 @@ export default function RebuyClient() {
               </div>
             )}
 
+            {/* Boost Selector */}
+            {(() => {
+              const hasProxy = !!settings?.backup_proxy_url
+              const TOTAL_URLS = 2_476_851
+              const PAGE_KB    = 75
+              const EUR_PER_GB = 0.92
+              const PRESETS = [
+                { level: 0, label: 'Kostenlos', rps: 6,  fraction: 0,    days: 4.8 },
+                { level: 1, label: 'Boost S',   rps: 9,  fraction: 0.25, days: 3.2 },
+                { level: 2, label: 'Boost M',   rps: 12, fraction: 0.40, days: 2.4 },
+                { level: 3, label: 'Boost L',   rps: 15, fraction: 0.50, days: 1.9 },
+              ]
+              const sel = PRESETS[boostLevel]
+              const gbUsed = (TOTAL_URLS * sel.fraction * PAGE_KB) / 1_000_000
+              const cost   = gbUsed * EUR_PER_GB
+              return (
+                <div className="space-y-2 pt-1 pb-1 border-t border-border/50">
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <span className="text-amber-500">⚡</span> Boost
+                    {!hasProxy && <span className="text-[10px] text-muted-foreground/60 ml-1">(DataImpulse-Proxy erforderlich)</span>}
+                  </p>
+                  <div className="flex gap-1">
+                    {PRESETS.map(p => (
+                      <button
+                        key={p.level}
+                        onClick={() => setBoostLevel(p.level)}
+                        disabled={p.level > 0 && !hasProxy}
+                        className={[
+                          'flex-1 rounded text-[10px] py-1 font-medium transition-colors',
+                          p.level > 0 && !hasProxy
+                            ? 'opacity-30 cursor-not-allowed bg-muted text-muted-foreground'
+                            : boostLevel === p.level
+                            ? p.level === 0
+                              ? 'bg-slate-700 text-white'
+                              : 'bg-amber-500 text-white'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                        ].join(' ')}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground bg-muted/40 rounded px-2 py-1">
+                    <span>⏱ ~{sel.days} Tage</span>
+                    {boostLevel === 0
+                      ? <span className="text-green-500 font-medium">0 € · 0 GB</span>
+                      : <span className="text-amber-500 font-medium">~{gbUsed.toFixed(0)} GB · ~{cost.toFixed(0)} €</span>
+                    }
+                    <span>{sel.rps} req/s</span>
+                  </div>
+                </div>
+              )
+            })()}
+
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -830,7 +889,7 @@ export default function RebuyClient() {
                   ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                   : <Play className="h-3 w-3 mr-1" />
                 }
-                Jetzt starten
+                {boostLevel === 0 ? 'Jetzt starten' : `Jetzt starten (Boost ${['','S','M','L'][boostLevel]})`}
               </Button>
             </div>
           </CardContent>

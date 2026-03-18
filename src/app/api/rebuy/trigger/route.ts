@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
 // POST /api/rebuy/trigger — Manuellen Scrape-Start vom Dashboard triggern
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const supabaseAuth = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
@@ -11,6 +11,9 @@ export async function POST() {
     if (authError || !user) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
+
+    const reqBody = await request.json().catch(() => ({}))
+    const boostLevel = Math.max(0, Math.min(3, Number(reqBody.boostLevel ?? 0)))
 
     const supabase = createSupabaseServiceClient()
 
@@ -55,7 +58,7 @@ export async function POST() {
     const notifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dashboard.primehubgbr.com'}/api/rebuy/notify`
     const statusUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dashboard.primehubgbr.com'}/api/rebuy/status`
 
-    const body = JSON.stringify({ scrape_id: scrapeId, notify_url: notifyUrl, status_url: statusUrl })
+    const body = JSON.stringify({ scrape_id: scrapeId, notify_url: notifyUrl, status_url: statusUrl, boost_level: boostLevel })
 
     // HMAC-Signatur generieren
     const hmacSecret = process.env.REBUY_HMAC_SECRET
