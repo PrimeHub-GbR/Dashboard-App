@@ -587,27 +587,19 @@ export default function RebuyClient() {
             }
 
             {/* Proxy-Status */}
-            {containerOnline === true && backupProxyConfigured !== null && (
+            {containerOnline === true && (
               <div className={[
                 'flex items-start gap-1.5 rounded-md px-2 py-1.5 text-[11px]',
-                usingProxy
-                  ? 'bg-amber-50 text-amber-700'
-                  : backupProxyConfigured
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'bg-muted/50 text-muted-foreground',
+                usingProxy ? 'bg-amber-50 text-amber-700' : 'bg-muted/50 text-muted-foreground',
               ].join(' ')}>
                 {usingProxy
                   ? <Shield className="h-3 w-3 mt-0.5 shrink-0" />
-                  : backupProxyConfigured
-                    ? <ShieldOff className="h-3 w-3 mt-0.5 shrink-0" />
-                    : <ShieldOff className="h-3 w-3 mt-0.5 shrink-0" />
+                  : <ShieldOff className="h-3 w-3 mt-0.5 shrink-0" />
                 }
                 <span>
                   {usingProxy
-                    ? <><strong>DataImpulse Proxy aktiv</strong> — Scraper nutzt Backup-IP</>
-                    : backupProxyConfigured
-                      ? <><strong>Home-IP aktiv</strong> — wechselt bei 5× 429 automatisch zu DataImpulse</>
-                      : 'Kein Backup-Proxy konfiguriert'
+                    ? <><strong>DataImpulse Proxy aktiv</strong> — alle Anfragen laufen über per-Request IP-Rotation</>
+                    : 'Kein Proxy konfiguriert — direkte Home-IP'
                   }
                 </span>
               </div>
