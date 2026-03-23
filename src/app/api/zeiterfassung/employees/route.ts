@@ -46,6 +46,7 @@ export async function GET() {
   const { data, error: dbError } = await service
     .from('employees')
     .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at')
+    .neq('position', 'geschaeftsfuehrer') // GF erscheinen nicht in der Zeiterfassung
     .order('name')
 
   if (dbError) {
