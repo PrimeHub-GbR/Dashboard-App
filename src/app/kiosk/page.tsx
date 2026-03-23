@@ -9,6 +9,7 @@ export default async function KioskPage() {
     .from('employees')
     .select('id, name, color')
     .eq('is_active', true)
+    .neq('position', 'geschaeftsfuehrer')
     .order('name')
 
   return <KioskCheckin employees={employees ?? []} />

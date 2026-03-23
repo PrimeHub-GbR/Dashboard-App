@@ -1,6 +1,6 @@
 'use client'
 
-import { Lock, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Lock, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -13,8 +13,6 @@ interface OrgMemberCardProps {
   managerOwnId?: string | null
   onEdit: (member: OrgMember) => void
   onDelete?: (member: OrgMember) => void
-  onAddBelow?: () => void
-  showAddBelow?: boolean
 }
 
 function canEdit(member: OrgMember, userRole: UserRole, managerOwnId?: string | null): boolean {
@@ -51,8 +49,6 @@ export function OrgMemberCard({
   managerOwnId,
   onEdit,
   onDelete,
-  onAddBelow,
-  showAddBelow,
 }: OrgMemberCardProps) {
   const editable = canEdit(member, userRole, managerOwnId)
   const deletable = canDelete(member, userRole, managerOwnId)
@@ -125,12 +121,6 @@ export function OrgMemberCard({
         </CardContent>
       </Card>
 
-      {showAddBelow && onAddBelow && (
-        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={onAddBelow}>
-          <Plus className="h-3 w-3" />
-          Mitarbeiter
-        </Button>
-      )}
     </div>
   )
 }
