@@ -8,10 +8,10 @@ const checkinSchema = z.object({
 })
 
 function verifyKioskToken(req: NextRequest): boolean {
-  const token = req.headers.get('x-kiosk-token')
   const expected = process.env.KIOSK_TOKEN
-  if (!expected || !token) return false
-  // Timing-safe Vergleich
+  if (!expected) return true // nicht konfiguriert = offen
+  const token = req.headers.get('x-kiosk-token')
+  if (!token) return false
   if (token.length !== expected.length) return false
   let diff = 0
   for (let i = 0; i < token.length; i++) {

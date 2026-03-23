@@ -1,10 +1,129 @@
 'use client'
 
 import { useKioskCheckin } from '@/hooks/useKioskCheckin'
-import { formatTimeBerlin, formatDuration } from '@/lib/zeiterfassung/timezone'
+import { formatTimeBerlin, formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { Employee } from '@/lib/zeiterfassung/types'
-import { CheckCircle, Delete, Clock, AlertTriangle } from 'lucide-react'
+import { CheckCircle, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
+
+const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
+const PERSONAL_VIEW_SECONDS = 3 * 60
+
+interface PersonalStats {
+  total_work_minutes: number
+  total_break_minutes: number
+  entry_count: number
+  target_hours_per_month: number
+}
+
+function PersonalView({
+  employee,
+  onExit,
+}: {
+  employee: Pick<Employee, 'id' | 'name' | 'color'>
+  onExit: () => void
+}) {
+  const [countdown, setCountdown] = useState(PERSONAL_VIEW_SECONDS)
+  const [stats, setStats] = useState<PersonalStats | null>(null)
+
+  const { year, month } = currentBerlinYearMonth()
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    fetch(`/api/zeiterfassung/portal/me?employee_id=${employee.id}&year=${year}&month=${month}`, {
+      headers: { 'x-kiosk-token': KIOSK_TOKEN },
+    })
+      .then(r => r.json())
+      .then((j: { monthStats: { total_work_minutes: number; total_break_minutes: number; entry_count: number }; employee: { target_hours_per_month: number } }) => {
+        setStats({ ...j.monthStats, target_hours_per_month: j.employee?.target_hours_per_month ?? 0 })
+      })
+      .catch(() => { /* ignore */ })
+  }, [employee.id, year, month])
+
+  const netMinutes = stats ? Math.max(0, stats.total_work_minutes - stats.total_break_minutes) : 0
+  const targetMinutes = stats ? stats.target_hours_per_month * 60 : 0
+  const diff = netMinutes - targetMinutes
+  const progressPct = targetMinutes > 0 ? Math.min(100, Math.round((netMinutes / targetMinutes) * 100)) : 0
+
+  const mm = String(Math.floor(countdown / 60)).padStart(2, '0')
+  const ss = String(countdown % 60).padStart(2, '0')
+
+  return (
+    <div className="flex flex-col items-center gap-6 max-w-sm mx-auto px-4 w-full text-center">
+      {/* Avatar */}
+      <div
+        className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg"
+        style={{ backgroundColor: employee.color }}
+      >
+        {employee.name.charAt(0).toUpperCase()}
+      </div>
+      <div>
+        <h1 className="text-2xl font-bold text-white">Hallo, {employee.name}!</h1>
+        <p className="text-gray-400 text-sm mt-1">Deine Übersicht für diesen Monat</p>
+      </div>
+
+      {/* Stats */}
+      {stats ? (
+        <>
+          <div className="grid grid-cols-3 gap-3 w-full">
+            <div className="bg-gray-900 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1">Ist</p>
+              <p className="text-lg font-bold text-white">{formatDuration(netMinutes)}</p>
+            </div>
+            <div className="bg-gray-900 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1">Soll</p>
+              <p className="text-lg font-bold text-white">{stats.target_hours_per_month}h</p>
+            </div>
+            <div className="bg-gray-900 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1">Diff</p>
+              <p className={`text-lg font-bold flex items-center justify-center gap-0.5 ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {diff >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
+              </p>
+            </div>
+          </div>
+          {/* Fortschritt */}
+          <div className="w-full space-y-1">
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{progressPct}% des Monatsziels</span>
+              <span>{stats.entry_count} Buchungen</span>
+            </div>
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${progressPct}%`, backgroundColor: employee.color }}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="w-full h-24 bg-gray-900 rounded-xl animate-pulse" />
+      )}
+
+      {/* Countdown + Exit */}
+      <div className="flex flex-col items-center gap-3 w-full">
+        <p className="text-gray-600 text-sm">Automatische Rückkehr in {mm}:{ss}</p>
+        <button
+          onClick={onExit}
+          className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Jetzt beenden
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface Props {
   employees: Pick<Employee, 'id' | 'name' | 'color'>[]
@@ -24,6 +143,10 @@ export function KioskCheckin({ employees }: Props) {
     submit,
     reset,
   } = useKioskCheckin()
+
+  if (step === 'personal' && selectedEmployee) {
+    return <PersonalView employee={selectedEmployee} onExit={reset} />
+  }
 
   if (step === 'result' && result) {
     return (

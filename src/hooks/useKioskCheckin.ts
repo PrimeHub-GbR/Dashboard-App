@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { KioskCheckinResult, Employee } from '@/lib/zeiterfassung/types'
 
-type KioskStep = 'select' | 'pin' | 'result'
+type KioskStep = 'select' | 'pin' | 'result' | 'personal'
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
 
@@ -58,16 +58,28 @@ export function useKioskCheckin() {
       }
 
       setResult(json)
-      setStep('result')
 
-      // Nach 4 Sekunden zurücksetzen
-      setTimeout(() => {
-        setStep('select')
-        setSelectedEmployee(null)
-        setPin('')
-        setResult(null)
-        setError(null)
-      }, 4000)
+      if (!isCheckout && json.type === 'checkin') {
+        // Nach Check-in: 3-Minuten Personal-View
+        setStep('personal')
+        setTimeout(() => {
+          setStep('select')
+          setSelectedEmployee(null)
+          setPin('')
+          setResult(null)
+          setError(null)
+        }, 3 * 60 * 1000)
+      } else {
+        // Nach Checkout: 4s Ergebnis-Screen
+        setStep('result')
+        setTimeout(() => {
+          setStep('select')
+          setSelectedEmployee(null)
+          setPin('')
+          setResult(null)
+          setError(null)
+        }, 4000)
+      }
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
       setPin('')
