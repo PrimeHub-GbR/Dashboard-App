@@ -134,6 +134,6 @@ export async function POST(req: NextRequest) {
     .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active')
     .single()
 
-  if (dbError) return NextResponse.json({ error: 'Fehler beim Anlegen' }, { status: 500 })
+  if (dbError) return NextResponse.json({ error: dbError.message ?? 'Fehler beim Anlegen' }, { status: 500 })
   return NextResponse.json({ member: inserted }, { status: 201 })
 }
