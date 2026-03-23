@@ -137,7 +137,7 @@ export function MitarbeiterVerwaltung() {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground gap-1">
-                  <a href="/dashboard/zeiterfassung/einchecken" target="_blank">
+                  <a href="/kiosk" target="_blank">
                     <ExternalLink className="w-3 h-3" />
                     Kiosk
                   </a>

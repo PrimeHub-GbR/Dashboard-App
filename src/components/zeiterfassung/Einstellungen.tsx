@@ -158,7 +158,7 @@ export function Einstellungen() {
           </div>
           <div className="pt-2">
             <Button variant="outline" size="sm" asChild>
-              <a href="/dashboard/zeiterfassung/einchecken" target="_blank" className="gap-2">
+              <a href="/kiosk" target="_blank" className="gap-2">
                 <ExternalLink className="w-4 h-4" />
                 Kiosk-Ansicht öffnen
               </a>
