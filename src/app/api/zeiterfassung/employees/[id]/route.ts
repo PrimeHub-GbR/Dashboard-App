@@ -8,6 +8,15 @@ const updateEmployeeSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   target_hours_per_month: z.number().min(1).max(400).optional(),
   is_active: z.boolean().optional(),
+  weekly_schedule: z.object({
+    mon: z.number().min(0).max(24),
+    tue: z.number().min(0).max(24),
+    wed: z.number().min(0).max(24),
+    thu: z.number().min(0).max(24),
+    fri: z.number().min(0).max(24),
+    sat: z.number().min(0).max(24),
+    sun: z.number().min(0).max(24),
+  }).optional(),
 })
 
 async function requireAdmin() {

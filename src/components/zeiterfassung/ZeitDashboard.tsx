@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useZeitDashboard } from '@/hooks/useZeitDashboard'
+import { useEmployees } from '@/hooks/useEmployees'
 import { MonatsSelector } from './MonatsSelector'
 import { MitarbeiterBadge } from './MitarbeiterBadge'
+import { MitarbeiterChart } from './MitarbeiterChart'
 import { formatDuration, formatDateTimeBerlin, formatTimeBerlin, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -45,17 +47,15 @@ interface RecentEntry {
 // ─── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
 function buildChartData(daily: DailyRow[], year: number, month: number) {
-  // Alle Tage des Monats generieren
   const daysInMonth = new Date(year, month, 0).getDate()
   const employees = [...new Set(daily.map(d => d.employee_name))]
 
-  // Lookup: date → employee → net_minutes
   const lookup: Record<string, Record<string, number>> = {}
   for (const row of daily) {
     const day = new Date(row.work_date).getDate()
     const key = String(day)
     if (!lookup[key]) lookup[key] = {}
-    lookup[key][row.employee_name] = Math.round(row.net_minutes / 60 * 10) / 10 // Stunden mit 1 Dezimale
+    lookup[key][row.employee_name] = Math.round(row.net_minutes / 60 * 10) / 10
   }
 
   return Array.from({ length: daysInMonth }, (_, i) => {
@@ -120,7 +120,7 @@ function KpiCard({
             )}
             {sub && !trendLabel && <p className="text-xs text-muted-foreground">{sub}</p>}
           </div>
-          <div className={`p-2 rounded-lg bg-muted`}>
+          <div className="p-2 rounded-lg bg-muted">
             <Icon className={`w-5 h-5 ${iconColor ?? 'text-muted-foreground'}`} />
           </div>
         </div>
@@ -129,7 +129,7 @@ function KpiCard({
   )
 }
 
-// ─── Custom Tooltip für Area Chart ───────────────────────────────────────────
+// ─── Custom Tooltip für Area Chart ────────────────────────────────────────────
 
 function ChartTooltip({ active, payload, label }: {
   active?: boolean
@@ -161,7 +161,10 @@ export function ZeitDashboard() {
   const now = currentBerlinYearMonth()
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+
   const { data, loading } = useZeitDashboard(year, month)
+  const { employees: allEmployees } = useEmployees()
 
   const daily = (data?.daily ?? []) as DailyRow[]
   const monthData = (data?.month ?? []) as MonthRow[]
@@ -176,12 +179,22 @@ export function ZeitDashboard() {
   const avgMinutesPerDay = daysWorked > 0 ? Math.round(totalNetMinutes / daysWorked) : 0
 
   // Chart-Daten
-  const employees = [...new Set(daily.map(d => d.employee_name))]
-  const employeeColors = Object.fromEntries(
-    daily.map(d => [d.employee_name, d.employee_color])
-  )
+  const uniqueEmpNames = [...new Set(daily.map(d => d.employee_name))]
+  const employeeColors = Object.fromEntries(daily.map(d => [d.employee_name, d.employee_color]))
   const chartData = buildChartData(daily, year, month)
   const perfData = buildPerformanceData(monthData)
+
+  // Mitarbeiter für Switcher (nur solche mit Daten in diesem Monat)
+  const monthEmployees = monthData.map(r => ({
+    id: r.employee_id,
+    name: r.employee_name,
+    color: r.employee_color,
+  }))
+
+  // Selektierter MA mit weekly_schedule aus useEmployees
+  const selectedEmpFull = selectedEmployeeId
+    ? allEmployees.find(e => e.id === selectedEmployeeId) ?? null
+    : null
 
   const skel = <Skeleton className="h-full w-full rounded-xl" />
 
@@ -239,24 +252,72 @@ export function ZeitDashboard() {
       {/* Haupt-Charts */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-        {/* Area Chart — tägliche Stunden */}
+        {/* Area Chart / MitarbeiterChart — mit Employee-Switcher */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Tägliche Arbeitszeit</CardTitle>
-            <CardDescription>Netto-Stunden pro Mitarbeiter — zeigt Gleichmäßigkeit der Arbeit</CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle className="text-base">
+                  {selectedEmpFull ? `Soll/Ist — ${selectedEmpFull.name}` : 'Tägliche Arbeitszeit'}
+                </CardTitle>
+                <CardDescription>
+                  {selectedEmpFull
+                    ? 'Kumulativer Soll- und Ist-Verlauf im Monatsvergleich'
+                    : 'Netto-Stunden pro Mitarbeiter — zeigt Gleichmäßigkeit der Arbeit'}
+                </CardDescription>
+              </div>
+              {/* Employee Switcher */}
+              {!loading && monthEmployees.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  <button
+                    onClick={() => setSelectedEmployeeId(null)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                      selectedEmployeeId === null
+                        ? 'bg-foreground text-background border-transparent'
+                        : 'bg-transparent text-muted-foreground border-border hover:border-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Alle
+                  </button>
+                  {monthEmployees.map(emp => (
+                    <button
+                      key={emp.id}
+                      onClick={() => setSelectedEmployeeId(emp.id === selectedEmployeeId ? null : emp.id)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                        selectedEmployeeId === emp.id
+                          ? 'text-white border-transparent'
+                          : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+                      }`}
+                      style={selectedEmployeeId === emp.id ? { backgroundColor: emp.color, borderColor: emp.color } : {}}
+                    >
+                      {emp.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="h-64">{skel}</div>
+            ) : selectedEmpFull ? (
+              /* Individuelle Soll/Ist-Kurve */
+              <MitarbeiterChart
+                employee={selectedEmpFull}
+                daily={daily}
+                year={year}
+                month={month}
+              />
             ) : daily.length === 0 ? (
               <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
                 Noch keine Daten für diesen Monat.
               </div>
             ) : (
+              /* Alle Mitarbeiter — Area Chart */
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    {employees.map(emp => (
+                    {uniqueEmpNames.map(emp => (
                       <linearGradient key={emp} id={`grad-${emp}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={employeeColors[emp]} stopOpacity={0.3} />
                         <stop offset="95%" stopColor={employeeColors[emp]} stopOpacity={0} />
@@ -269,7 +330,7 @@ export function ZeitDashboard() {
                     tick={{ fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
-                    interval={employees.length > 3 ? 3 : 1}
+                    interval={uniqueEmpNames.length > 3 ? 3 : 1}
                   />
                   <YAxis
                     tick={{ fontSize: 11 }}
@@ -278,14 +339,14 @@ export function ZeitDashboard() {
                     tickFormatter={v => `${v}h`}
                   />
                   <Tooltip content={<ChartTooltip />} />
-                  {employees.length > 1 && (
+                  {uniqueEmpNames.length > 1 && (
                     <Legend
                       iconType="circle"
                       iconSize={8}
                       wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
                     />
                   )}
-                  {employees.map(emp => (
+                  {uniqueEmpNames.map(emp => (
                     <Area
                       key={emp}
                       type="monotone"
@@ -352,117 +413,65 @@ export function ZeitDashboard() {
         </Card>
       </div>
 
-      {/* Untere Reihe */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Letzte Aktivitäten */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Letzte Aktivitäten</CardTitle>
+          <CardDescription>Check-ins und Check-outs</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : recent.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Keine Aktivitäten</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {recent.map(entry => {
+                const emp = Array.isArray(entry.employees) ? entry.employees[0] : entry.employees
+                const isCheckout = !!entry.checked_out_at
+                const grossMin = isCheckout
+                  ? Math.floor((new Date(entry.checked_out_at!).getTime() - new Date(entry.checked_in_at).getTime()) / 60_000)
+                  : null
+                const netMin = grossMin !== null ? Math.max(0, grossMin - entry.break_minutes) : null
 
-        {/* Mitarbeiter Rangliste */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Mitarbeiter-Auswertung</CardTitle>
-            <CardDescription>Netto-Stunden · Zielerreichung · Überstunden</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loading ? (
-              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
-            ) : monthData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Keine Daten</p>
-            ) : (
-              monthData
-                .map(row => {
-                  const net = Math.max(0, row.total_work_minutes - row.total_break_minutes)
-                  const target = row.target_hours_per_month * 60
-                  const pct = target > 0 ? Math.min(100, Math.round((net / target) * 100)) : 0
-                  const overtime = net - target
-                  return { ...row, net, target, pct, overtime }
-                })
-                .sort((a, b) => b.net - a.net)
-                .map(row => (
-                  <div key={row.employee_id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <MitarbeiterBadge name={row.employee_name} color={row.employee_color} />
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="font-medium">{formatDuration(row.net)}</span>
-                        <Badge
-                          variant={row.overtime >= 0 ? 'default' : 'destructive'}
-                          className="text-xs"
-                        >
-                          {row.overtime >= 0 ? '+' : ''}{formatDuration(Math.abs(row.overtime))}
-                        </Badge>
-                      </div>
+                return (
+                  <div key={entry.id} className="flex items-center gap-3">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                      style={{ backgroundColor: emp?.color ?? '#22c55e' }}
+                    >
+                      {emp?.name?.charAt(0).toUpperCase() ?? '?'}
                     </div>
-                    {/* Fortschrittsbalken */}
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${row.pct}%`,
-                          backgroundColor: row.employee_color,
-                        }}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{emp?.name ?? 'Unbekannt'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isCheckout
+                          ? `Ausgestempelt · ${formatTimeBerlin(entry.checked_out_at!)} Uhr`
+                          : `Eingestempelt · ${formatTimeBerlin(entry.checked_in_at)} Uhr`}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{row.pct}% von {row.target_hours_per_month}h Soll · {row.entry_count} Buchungen</p>
+                    <div className="text-right shrink-0">
+                      {isCheckout ? (
+                        <>
+                          <LogOut className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
+                          <p className="text-xs font-medium">{netMin !== null ? formatDuration(netMin) : '—'}</p>
+                        </>
+                      ) : (
+                        <>
+                          <LogIn className="w-3.5 h-3.5 text-green-500 mx-auto mb-0.5" />
+                          <p className="text-xs text-muted-foreground">{formatDateTimeBerlin(entry.checked_in_at).split(',')[0]}</p>
+                        </>
+                      )}
+                    </div>
                   </div>
-                ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity Feed */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Letzte Aktivitäten</CardTitle>
-            <CardDescription>Check-ins und Check-outs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full mb-3" />)
-            ) : recent.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Keine Aktivitäten</p>
-            ) : (
-              <div className="space-y-3">
-                {recent.map(entry => {
-                  const emp = Array.isArray(entry.employees) ? entry.employees[0] : entry.employees
-                  const isCheckout = !!entry.checked_out_at
-                  const grossMin = isCheckout
-                    ? Math.floor((new Date(entry.checked_out_at!).getTime() - new Date(entry.checked_in_at).getTime()) / 60_000)
-                    : null
-                  const netMin = grossMin !== null ? Math.max(0, grossMin - entry.break_minutes) : null
-
-                  return (
-                    <div key={entry.id} className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: emp?.color ?? '#22c55e' }}
-                      >
-                        {emp?.name?.charAt(0).toUpperCase() ?? '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{emp?.name ?? 'Unbekannt'}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {isCheckout ? `Ausgestempelt · ${formatTimeBerlin(entry.checked_out_at!)} Uhr` : `Eingestempelt · ${formatTimeBerlin(entry.checked_in_at)} Uhr`}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {isCheckout ? (
-                          <>
-                            <LogOut className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                            <p className="text-xs font-medium">{netMin !== null ? formatDuration(netMin) : '—'}</p>
-                          </>
-                        ) : (
-                          <>
-                            <LogIn className="w-3.5 h-3.5 text-green-500 mx-auto mb-0.5" />
-                            <p className="text-xs text-muted-foreground">{formatDateTimeBerlin(entry.checked_in_at).split(',')[0]}</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

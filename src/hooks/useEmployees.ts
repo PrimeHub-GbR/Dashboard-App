@@ -30,6 +30,7 @@ export function useEmployees() {
     pin: string
     color: string
     target_hours_per_month: number
+    weekly_schedule?: import('@/lib/zeiterfassung/types').WeeklySchedule
   }) => {
     const res = await fetch('/api/zeiterfassung/employees', {
       method: 'POST',
@@ -50,6 +51,7 @@ export function useEmployees() {
     color: string
     target_hours_per_month: number
     is_active: boolean
+    weekly_schedule: import('@/lib/zeiterfassung/types').WeeklySchedule
   }>) => {
     const res = await fetch(`/api/zeiterfassung/employees/${id}`, {
       method: 'PATCH',

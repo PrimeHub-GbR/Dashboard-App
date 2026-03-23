@@ -13,6 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Plus, Pencil, Trash2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
+import type { WeeklySchedule } from '@/lib/zeiterfassung/types'
+import { DEFAULT_WEEKLY_SCHEDULE, WEEKDAY_LABELS } from '@/lib/zeiterfassung/types'
 
 const COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16']
 
@@ -21,9 +23,13 @@ interface FormState {
   pin: string
   color: string
   target_hours_per_month: number
+  weekly_schedule: WeeklySchedule
 }
 
-const defaultForm: FormState = { name: '', pin: '', color: '#22c55e', target_hours_per_month: 160 }
+const defaultForm: FormState = {
+  name: '', pin: '', color: '#22c55e', target_hours_per_month: 160,
+  weekly_schedule: { ...DEFAULT_WEEKLY_SCHEDULE },
+}
 
 export function MitarbeiterVerwaltung() {
   const { employees, loading, createEmployee, updateEmployee, deleteEmployee } = useEmployees()
@@ -46,6 +52,7 @@ export function MitarbeiterVerwaltung() {
       pin: '',
       color: emp.color,
       target_hours_per_month: emp.target_hours_per_month,
+      weekly_schedule: emp.weekly_schedule ?? { ...DEFAULT_WEEKLY_SCHEDULE },
     })
     setDialogOpen(true)
   }
@@ -63,6 +70,7 @@ export function MitarbeiterVerwaltung() {
           name: form.name,
           color: form.color,
           target_hours_per_month: form.target_hours_per_month,
+          weekly_schedule: form.weekly_schedule,
         }
         if (form.pin.length >= 4) data.pin = form.pin
         await updateEmployee(editingId, data)
@@ -204,6 +212,27 @@ export function MitarbeiterVerwaltung() {
                 min={1}
                 max={400}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Wochenplan (Stunden pro Tag)</Label>
+              <div className="grid grid-cols-7 gap-1">
+                {(Object.keys(WEEKDAY_LABELS) as Array<keyof WeeklySchedule>).map((day) => (
+                  <div key={day} className="flex flex-col items-center gap-1">
+                    <span className="text-xs text-muted-foreground font-medium">{WEEKDAY_LABELS[day]}</span>
+                    <Input
+                      type="number"
+                      value={form.weekly_schedule[day]}
+                      onChange={(e) => setForm(f => ({
+                        ...f,
+                        weekly_schedule: { ...f.weekly_schedule, [day]: Math.min(24, Math.max(0, Number(e.target.value))) },
+                      }))}
+                      min={0}
+                      max={24}
+                      className="text-center px-1 h-8 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>

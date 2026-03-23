@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
+const weeklyScheduleSchema = z.object({
+  mon: z.number().min(0).max(24),
+  tue: z.number().min(0).max(24),
+  wed: z.number().min(0).max(24),
+  thu: z.number().min(0).max(24),
+  fri: z.number().min(0).max(24),
+  sat: z.number().min(0).max(24),
+  sun: z.number().min(0).max(24),
+}).default({ mon: 8, tue: 8, wed: 8, thu: 8, fri: 8, sat: 0, sun: 0 })
+
 const createEmployeeSchema = z.object({
   name: z.string().min(1).max(100),
   pin: z.string().regex(/^\d{4,8}$/, 'PIN muss 4–8 Ziffern sein'),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#22c55e'),
   target_hours_per_month: z.number().min(1).max(400).default(160),
+  weekly_schedule: weeklyScheduleSchema,
 })
 
 async function requireAdmin(req: NextRequest) {
@@ -34,7 +45,7 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const { data, error: dbError } = await service
     .from('employees')
-    .select('id, name, color, is_active, target_hours_per_month, created_at')
+    .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at')
     .order('name')
 
   if (dbError) {
@@ -62,7 +73,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { name, pin, color, target_hours_per_month } = parsed.data
+  const { name, pin, color, target_hours_per_month, weekly_schedule } = parsed.data
 
   // PIN als einfacher Hash (SHA-256 via Web Crypto)
   const encoder = new TextEncoder()
@@ -79,9 +90,10 @@ export async function POST(req: NextRequest) {
       pin: hashHex,
       color,
       target_hours_per_month,
+      weekly_schedule,
       created_by: user.id,
     })
-    .select('id, name, color, is_active, target_hours_per_month, created_at')
+    .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at')
     .single()
 
   if (error) {

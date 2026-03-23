@@ -1,3 +1,21 @@
+export interface WeeklySchedule {
+  mon: number
+  tue: number
+  wed: number
+  thu: number
+  fri: number
+  sat: number
+  sun: number
+}
+
+export const DEFAULT_WEEKLY_SCHEDULE: WeeklySchedule = {
+  mon: 8, tue: 8, wed: 8, thu: 8, fri: 8, sat: 0, sun: 0,
+}
+
+export const WEEKDAY_LABELS: Record<keyof WeeklySchedule, string> = {
+  mon: 'Mo', tue: 'Di', wed: 'Mi', thu: 'Do', fri: 'Fr', sat: 'Sa', sun: 'So',
+}
+
 export interface Employee {
   id: string
   name: string
@@ -5,6 +23,7 @@ export interface Employee {
   color: string
   is_active: boolean
   target_hours_per_month: number
+  weekly_schedule: WeeklySchedule
   created_by: string | null
   created_at: string
   updated_at: string
