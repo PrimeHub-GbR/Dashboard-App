@@ -33,7 +33,7 @@ export function Schichtplanung() {
   const [saving, setSaving] = useState(false)
 
   // Filter
-  const [filterEmpId, setFilterEmpId] = useState<string>('') // '' = alle
+  const [filterEmpId, setFilterEmpId] = useState<string>('__all__') // '__all__' = alle
   const [filterWdays, setFilterWdays] = useState<Set<number>>(new Set()) // leer = alle
 
   // Sammelauswahl
@@ -178,13 +178,13 @@ export function Schichtplanung() {
   }
 
   function clearFilter() {
-    setFilterEmpId('')
+    setFilterEmpId('__all__')
     setFilterWdays(new Set())
   }
 
   // Gibt true zurück, wenn diese Schicht aktuell durch den Filter sichtbar ist
   function isShiftVisible(s: ShiftWithEmployee): boolean {
-    if (filterEmpId && s.employee_id !== filterEmpId) return false
+    if (filterEmpId !== '__all__' && s.employee_id !== filterEmpId) return false
     if (filterWdays.size > 0) {
       const wday = new Date(s.shift_date).getDay()
       if (!filterWdays.has(wday)) return false
@@ -229,9 +229,9 @@ export function Schichtplanung() {
     shiftsByDate.get(s.shift_date)!.push(s)
   }
 
-  const filterActive = filterEmpId !== '' || filterWdays.size > 0
+  const filterActive = filterEmpId !== '__all__' || filterWdays.size > 0
   const filteredShiftCount = shifts.filter(isShiftVisible).length
-  const filterEmpName = filterEmpId ? employees.find(e => e.id === filterEmpId)?.name : null
+  const filterEmpName = filterEmpId !== '__all__' ? employees.find(e => e.id === filterEmpId)?.name : null
 
   const selectedEmp = employees.find(e => e.id === employeeId)
 
@@ -273,7 +273,7 @@ export function Schichtplanung() {
             <SelectValue placeholder="Alle Mitarbeiter" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Alle Mitarbeiter</SelectItem>
+            <SelectItem value="__all__">Alle Mitarbeiter</SelectItem>
             {employees.filter(e => e.is_active).map(e => (
               <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
             ))}
@@ -359,7 +359,7 @@ export function Schichtplanung() {
             const allDayShifts = shiftsByDate.get(dateStr) ?? []
             // Wochentag-Filter greift auf den Tag selbst (nicht nur Schichten)
             if (filterWdays.size > 0 && !filterWdays.has(wdayNum)) return null
-            const visibleShifts = filterEmpId
+            const visibleShifts = filterEmpId !== '__all__'
               ? allDayShifts.filter(s => s.employee_id === filterEmpId)
               : allDayShifts
             // Bei aktivem Filter: Tage ohne sichtbare Schichten ausblenden
