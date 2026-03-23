@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { KioskCheckinResult, Employee } from '@/lib/zeiterfassung/types'
 
-type KioskStep = 'select' | 'pin' | 'result' | 'personal'
+type KioskStep = 'select' | 'pin' | 'success' | 'personal'
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
+const PERSONAL_VIEW_SECONDS = 30
 
 export function useKioskCheckin() {
   const [step, setStep] = useState<KioskStep>('select')
@@ -15,38 +16,37 @@ export function useKioskCheckin() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const selectEmployee = useCallback((emp: Pick<Employee, 'id' | 'name' | 'color'>) => {
-    setSelectedEmployee(emp)
+  // Prevent double submission
+  const submitting = useRef(false)
+  // Hold latest employee ref to avoid stale closure
+  const employeeRef = useRef(selectedEmployee)
+  useEffect(() => { employeeRef.current = selectedEmployee }, [selectedEmployee])
+
+  const resetFull = useCallback(() => {
+    setStep('select')
+    setSelectedEmployee(null)
     setPin('')
+    setResult(null)
     setError(null)
-    setStep('pin')
+    setLoading(false)
+    submitting.current = false
   }, [])
 
-  const appendDigit = useCallback((digit: string) => {
-    setPin(prev => prev.length < 8 ? prev + digit : prev)
-    setError(null)
-  }, [])
-
-  const deleteDigit = useCallback(() => {
-    setPin(prev => prev.slice(0, -1))
-    setError(null)
-  }, [])
-
-  const submit = useCallback(async (isCheckout: boolean) => {
-    if (!selectedEmployee || pin.length < 4) return
+  const submitWithPin = useCallback(async (pinValue: string) => {
+    const employee = employeeRef.current
+    if (!employee || pinValue.length < 4 || submitting.current) return
+    submitting.current = true
     setLoading(true)
     setError(null)
 
-    const endpoint = isCheckout ? '/api/zeiterfassung/checkout' : '/api/zeiterfassung/checkin'
-
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/zeiterfassung/toggle', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-kiosk-token': KIOSK_TOKEN,
         },
-        body: JSON.stringify({ employee_id: selectedEmployee.id, pin }),
+        body: JSON.stringify({ employee_id: employee.id, pin: pinValue }),
       })
 
       const json = await res.json() as KioskCheckinResult & { error?: string }
@@ -54,45 +54,54 @@ export function useKioskCheckin() {
       if (!res.ok) {
         setError(json.error ?? 'Unbekannter Fehler')
         setPin('')
+        submitting.current = false
         return
       }
 
       setResult(json)
+      setStep('success')
 
-      if (!isCheckout && json.type === 'checkin') {
-        // Nach Check-in: 3-Minuten Personal-View
-        setStep('personal')
-        setTimeout(() => {
-          setStep('select')
-          setSelectedEmployee(null)
-          setPin('')
-          setResult(null)
-          setError(null)
-        }, 3 * 60 * 1000)
-      } else {
-        // Nach Checkout: 4s Ergebnis-Screen
-        setStep('result')
-        setTimeout(() => {
-          setStep('select')
-          setSelectedEmployee(null)
-          setPin('')
-          setResult(null)
-          setError(null)
-        }, 4000)
-      }
+      // Nach 2s: Personal View zeigen
+      setTimeout(() => setStep('personal'), 2000)
+
+      // Nach 2s + 30s: Auto-Reset
+      setTimeout(() => resetFull(), (2 + PERSONAL_VIEW_SECONDS) * 1000)
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
       setPin('')
+      submitting.current = false
     } finally {
       setLoading(false)
     }
-  }, [selectedEmployee, pin])
+  }, [resetFull])
 
-  const reset = useCallback(() => {
-    setStep('select')
-    setSelectedEmployee(null)
+  // Ref to always have the latest submitWithPin
+  const submitRef = useRef(submitWithPin)
+  useEffect(() => { submitRef.current = submitWithPin }, [submitWithPin])
+
+  const selectEmployee = useCallback((emp: Pick<Employee, 'id' | 'name' | 'color'>) => {
+    setSelectedEmployee(emp)
     setPin('')
-    setResult(null)
+    setError(null)
+    submitting.current = false
+    setStep('pin')
+  }, [])
+
+  const appendDigit = useCallback((digit: string) => {
+    setError(null)
+    setPin(prev => {
+      if (prev.length >= 8) return prev
+      const next = prev + digit
+      // Auto-submit when 4 digits reached
+      if (next.length === 4) {
+        setTimeout(() => submitRef.current(next), 50)
+      }
+      return next
+    })
+  }, [])
+
+  const deleteDigit = useCallback(() => {
+    setPin(prev => prev.slice(0, -1))
     setError(null)
   }, [])
 
@@ -103,10 +112,10 @@ export function useKioskCheckin() {
     result,
     error,
     loading,
+    personalViewSeconds: PERSONAL_VIEW_SECONDS,
     selectEmployee,
     appendDigit,
     deleteDigit,
-    submit,
-    reset,
+    reset: resetFull,
   }
 }
