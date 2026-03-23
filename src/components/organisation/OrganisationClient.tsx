@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { OrgChart } from './OrgChart'
-import { MitarbeiterVerwaltung } from '@/components/zeiterfassung/MitarbeiterVerwaltung'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
 import type { OrgMember, UserRole } from './types'
 
 interface OrganisationClientProps {
@@ -74,19 +72,6 @@ export function OrganisationClient({ userRole }: OrganisationClientProps) {
         />
       )}
 
-      {/* Mitarbeiterverwaltung (Zeiterfassung) — nur für admin und manager */}
-      {(userRole === 'admin' || userRole === 'manager') && (
-        <>
-          <Separator />
-          <div className="space-y-2">
-            <h2 className="text-base font-semibold">Zeiterfassung — Mitarbeiterverwaltung</h2>
-            <p className="text-sm text-muted-foreground">
-              Mitarbeiter für das Kiosk-Check-in-System verwalten (PIN, Sollstunden, Wochenplan).
-            </p>
-          </div>
-          <MitarbeiterVerwaltung hideCreate />
-        </>
-      )}
     </div>
   )
 }

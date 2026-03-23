@@ -3,6 +3,7 @@
 import { Lock, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { OrgMember, UserRole } from './types'
 import { POSITION_LABELS, getInitials } from './types'
@@ -59,68 +60,96 @@ export function OrgMemberCard({
   const lastName = parts.length > 1 ? parts[parts.length - 1] : ''
   const firstName = parts.slice(0, parts.length > 1 ? -1 : 1).join(' ')
 
+  const showKioskDot = member.position !== 'geschaeftsfuehrer'
+
   return (
-    <div className="flex flex-col items-center gap-2">
-      <Card
-        className={cn(
-          'w-44 border-2 transition-all duration-200 relative group',
-          POSITION_BORDER[member.position],
-          editable && 'cursor-pointer hover:scale-105 hover:shadow-lg',
-          isLocked && 'opacity-90'
-        )}
-        onClick={editable ? () => onEdit(member) : undefined}
-      >
-        <CardContent className="p-4 flex flex-col items-center gap-3">
-          {/* Avatar */}
-          <div
-            className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold',
-              AVATAR_BG[member.position]
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-col items-center gap-2">
+        <Card
+          className={cn(
+            'w-44 border-2 transition-all duration-200 relative group',
+            POSITION_BORDER[member.position],
+            editable && 'cursor-pointer hover:scale-105 hover:shadow-lg',
+            isLocked && 'opacity-90'
+          )}
+          onClick={editable ? () => onEdit(member) : undefined}
+        >
+          <CardContent className="p-4 flex flex-col items-center gap-3">
+            {/* Kiosk-Status Dot (oben rechts) */}
+            {showKioskDot && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      'absolute top-2 left-2 h-2.5 w-2.5 rounded-full',
+                      member.is_active ? 'bg-green-500' : 'bg-red-500'
+                    )}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {member.is_active ? 'Für Kiosk aktiv' : 'Für Kiosk inaktiv'}
+                </TooltipContent>
+              </Tooltip>
             )}
-          >
-            {getInitials(member.name)}
-          </div>
 
-          {/* Name */}
-          <div className="text-center">
-            <p className="text-sm font-semibold leading-tight text-foreground">{firstName}</p>
-            {lastName && (
-              <p className="text-sm font-semibold leading-tight text-foreground">{lastName}</p>
+            {/* Avatar */}
+            <div
+              className={cn(
+                'flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold',
+                AVATAR_BG[member.position]
+              )}
+            >
+              {getInitials(member.name)}
+            </div>
+
+            {/* Name */}
+            <div className="text-center">
+              <p className="text-sm font-semibold leading-tight text-foreground">{firstName}</p>
+              {lastName && (
+                <p className="text-sm font-semibold leading-tight text-foreground">{lastName}</p>
+              )}
+            </div>
+
+            {/* Position */}
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {POSITION_LABELS[member.position]}
+            </span>
+
+            {/* Sollstunden (nur für Mitarbeiter / Manager) */}
+            {showKioskDot && (
+              <span className="text-[11px] text-muted-foreground">
+                {member.target_hours_per_month}h / Monat
+              </span>
             )}
-          </div>
 
-          {/* Position */}
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            {POSITION_LABELS[member.position]}
-          </span>
-
-          {/* Action Icons */}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2">
-            {isLocked ? (
-              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <>
-                <Button
-                  variant="ghost" size="icon" className="h-6 w-6"
-                  onClick={(e) => { e.stopPropagation(); onEdit(member) }}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                {deletable && onDelete && (
+            {/* Action Icons */}
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2">
+              {isLocked ? (
+                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <>
                   <Button
-                    variant="ghost" size="icon"
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); onDelete(member) }}
+                    variant="ghost" size="icon" className="h-6 w-6"
+                    onClick={(e) => { e.stopPropagation(); onEdit(member) }}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Pencil className="h-3 w-3" />
                   </Button>
-                )}
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                  {deletable && onDelete && (
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-6 w-6 text-destructive hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); onDelete(member) }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }

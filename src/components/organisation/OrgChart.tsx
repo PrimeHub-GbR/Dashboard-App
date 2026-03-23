@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -154,13 +154,21 @@ export function OrgChart({ members, userRole, managerOwnId, onRefresh }: OrgChar
     <div className="rounded-xl border bg-card p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-base font-semibold">Organigramm</h2>
-        {canAdd && (
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={openAdd}>
-            <Plus className="h-3.5 w-3.5" />
-            {userRole === 'manager' ? 'Mitarbeiter hinzufügen' : 'Neu'}
+        <h2 className="text-base font-semibold">Mitarbeiterverwaltung</h2>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5" asChild>
+            <a href="/kiosk" target="_blank">
+              <Monitor className="h-3.5 w-3.5" />
+              Kiosk-Ansicht
+            </a>
           </Button>
-        )}
+          {canAdd && (
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={openAdd}>
+              <Plus className="h-3.5 w-3.5" />
+              {userRole === 'manager' ? 'Mitarbeiter hinzufügen' : 'Neu'}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto pb-4">
@@ -238,6 +246,7 @@ export function OrgChart({ members, userRole, managerOwnId, onRefresh }: OrgChar
         open={editOpen}
         onOpenChange={setEditOpen}
         userRole={userRole}
+        availableParents={userRole === 'admin' ? [...gfs, ...managers] : undefined}
         onSaved={onRefresh}
       />
 

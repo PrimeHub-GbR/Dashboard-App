@@ -6,6 +6,11 @@ export const POSITION_LABELS: Record<OrgPosition, string> = {
   mitarbeiter: 'Mitarbeiter',
 }
 
+export type WeekSchedule = {
+  mon: number; tue: number; wed: number; thu: number
+  fri: number; sat: number; sun: number
+}
+
 /** Entspricht der employees-Tabelle (nur org-relevante Felder) */
 export interface OrgMember {
   id: string
@@ -20,6 +25,8 @@ export interface OrgMember {
   auth_user_id: string | null
   color: string
   is_active: boolean
+  target_hours_per_month: number
+  weekly_schedule: WeekSchedule
   display_order?: number
 }
 

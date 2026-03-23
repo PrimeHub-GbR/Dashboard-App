@@ -67,7 +67,7 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const { data, error: dbError } = await service
     .from('employees')
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
     .order('position', { ascending: false })
     .order('name')
 
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       work_address:           data.work_address ?? null,
       home_address:           data.home_address ?? null,
     })
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
     .single()
 
   if (dbError) return NextResponse.json({ error: dbError.message ?? 'Fehler beim Anlegen' }, { status: 500 })
