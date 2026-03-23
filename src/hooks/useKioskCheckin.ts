@@ -61,11 +61,11 @@ export function useKioskCheckin() {
       setResult(json)
       setStep('success')
 
-      // Nach 2s: Personal View zeigen
-      setTimeout(() => setStep('personal'), 2000)
+      // Nach 10s: Personal View zeigen
+      setTimeout(() => setStep('personal'), 10000)
 
-      // Nach 2s + 30s: Auto-Reset
-      setTimeout(() => resetFull(), (2 + PERSONAL_VIEW_SECONDS) * 1000)
+      // Nach 10s + 30s: Auto-Reset
+      setTimeout(() => resetFull(), (10 + PERSONAL_VIEW_SECONDS) * 1000)
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
       setPin('')
