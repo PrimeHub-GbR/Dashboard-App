@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import type { TimeTrackingSettings } from '@/lib/zeiterfassung/types'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,11 +8,116 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { ExternalLink, ShieldCheck, Copy } from 'lucide-react'
+import { ExternalLink, ShieldCheck, Copy, Pencil, Trash2, Check, X, Monitor, Smartphone } from 'lucide-react'
 
 interface Props {
   kioskRegisterUrl: string | null
+}
+
+interface KioskDevice {
+  id: string
+  label: string | null
+  user_agent: string | null
+  registered_at: string
+  last_seen_at: string
+  is_active: boolean
+}
+
+function deviceIcon(userAgent: string | null) {
+  if (!userAgent) return <Monitor className="w-4 h-4" />
+  const ua = userAgent.toLowerCase()
+  if (ua.includes('ipad') || ua.includes('iphone') || ua.includes('android') || ua.includes('mobile')) {
+    return <Smartphone className="w-4 h-4" />
+  }
+  return <Monitor className="w-4 h-4" />
+}
+
+function deviceName(userAgent: string | null): string {
+  if (!userAgent) return 'Unbekanntes Gerät'
+  const ua = userAgent
+  if (ua.includes('iPad')) return 'iPad'
+  if (ua.includes('iPhone')) return 'iPhone'
+  if (ua.includes('Android')) return 'Android-Gerät'
+  if (ua.includes('Windows')) return 'Windows-PC'
+  if (ua.includes('Mac')) return 'Mac'
+  return 'Browser'
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function KioskDeviceRow({
+  device,
+  onRevoke,
+  onRename,
+}: {
+  device: KioskDevice
+  onRevoke: (id: string) => void
+  onRename: (id: string, label: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [labelVal, setLabelVal] = useState(device.label ?? '')
+
+  function saveLabel() {
+    onRename(device.id, labelVal.trim())
+    setEditing(false)
+  }
+
+  return (
+    <div className="flex items-start gap-3 py-3 border-b border-border/50 last:border-0">
+      <div className="mt-0.5 text-muted-foreground">{deviceIcon(device.user_agent)}</div>
+      <div className="flex-1 min-w-0 space-y-1">
+        {editing ? (
+          <div className="flex items-center gap-1">
+            <Input
+              value={labelVal}
+              onChange={e => setLabelVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveLabel(); if (e.key === 'Escape') setEditing(false) }}
+              className="h-7 text-sm"
+              autoFocus
+            />
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={saveLabel}>
+              <Check className="w-3.5 h-3.5 text-green-400" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditing(false)}>
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground">
+              {device.label || deviceName(device.user_agent)}
+            </span>
+            {!device.label && (
+              <span className="text-xs text-muted-foreground">({deviceName(device.user_agent)})</span>
+            )}
+            <button onClick={() => setEditing(true)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <Pencil className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+          <span>Registriert: {formatDate(device.registered_at)}</span>
+          <span>Zuletzt gesehen: {formatDate(device.last_seen_at)}</span>
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
+        onClick={() => onRevoke(device.id)}
+        title="Gerät widerrufen"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  )
 }
 
 export function Einstellungen({ kioskRegisterUrl }: Props) {
@@ -26,6 +131,9 @@ export function Einstellungen({ kioskRegisterUrl }: Props) {
     notification_enabled: false,
     kiosk_pin_length: 4,
   })
+
+  const [devices, setDevices] = useState<KioskDevice[]>([])
+  const [devicesLoading, setDevicesLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/zeiterfassung/settings')
@@ -42,6 +150,32 @@ export function Einstellungen({ kioskRegisterUrl }: Props) {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  const loadDevices = useCallback(() => {
+    setDevicesLoading(true)
+    fetch('/api/kiosk/devices')
+      .then(r => r.json())
+      .then((j: { devices: KioskDevice[] }) => setDevices(j.devices ?? []))
+      .finally(() => setDevicesLoading(false))
+  }, [])
+
+  useEffect(() => { loadDevices() }, [loadDevices])
+
+  async function handleRevoke(id: string) {
+    await fetch(`/api/kiosk/devices?id=${id}`, { method: 'DELETE' })
+    toast.success('Gerät widerrufen')
+    loadDevices()
+  }
+
+  async function handleRename(id: string, label: string) {
+    await fetch(`/api/kiosk/devices?id=${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label || null }),
+    })
+    toast.success('Gerätename gespeichert')
+    loadDevices()
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -72,6 +206,8 @@ export function Einstellungen({ kioskRegisterUrl }: Props) {
       </div>
     )
   }
+
+  const activeDevices = devices.filter(d => d.is_active)
 
   return (
     <div className="space-y-6 max-w-lg">
@@ -168,22 +304,62 @@ export function Einstellungen({ kioskRegisterUrl }: Props) {
               Für iPad: Browser im Vollbild-Modus öffnen (Guided Access).
             </p>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Admin-only: Gerät registrieren */}
-          {kioskRegisterUrl && (
-            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-amber-400">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span className="text-sm font-medium">Kiosk-Gerät autorisieren</span>
+      {/* Admin-only: Geräteverwaltung */}
+      {kioskRegisterUrl && (
+        <Card className="border-amber-500/20">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+                <CardTitle className="text-base">Autorisierte Kiosk-Geräte</CardTitle>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Der Kiosk ist durch einen Geräteschutz gesichert — nur autorisierte Geräte können ihn aufrufen.
-                Um ein neues Gerät (z.B. iPad) zu registrieren, diesen Link einmalig im Browser des Geräts öffnen.
-                Der Link setzt einen dauerhaften Cookie auf dem Gerät.
+              <Badge variant="outline" className="text-amber-400 border-amber-500/30">
+                {activeDevices.length} {activeDevices.length === 1 ? 'Gerät' : 'Geräte'}
+              </Badge>
+            </div>
+            <CardDescription>
+              Nur registrierte Geräte können den Kiosk aufrufen. Jedes Gerät erhält ein eigenes Token — gesperrte Geräte verlieren sofort den Zugang.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+
+            {/* Geräteliste */}
+            {devicesLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : activeDevices.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                Noch kein Gerät registriert.
+              </p>
+            ) : (
+              <div>
+                {activeDevices.map(device => (
+                  <KioskDeviceRow
+                    key={device.id}
+                    device={device}
+                    onRevoke={handleRevoke}
+                    onRename={handleRename}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Registrierungs-Link */}
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2 mt-2">
+              <p className="text-xs font-medium text-foreground">Neues Gerät registrieren</p>
+              <p className="text-xs text-muted-foreground">
+                Diesen Link einmalig im Browser des neuen Geräts öffnen. Das Gerät wird sofort autorisiert und erscheint oben in der Liste.
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-xs bg-background border rounded px-2 py-1.5 text-amber-300 break-all">
-                  {typeof window !== 'undefined' ? `${window.location.origin}${kioskRegisterUrl}` : kioskRegisterUrl}
+                  {typeof window !== 'undefined'
+                    ? `${window.location.origin}${kioskRegisterUrl}`
+                    : kioskRegisterUrl}
                 </code>
                 <Button
                   variant="ghost"
@@ -194,19 +370,17 @@ export function Einstellungen({ kioskRegisterUrl }: Props) {
                       ? `${window.location.origin}${kioskRegisterUrl}`
                       : kioskRegisterUrl
                     navigator.clipboard.writeText(url)
+                    toast.success('Link kopiert')
                   }}
                   title="Link kopieren"
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Nach dem Öffnen des Links landet das Gerät direkt auf dem Kiosk. Fertig.
-              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Button onClick={handleSave} disabled={saving}>
         {saving ? 'Speichert…' : 'Einstellungen speichern'}
