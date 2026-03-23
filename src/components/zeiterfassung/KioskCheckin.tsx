@@ -142,12 +142,16 @@ function PersonalView({
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) { clearInterval(timer); return 0 }
+        if (prev <= 1) {
+          clearInterval(timer)
+          onExit()
+          return 0
+        }
         return prev - 1
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [onExit])
 
   useEffect(() => {
     fetch(`/api/zeiterfassung/portal/me?employee_id=${employee.id}&year=${year}&month=${month}`, {
