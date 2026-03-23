@@ -9,6 +9,10 @@ import { formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/time
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Clock, Users, TrendingUp, TrendingDown, Minus, AlertTriangle, LogOut, Calendar, Package } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { MitarbeiterBadge } from './MitarbeiterBadge'
+import { useMonthStats } from '@/hooks/useMonthStats'
 import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -94,6 +98,91 @@ function KpiCard({
           <div className="p-2 rounded-lg bg-muted">
             <Icon className={`w-5 h-5 ${iconColor ?? 'text-muted-foreground'}`} />
           </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── Stundenauswertung (inline, synchron mit Dashboard-Monat) ─────────────────
+
+function StundenAuswertungInline({ year, month }: { year: number; month: number }) {
+  const { stats, loading } = useMonthStats(year, month)
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Stundenauswertung</CardTitle>
+        <CardDescription>Brutto / Netto / Soll / Differenz — {month}/{year}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mitarbeiter</TableHead>
+                <TableHead className="text-right">Brutto</TableHead>
+                <TableHead className="text-right">Pause</TableHead>
+                <TableHead className="text-right">Netto</TableHead>
+                <TableHead className="text-right">Soll</TableHead>
+                <TableHead className="text-right">Differenz</TableHead>
+                <TableHead className="text-right">Buchungen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : stats.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    Keine Daten für diesen Monat.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                stats.map((s) => {
+                  const overtimeSign = s.overtime_minutes > 0 ? 1 : s.overtime_minutes < 0 ? -1 : 0
+                  return (
+                    <TableRow key={s.employee_id}>
+                      <TableCell>
+                        <MitarbeiterBadge name={s.employee_name} color={s.employee_color} />
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatDuration(s.total_work_minutes)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {s.total_break_minutes > 0 ? formatDuration(s.total_break_minutes) : '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatDuration(s.net_work_minutes)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatDuration(s.target_minutes)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge
+                          variant={overtimeSign > 0 ? 'default' : overtimeSign < 0 ? 'destructive' : 'secondary'}
+                          className="gap-1"
+                        >
+                          {overtimeSign > 0 && <TrendingUp className="w-3 h-3" />}
+                          {overtimeSign < 0 && <TrendingDown className="w-3 h-3" />}
+                          {overtimeSign === 0 && <Minus className="w-3 h-3" />}
+                          {overtimeSign >= 0 ? '+' : ''}{formatDuration(Math.abs(s.overtime_minutes))}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {s.entry_count}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>
@@ -541,56 +630,7 @@ export function ZeitDashboard() {
       </div>
 
       {/* Stundenauswertung */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Stundenauswertung</CardTitle>
-          <CardDescription>Brutto / Netto / Soll / Differenz — {month}/{year}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-          ) : monthData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Keine Daten für diesen Monat.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Mitarbeiter</th>
-                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">Netto</th>
-                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">Soll</th>
-                    <th className="text-right py-2 pl-2 font-medium text-muted-foreground">Differenz</th>
-                    <th className="text-right py-2 pl-2 font-medium text-muted-foreground">Buchungen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthData.map(row => {
-                    const net = Math.max(0, row.total_work_minutes - row.total_break_minutes)
-                    const target = row.target_hours_per_month * 60
-                    const diff = net - target
-                    return (
-                      <tr key={row.employee_id} className="border-b last:border-0">
-                        <td className="py-2 pr-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.employee_color }} />
-                            <span className="font-medium truncate">{row.employee_name}</span>
-                          </div>
-                        </td>
-                        <td className="text-right py-2 px-2 font-medium">{formatDuration(net)}</td>
-                        <td className="text-right py-2 px-2 text-muted-foreground">{formatDuration(target)}</td>
-                        <td className={`text-right py-2 pl-2 font-medium ${diff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
-                        </td>
-                        <td className="text-right py-2 pl-2 text-muted-foreground">{row.entry_count}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <StundenAuswertungInline year={year} month={month} />
     </div>
   )
 }
