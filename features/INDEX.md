@@ -59,7 +59,7 @@
 
 | Feature | Status | Spec |
 |---------|--------|------|
-| To-Do-Liste, Delegation, KPIs, E-Mail-Erinnerungen | In Progress | [aufgaben/overview.md](aufgaben/overview.md) |
+| To-Do-Liste, Delegation, KPIs, E-Mail-Erinnerungen | Deployed | [aufgaben/overview.md](aufgaben/overview.md) |
 
 ---
 

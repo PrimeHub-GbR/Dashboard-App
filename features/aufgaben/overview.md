@@ -1,7 +1,9 @@
 # Feature Spec: Aufgaben
 
 **Tab:** `/dashboard/aufgaben`
-**Status:** In Progress
+**Status:** Deployed
+**Production:** https://dashboard.primehubgbr.com/dashboard/aufgaben
+**Deployed:** 2026-03-23
 **Priorität:** P1
 
 ## Ziel
