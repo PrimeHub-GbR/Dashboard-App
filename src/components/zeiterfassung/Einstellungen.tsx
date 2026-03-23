@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { ExternalLink } from 'lucide-react'
+import { MitarbeiterVerwaltung } from './MitarbeiterVerwaltung'
 
 export function Einstellungen() {
   const [settings, setSettings] = useState<TimeTrackingSettings | null>(null)
@@ -71,6 +72,8 @@ export function Einstellungen() {
 
   return (
     <div className="space-y-6 max-w-lg">
+      <MitarbeiterVerwaltung />
+      <hr className="my-2" />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Pausenregeln (ArbZG § 4)</CardTitle>

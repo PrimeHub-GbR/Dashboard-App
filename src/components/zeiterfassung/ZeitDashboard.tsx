@@ -4,16 +4,15 @@ import { useState } from 'react'
 import { useZeitDashboard } from '@/hooks/useZeitDashboard'
 import { useEmployees } from '@/hooks/useEmployees'
 import { MonatsSelector } from './MonatsSelector'
-import { MitarbeiterBadge } from './MitarbeiterBadge'
 import { MitarbeiterChart } from './MitarbeiterChart'
-import { formatDuration, formatDateTimeBerlin, formatTimeBerlin, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
+import { formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, Users, TrendingUp, TrendingDown, Minus, AlertTriangle, LogIn, LogOut } from 'lucide-react'
+import { Clock, Users, TrendingUp, TrendingDown, Minus, AlertTriangle, LogOut, Calendar } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, BarChart, Bar, Cell,
+  ResponsiveContainer,
 } from 'recharts'
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
@@ -44,6 +43,21 @@ interface RecentEntry {
   employees: { id: string; name: string; color: string } | null
 }
 
+interface LiveEntry {
+  id: string
+  employee_id: string
+  checked_in_at: string
+  employees: { id: string; name: string; color: string } | null
+}
+
+interface TodayShift {
+  id: string
+  employee_id: string
+  start_time: string
+  end_time: string
+  employees: { id: string; name: string; color: string } | null
+}
+
 // ─── Hilfsfunktionen ──────────────────────────────────────────────────────────
 
 function buildChartData(daily: DailyRow[], year: number, month: number) {
@@ -66,23 +80,6 @@ function buildChartData(daily: DailyRow[], year: number, month: number) {
       entry[emp] = lookup[key]?.[emp] ?? 0
     }
     return entry
-  })
-}
-
-function buildPerformanceData(month: MonthRow[]) {
-  return month.map(row => {
-    const netMinutes = Math.max(0, row.total_work_minutes - row.total_break_minutes)
-    const netHours = Math.round(netMinutes / 60 * 10) / 10
-    const targetHours = row.target_hours_per_month
-    const pct = targetHours > 0 ? Math.round((netHours / targetHours) * 100) : 0
-    return {
-      name: row.employee_name,
-      color: row.employee_color,
-      netHours,
-      targetHours,
-      pct,
-      overtime: Math.round((netMinutes - targetHours * 60) / 60 * 10) / 10,
-    }
   })
 }
 
@@ -170,6 +167,8 @@ export function ZeitDashboard() {
   const monthData = (data?.month ?? []) as MonthRow[]
   const recent = (data?.recent ?? []) as RecentEntry[]
   const liveCount = data?.live_count ?? 0
+  const liveEntries = (data?.live ?? []) as LiveEntry[]
+  const todayShifts = (data?.today_shifts ?? []) as TodayShift[]
 
   // KPI-Berechnungen
   const totalNetMinutes = monthData.reduce((s, r) => s + Math.max(0, r.total_work_minutes - r.total_break_minutes), 0)
@@ -182,7 +181,6 @@ export function ZeitDashboard() {
   const uniqueEmpNames = [...new Set(daily.map(d => d.employee_name))]
   const employeeColors = Object.fromEntries(daily.map(d => [d.employee_name, d.employee_color]))
   const chartData = buildChartData(daily, year, month)
-  const perfData = buildPerformanceData(monthData)
 
   // Mitarbeiter für Switcher (nur solche mit Daten in diesem Monat)
   const monthEmployees = monthData.map(r => ({
@@ -364,110 +362,149 @@ export function ZeitDashboard() {
           </CardContent>
         </Card>
 
-        {/* Performance-Bars — Soll vs. Ist */}
+        {/* Mitarbeiter heute — Live-Status */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Leistung im Monat</CardTitle>
-            <CardDescription>Ist-Stunden vs. Soll — % der Sollzeit</CardDescription>
+            <CardTitle className="text-base">Mitarbeiter heute</CardTitle>
+            <CardDescription>Live-Status und Tagesplanung</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="h-64">{skel}</div>
-            ) : perfData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
-                Keine Daten
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={perfData} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-muted" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} domain={[0, Math.max(120, ...perfData.map(d => d.pct))]} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={70} />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null
-                      const d = payload[0].payload as typeof perfData[number]
-                      return (
-                        <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
-                          <p className="font-medium mb-1">{d.name}</p>
-                          <p className="text-muted-foreground">Ist: <span className="text-foreground font-medium">{d.netHours}h</span></p>
-                          <p className="text-muted-foreground">Soll: <span className="text-foreground font-medium">{d.targetHours}h</span></p>
-                          <p className="text-muted-foreground">Erreichung: <span className={`font-medium ${d.pct >= 100 ? 'text-green-500' : 'text-yellow-500'}`}>{d.pct}%</span></p>
+            ) : (() => {
+              // Compute today (Berlin) for client-side comparison
+              const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
+
+              // Which employees to show: union of live + today_shifts + recent-today
+              const seen = new Set<string>()
+              const items: Array<{
+                employee_id: string; name: string; color: string;
+                status: 'live' | 'done' | 'planned' | 'absent'
+                detail: string
+              }> = []
+
+              // 1. Currently live
+              for (const le of liveEntries) {
+                const emp = Array.isArray(le.employees) ? le.employees[0] : le.employees
+                if (!emp || seen.has(le.employee_id)) continue
+                seen.add(le.employee_id)
+                const sinceTime = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date(le.checked_in_at))
+                items.push({ employee_id: le.employee_id, name: emp.name, color: emp.color, status: 'live', detail: `Im Lager seit ${sinceTime}` })
+              }
+
+              // 2. Done today (recent entries with checkout today)
+              for (const re of recent) {
+                if (!re.checked_out_at) continue
+                const checkoutDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date(re.checked_out_at))
+                if (checkoutDate !== todayStr) continue
+                const emp = Array.isArray(re.employees) ? re.employees[0] : re.employees
+                if (!emp || seen.has(emp.id)) continue
+                seen.add(emp.id)
+                const inTime = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date(re.checked_in_at))
+                const outTime = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(new Date(re.checked_out_at))
+                const gross = Math.floor((new Date(re.checked_out_at).getTime() - new Date(re.checked_in_at).getTime()) / 60_000)
+                const net = Math.max(0, gross - re.break_minutes)
+                items.push({ employee_id: emp.id, name: emp.name, color: emp.color, status: 'done', detail: `${inTime}–${outTime} · ${formatDuration(net)}` })
+              }
+
+              // 3. Planned today (shift exists, not yet in)
+              for (const ts of todayShifts) {
+                const emp = Array.isArray(ts.employees) ? ts.employees[0] : ts.employees
+                if (!emp || seen.has(ts.employee_id)) continue
+                seen.add(ts.employee_id)
+                items.push({ employee_id: ts.employee_id, name: emp.name, color: emp.color, status: 'planned', detail: `Geplant ${ts.start_time} Uhr` })
+              }
+
+              if (items.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-8">Keine Aktivitäten heute.</p>
+              }
+
+              return (
+                <div className="space-y-3">
+                  {items.map(item => (
+                    <div key={item.employee_id} className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                          style={{ backgroundColor: item.color }}
+                        >
+                          {item.name.charAt(0).toUpperCase()}
                         </div>
-                      )
-                    }}
-                  />
-                  <Bar dataKey="pct" radius={[0, 4, 4, 0]} maxBarSize={28}>
-                    {perfData.map((d, i) => (
-                      <Cell
-                        key={i}
-                        fill={d.pct >= 100 ? d.color : d.pct >= 80 ? '#f59e0b' : '#ef4444'}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+                        {item.status === 'live' && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.name}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          {item.status === 'live' && <span className="text-green-500 font-medium">{item.detail}</span>}
+                          {item.status === 'done' && <span className="text-muted-foreground">{item.detail}</span>}
+                          {item.status === 'planned' && <span className="text-blue-500">{item.detail}</span>}
+                        </p>
+                      </div>
+                      <div className="shrink-0">
+                        {item.status === 'live' && <Clock className="w-4 h-4 text-green-500" />}
+                        {item.status === 'done' && <LogOut className="w-4 h-4 text-muted-foreground" />}
+                        {item.status === 'planned' && <Calendar className="w-4 h-4 text-blue-500" />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>
 
-      {/* Letzte Aktivitäten */}
+      {/* Stundenauswertung */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Letzte Aktivitäten</CardTitle>
-          <CardDescription>Check-ins und Check-outs</CardDescription>
+          <CardTitle className="text-base">Stundenauswertung</CardTitle>
+          <CardDescription>Brutto / Netto / Soll / Differenz — {month}/{year}</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-            </div>
-          ) : recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Keine Aktivitäten</p>
+            <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : monthData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Keine Daten für diesen Monat.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {recent.map(entry => {
-                const emp = Array.isArray(entry.employees) ? entry.employees[0] : entry.employees
-                const isCheckout = !!entry.checked_out_at
-                const grossMin = isCheckout
-                  ? Math.floor((new Date(entry.checked_out_at!).getTime() - new Date(entry.checked_in_at).getTime()) / 60_000)
-                  : null
-                const netMin = grossMin !== null ? Math.max(0, grossMin - entry.break_minutes) : null
-
-                return (
-                  <div key={entry.id} className="flex items-center gap-3">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                      style={{ backgroundColor: emp?.color ?? '#22c55e' }}
-                    >
-                      {emp?.name?.charAt(0).toUpperCase() ?? '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{emp?.name ?? 'Unbekannt'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {isCheckout
-                          ? `Ausgestempelt · ${formatTimeBerlin(entry.checked_out_at!)} Uhr`
-                          : `Eingestempelt · ${formatTimeBerlin(entry.checked_in_at)} Uhr`}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {isCheckout ? (
-                        <>
-                          <LogOut className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                          <p className="text-xs font-medium">{netMin !== null ? formatDuration(netMin) : '—'}</p>
-                        </>
-                      ) : (
-                        <>
-                          <LogIn className="w-3.5 h-3.5 text-green-500 mx-auto mb-0.5" />
-                          <p className="text-xs text-muted-foreground">{formatDateTimeBerlin(entry.checked_in_at).split(',')[0]}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Mitarbeiter</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">Netto</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">Soll</th>
+                    <th className="text-right py-2 pl-2 font-medium text-muted-foreground">Differenz</th>
+                    <th className="text-right py-2 pl-2 font-medium text-muted-foreground">Buchungen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthData.map(row => {
+                    const net = Math.max(0, row.total_work_minutes - row.total_break_minutes)
+                    const target = row.target_hours_per_month * 60
+                    const diff = net - target
+                    return (
+                      <tr key={row.employee_id} className="border-b last:border-0">
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.employee_color }} />
+                            <span className="font-medium truncate">{row.employee_name}</span>
+                          </div>
+                        </td>
+                        <td className="text-right py-2 px-2 font-medium">{formatDuration(net)}</td>
+                        <td className="text-right py-2 px-2 text-muted-foreground">{formatDuration(target)}</td>
+                        <td className={`text-right py-2 pl-2 font-medium ${diff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
+                        </td>
+                        <td className="text-right py-2 pl-2 text-muted-foreground">{row.entry_count}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

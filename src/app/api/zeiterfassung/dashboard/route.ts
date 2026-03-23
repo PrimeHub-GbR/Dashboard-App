@@ -48,10 +48,25 @@ export async function GET(req: NextRequest) {
     .order('updated_at', { ascending: false })
     .limit(8)
 
+  // 5. Aktuell eingestempelt (live)
+  const { data: liveEntries } = await service
+    .from('time_entries')
+    .select('id, employee_id, checked_in_at, employees(id, name, color)')
+    .is('checked_out_at', null)
+
+  // 6. Heutige Schichten (für geplante Ankünfte)
+  const todayBerlin = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
+  const { data: todayShifts } = await service
+    .from('shift_plans')
+    .select('id, employee_id, start_time, end_time, employees(id, name, color)')
+    .eq('shift_date', todayBerlin)
+
   return NextResponse.json({
     daily: dailyData ?? [],
     month: monthData ?? [],
     live_count: liveCount ?? 0,
     recent: recentEntries ?? [],
+    live: liveEntries ?? [],
+    today_shifts: todayShifts ?? [],
   })
 }

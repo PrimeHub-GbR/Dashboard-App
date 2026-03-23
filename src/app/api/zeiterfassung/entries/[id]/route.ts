@@ -62,3 +62,26 @@ export async function PATCH(
 
   return NextResponse.json({ entry: data })
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await requireAdmin()
+  if (!user) {
+    return NextResponse.json({ error: 'Nur Admins' }, { status: 403 })
+  }
+
+  const { id } = await params
+  const service = createSupabaseServiceClient()
+  const { error } = await service
+    .from('time_entries')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return NextResponse.json({ error: 'Löschen fehlgeschlagen' }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
+}

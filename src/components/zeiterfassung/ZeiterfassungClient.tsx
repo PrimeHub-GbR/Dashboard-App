@@ -5,7 +5,6 @@ import { ZeitDashboard } from './ZeitDashboard'
 import { StundenUebersicht } from './StundenUebersicht'
 import { Schichtplanung } from './Schichtplanung'
 import { ZeitKorrektur } from './ZeitKorrektur'
-import { MitarbeiterVerwaltung } from './MitarbeiterVerwaltung'
 import { EigeneZeiten } from './EigeneZeiten'
 import { Einstellungen } from './Einstellungen'
 
@@ -25,7 +24,6 @@ export function ZeiterfassungClient({ initialRole }: Props) {
         <TabsTrigger value="stunden">Stundenauswertung</TabsTrigger>
         <TabsTrigger value="planung">Schichtplanung</TabsTrigger>
         <TabsTrigger value="korrektur">Zeitkorrektur</TabsTrigger>
-        <TabsTrigger value="mitarbeiter">Mitarbeiter</TabsTrigger>
         <TabsTrigger value="einstellungen">Einstellungen</TabsTrigger>
       </TabsList>
 
@@ -43,10 +41,6 @@ export function ZeiterfassungClient({ initialRole }: Props) {
 
       <TabsContent value="korrektur">
         <ZeitKorrektur />
-      </TabsContent>
-
-      <TabsContent value="mitarbeiter">
-        <MitarbeiterVerwaltung />
       </TabsContent>
 
       <TabsContent value="einstellungen">

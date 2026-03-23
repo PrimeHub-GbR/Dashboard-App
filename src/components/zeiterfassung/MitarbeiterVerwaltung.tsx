@@ -104,16 +104,6 @@ export function MitarbeiterVerwaltung() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Mitarbeiter</h2>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-          >
-            <a href="/dashboard/zeiterfassung/einchecken" target="_blank" className="gap-2">
-              <ExternalLink className="w-4 h-4" />
-              Kiosk öffnen
-            </a>
-          </Button>
           <Button size="sm" onClick={openCreate} className="gap-2">
             <Plus className="w-4 h-4" />
             Neu
@@ -146,6 +136,12 @@ export function MitarbeiterVerwaltung() {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground gap-1">
+                  <a href="/dashboard/zeiterfassung/einchecken" target="_blank">
+                    <ExternalLink className="w-3 h-3" />
+                    Kiosk
+                  </a>
+                </Button>
                 <Switch
                   checked={emp.is_active}
                   onCheckedChange={(checked) => updateEmployee(emp.id, { is_active: checked })}

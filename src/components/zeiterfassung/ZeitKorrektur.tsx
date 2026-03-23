@@ -11,10 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pencil, Plus, Clock } from 'lucide-react'
+import { Pencil, Plus, Clock, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface EntryWithEmployee extends TimeEntry {
@@ -33,6 +34,8 @@ export function ZeitKorrektur() {
   const [editingEntry, setEditingEntry] = useState<EntryWithEmployee | null>(null)
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState({ checked_in_at: '', checked_out_at: '', break_minutes: 0, note: '' })
+
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const [addOpen, setAddOpen] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -104,6 +107,19 @@ export function ZeitKorrektur() {
       toast.error('Korrektur fehlgeschlagen')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteId) return
+    try {
+      const res = await fetch(`/api/zeiterfassung/entries/${deleteId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      toast.success('Eintrag gelöscht')
+      setDeleteId(null)
+      await load()
+    } catch {
+      toast.error('Löschen fehlgeschlagen')
     }
   }
 
@@ -232,6 +248,9 @@ export function ZeitKorrektur() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(e.id)} className="text-destructive hover:text-destructive">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )
@@ -323,6 +342,23 @@ export function ZeitKorrektur() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eintrag löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dieser Zeiteintrag wird unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>

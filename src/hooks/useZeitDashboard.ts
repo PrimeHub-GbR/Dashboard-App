@@ -38,6 +38,8 @@ interface DashboardData {
   month: MonthRow[]
   live_count: number
   recent: RecentEntry[]
+  live: Array<{ id: string; employee_id: string; checked_in_at: string; employees: { id: string; name: string; color: string } | null }>
+  today_shifts: Array<{ id: string; employee_id: string; start_time: string; end_time: string; employees: { id: string; name: string; color: string } | null }>
 }
 
 export function useZeitDashboard(year?: number, month?: number) {
