@@ -64,6 +64,9 @@ export function AddMemberDialog({
 
   async function handleSave() {
     if (!form.name.trim()) { toast.error('Name ist erforderlich'); return }
+    if (form.position === 'mitarbeiter' && userRole === 'admin' && !form.reports_to) {
+      toast.error('Vorgesetzter ist erforderlich'); return
+    }
     if (needsPin && form.pin.length < 4) { toast.error('PIN muss mindestens 4 Ziffern haben'); return }
 
     setSaving(true)
@@ -143,7 +146,10 @@ export function AddMemberDialog({
 
             {userRole === 'admin' && availableParents && availableParents.length > 0 && !fixedPosition && (
               <div className="space-y-2">
-                <Label>Vorgesetzter</Label>
+                <Label>
+                  Vorgesetzter
+                  {form.position === 'mitarbeiter' && <span className="text-destructive ml-1">*</span>}
+                </Label>
                 <Select
                   value={form.reports_to ?? '__none__'}
                   onValueChange={(v) => setForm(f => ({ ...f, reports_to: v === '__none__' ? null : v }))}

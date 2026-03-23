@@ -80,6 +80,9 @@ export function EditMemberDialog({
   async function handleSave() {
     if (!member) return
     if (!form.name.trim()) { toast.error('Name ist erforderlich'); return }
+    if (form.position === 'mitarbeiter' && canEditAll && !form.reports_to) {
+      toast.error('Vorgesetzter ist erforderlich'); return
+    }
 
     setSaving(true)
     try {
@@ -173,7 +176,10 @@ export function EditMemberDialog({
 
             {canEditAll && availableParents && availableParents.length > 0 && !isGF && (
               <div className="space-y-2">
-                <Label>Vorgesetzter</Label>
+                <Label>
+                  Vorgesetzter
+                  {form.position === 'mitarbeiter' && <span className="text-destructive ml-1">*</span>}
+                </Label>
                 <Select
                   value={form.reports_to ?? '__none__'}
                   onValueChange={(v) => setForm(f => ({ ...f, reports_to: v === '__none__' ? null : v }))}
