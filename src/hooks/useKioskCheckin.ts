@@ -61,8 +61,8 @@ export function useKioskCheckin() {
       setResult(json)
       setStep('success')
 
-      // Nach 10s: Personal View zeigen (Reset läuft über den Countdown in PersonalView)
-      setTimeout(() => setStep('personal'), 10000)
+      // Nach 5s: Personal View zeigen (Reset läuft über den Countdown in PersonalView)
+      setTimeout(() => setStep('personal'), 5000)
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
       setPin('')
