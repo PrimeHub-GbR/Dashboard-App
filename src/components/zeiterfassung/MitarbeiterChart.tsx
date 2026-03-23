@@ -23,6 +23,7 @@ interface Props {
   daily: DailyRow[]
   year: number
   month: number
+  period?: '7d' | '14d' | 'month'
 }
 
 const WEEKDAY_KEY: Record<number, keyof WeeklySchedule> = {
@@ -34,6 +35,7 @@ function buildSollIstData(
   daily: DailyRow[],
   year: number,
   month: number,
+  period?: '7d' | '14d' | 'month',
 ) {
   const daysInMonth = new Date(year, month, 0).getDate()
   const today = new Date()
@@ -41,7 +43,10 @@ function buildSollIstData(
     ? today.getDate()
     : daysInMonth
 
-  // Lookup: day → net_hours
+  let startDay = 1
+  if (period === '7d') startDay = Math.max(1, todayDay - 6)
+  if (period === '14d') startDay = Math.max(1, todayDay - 13)
+
   const istLookup: Record<number, number> = {}
   for (const row of daily) {
     if (row.employee_id !== employee.id) continue
@@ -52,8 +57,8 @@ function buildSollIstData(
   let cumSoll = 0
   let cumIst = 0
 
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1
+  return Array.from({ length: daysInMonth - startDay + 1 }, (_, i) => {
+    const day = startDay + i
     const date = new Date(year, month - 1, day)
     const weekdayKey = WEEKDAY_KEY[date.getDay()]
     const sollH = employee.weekly_schedule[weekdayKey] ?? 0
@@ -112,8 +117,8 @@ function CustomTooltip({ active, payload, label }: {
   )
 }
 
-export function MitarbeiterChart({ employee, daily, year, month }: Props) {
-  const data = buildSollIstData(employee, daily, year, month)
+export function MitarbeiterChart({ employee, daily, year, month, period }: Props) {
+  const data = buildSollIstData(employee, daily, year, month, period)
   const lastIst = [...data].reverse().find(d => d.ist !== null)
   const lastSoll = data[data.length - 1]?.soll ?? 0
   const currentDiff = lastIst ? Math.round((lastIst.ist! - lastIst.soll) * 10) / 10 : null

@@ -1,17 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useZeitDashboard } from '@/hooks/useZeitDashboard'
 import { useEmployees } from '@/hooks/useEmployees'
 import { MonatsSelector } from './MonatsSelector'
 import { MitarbeiterChart } from './MitarbeiterChart'
 import { formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, Users, TrendingUp, TrendingDown, Minus, AlertTriangle, LogOut, Calendar } from 'lucide-react'
+import { Clock, Users, TrendingUp, TrendingDown, Minus, AlertTriangle, LogOut, Calendar, Package } from 'lucide-react'
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts'
 
@@ -58,31 +57,6 @@ interface TodayShift {
   employees: { id: string; name: string; color: string } | null
 }
 
-// ─── Hilfsfunktionen ──────────────────────────────────────────────────────────
-
-function buildChartData(daily: DailyRow[], year: number, month: number) {
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const employees = [...new Set(daily.map(d => d.employee_name))]
-
-  const lookup: Record<string, Record<string, number>> = {}
-  for (const row of daily) {
-    const day = new Date(row.work_date).getDate()
-    const key = String(day)
-    if (!lookup[key]) lookup[key] = {}
-    lookup[key][row.employee_name] = Math.round(row.net_minutes / 60 * 10) / 10
-  }
-
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1
-    const key = String(day)
-    const entry: Record<string, number | string> = { tag: `${day}.` }
-    for (const emp of employees) {
-      entry[emp] = lookup[key]?.[emp] ?? 0
-    }
-    return entry
-  })
-}
-
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
@@ -126,32 +100,6 @@ function KpiCard({
   )
 }
 
-// ─── Custom Tooltip für Area Chart ────────────────────────────────────────────
-
-function ChartTooltip({ active, payload, label }: {
-  active?: boolean
-  payload?: { name: string; value: number; color: string }[]
-  label?: string
-}) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm min-w-[140px]">
-      <p className="font-medium mb-2 text-foreground">Tag {label}</p>
-      {payload.map(p => (
-        p.value > 0 && (
-          <div key={p.name} className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
-              <span className="text-muted-foreground">{p.name}</span>
-            </span>
-            <span className="font-medium">{p.value}h</span>
-          </div>
-        )
-      ))}
-    </div>
-  )
-}
-
 // ─── Hauptkomponente ──────────────────────────────────────────────────────────
 
 export function ZeitDashboard() {
@@ -159,6 +107,20 @@ export function ZeitDashboard() {
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const [chartPeriod, setChartPeriod] = useState<'7d' | '14d' | 'month'>('month')
+  const [deliveries, setDeliveries] = useState<Array<{
+    id: string; carrier: string; type: string;
+    window_start: string; window_end: string;
+    status: 'expected' | 'arrived' | 'missed';
+    note?: string;
+  }>>([])
+
+  useEffect(() => {
+    fetch('/api/zeiterfassung/delivery-announcements')
+      .then(r => r.json())
+      .then((j: { announcements: typeof deliveries }) => setDeliveries(j.announcements ?? []))
+      .catch(() => {})
+  }, [])
 
   const { data, loading } = useZeitDashboard(year, month)
   const { employees: allEmployees } = useEmployees()
@@ -169,6 +131,7 @@ export function ZeitDashboard() {
   const liveCount = data?.live_count ?? 0
   const liveEntries = (data?.live ?? []) as LiveEntry[]
   const todayShifts = (data?.today_shifts ?? []) as TodayShift[]
+  const hourly = (data?.hourly ?? []) as Array<{ hour: string; raw_hour: number; count: number }>
 
   // KPI-Berechnungen
   const totalNetMinutes = monthData.reduce((s, r) => s + Math.max(0, r.total_work_minutes - r.total_break_minutes), 0)
@@ -176,11 +139,6 @@ export function ZeitDashboard() {
   const overtimeMinutes = totalNetMinutes - totalTargetMinutes
   const daysWorked = new Set(daily.map(d => d.work_date)).size
   const avgMinutesPerDay = daysWorked > 0 ? Math.round(totalNetMinutes / daysWorked) : 0
-
-  // Chart-Daten
-  const uniqueEmpNames = [...new Set(daily.map(d => d.employee_name))]
-  const employeeColors = Object.fromEntries(daily.map(d => [d.employee_name, d.employee_color]))
-  const chartData = buildChartData(daily, year, month)
 
   // Mitarbeiter für Switcher (nur solche mit Daten in diesem Monat)
   const monthEmployees = monthData.map(r => ({
@@ -247,50 +205,128 @@ export function ZeitDashboard() {
         )}
       </div>
 
+      {/* Paketankündigungen */}
+      {(deliveries.length > 0 || true) && (
+        <Card>
+          <CardHeader className="pb-2 pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-muted-foreground" />
+                <CardTitle className="text-sm">Paketankündigungen heute</CardTitle>
+              </div>
+              {deliveries.length > 0 && (
+                <span className="text-xs text-muted-foreground">{deliveries.filter(d => d.status === 'expected').length} erwartet</span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4">
+            {deliveries.length === 0 ? (
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex-1 text-sm text-muted-foreground">
+                  Keine Ankündigungen für heute — Daten kommen automatisch aus deiner E-Mail.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {deliveries.map(d => {
+                  const carrierColor: Record<string, string> = {
+                    DPD: '#dc2626', UPS: '#d97706', DHL: '#ca8a04',
+                    Hermes: '#16a34a', GLS: '#2563eb',
+                  }
+                  const color = carrierColor[d.carrier] ?? '#6b7280'
+                  const statusConfig = {
+                    expected: { label: 'Erwartet', cls: 'bg-blue-500/10 text-blue-500' },
+                    arrived: { label: 'Angekommen', cls: 'bg-green-500/10 text-green-500' },
+                    missed: { label: 'Verpasst', cls: 'bg-red-500/10 text-red-500' },
+                  }
+                  const sc = statusConfig[d.status]
+                  return (
+                    <div key={d.id} className="flex items-center gap-3 py-2 border-b last:border-0">
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        {d.carrier.slice(0, 3)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{d.type}</p>
+                        <p className="text-xs text-muted-foreground">{d.window_start} – {d.window_end} Uhr{d.note ? ` · ${d.note}` : ''}</p>
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${sc.cls}`}>
+                        {sc.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Haupt-Charts */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-        {/* Area Chart / MitarbeiterChart — mit Employee-Switcher */}
+        {/* Stündliche Besetzung / MitarbeiterChart — mit Employee-Switcher */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <CardTitle className="text-base">
-                  {selectedEmpFull ? `Soll/Ist — ${selectedEmpFull.name}` : 'Tägliche Arbeitszeit'}
+                  {selectedEmpFull ? `Soll/Ist — ${selectedEmpFull.name}` : 'Besetzung nach Tageszeit'}
                 </CardTitle>
                 <CardDescription>
                   {selectedEmpFull
                     ? 'Kumulativer Soll- und Ist-Verlauf im Monatsvergleich'
-                    : 'Netto-Stunden pro Mitarbeiter — zeigt Gleichmäßigkeit der Arbeit'}
+                    : 'Ø Mitarbeiter anwesend pro Stunde — aus allen erfassten Einträgen des Monats'}
                 </CardDescription>
               </div>
               {/* Employee Switcher */}
               {!loading && monthEmployees.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 justify-end">
-                  <button
-                    onClick={() => setSelectedEmployeeId(null)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
-                      selectedEmployeeId === null
-                        ? 'bg-foreground text-background border-transparent'
-                        : 'bg-transparent text-muted-foreground border-border hover:border-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Alle
-                  </button>
-                  {monthEmployees.map(emp => (
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 justify-end">
                     <button
-                      key={emp.id}
-                      onClick={() => setSelectedEmployeeId(emp.id === selectedEmployeeId ? null : emp.id)}
+                      onClick={() => { setSelectedEmployeeId(null); setChartPeriod('month') }}
                       className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
-                        selectedEmployeeId === emp.id
-                          ? 'text-white border-transparent'
-                          : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+                        selectedEmployeeId === null
+                          ? 'bg-foreground text-background border-transparent'
+                          : 'bg-transparent text-muted-foreground border-border hover:border-foreground hover:text-foreground'
                       }`}
-                      style={selectedEmployeeId === emp.id ? { backgroundColor: emp.color, borderColor: emp.color } : {}}
                     >
-                      {emp.name.split(' ')[0]}
+                      Alle
                     </button>
-                  ))}
+                    {monthEmployees.map(emp => (
+                      <button
+                        key={emp.id}
+                        onClick={() => setSelectedEmployeeId(emp.id === selectedEmployeeId ? null : emp.id)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                          selectedEmployeeId === emp.id
+                            ? 'text-white border-transparent'
+                            : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+                        }`}
+                        style={selectedEmployeeId === emp.id ? { backgroundColor: emp.color, borderColor: emp.color } : {}}
+                      >
+                        {emp.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedEmpFull && (
+                    <div className="flex gap-1 mt-2">
+                      {(['7d', '14d', 'month'] as const).map(p => (
+                        <button
+                          key={p}
+                          onClick={() => setChartPeriod(p)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                            chartPeriod === p
+                              ? 'bg-foreground text-background border-transparent'
+                              : 'bg-transparent text-muted-foreground border-border hover:border-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {p === '7d' ? '7 Tage' : p === '14d' ? '14 Tage' : 'Monat'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -305,59 +341,65 @@ export function ZeitDashboard() {
                 daily={daily}
                 year={year}
                 month={month}
+                period={chartPeriod}
               />
-            ) : daily.length === 0 ? (
+            ) : hourly.length === 0 ? (
               <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
                 Noch keine Daten für diesen Monat.
               </div>
             ) : (
-              /* Alle Mitarbeiter — Area Chart */
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    {uniqueEmpNames.map(emp => (
-                      <linearGradient key={emp} id={`grad-${emp}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={employeeColors[emp]} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={employeeColors[emp]} stopOpacity={0} />
+              /* Stündliche Besetzung — Bar Chart */
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground px-1">Durchschnittliche Besetzung nach Tageszeit</p>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={hourly} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="hourly-grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0.3} />
                       </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="tag"
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={uniqueEmpNames.length > 3 ? 3 : 1}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={v => `${v}h`}
-                  />
-                  <Tooltip content={<ChartTooltip />} />
-                  {uniqueEmpNames.length > 1 && (
-                    <Legend
-                      iconType="circle"
-                      iconSize={8}
-                      wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                    <XAxis
+                      dataKey="hour"
+                      tick={{ fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      interval={1}
                     />
-                  )}
-                  {uniqueEmpNames.map(emp => (
-                    <Area
-                      key={emp}
-                      type="monotone"
-                      dataKey={emp}
-                      stroke={employeeColors[emp]}
-                      strokeWidth={2}
-                      fill={`url(#grad-${emp})`}
-                      dot={false}
-                      activeDot={{ r: 4 }}
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                      tickFormatter={v => v === 0 ? '' : `${v}×`}
+                      domain={[0, 'dataMax + 1']}
                     />
-                  ))}
-                </AreaChart>
-              </ResponsiveContainer>
+                    <Tooltip
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null
+                        const d = payload[0].payload as { hour: string; count: number }
+                        return (
+                          <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
+                            <p className="font-medium">{d.hour} Uhr</p>
+                            <p className="text-muted-foreground">Ø <span className="text-foreground font-medium">{d.count} {d.count === 1 ? 'Mitarbeiter' : 'Mitarbeiter'}</span> anwesend</p>
+                          </div>
+                        )
+                      }}
+                    />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={32}>
+                      {hourly.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={entry.count > 2 ? '#22c55e' : entry.count > 0 ? '#86efac' : '#374151'}
+                          fillOpacity={entry.count > 0 ? 1 : 0.3}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>

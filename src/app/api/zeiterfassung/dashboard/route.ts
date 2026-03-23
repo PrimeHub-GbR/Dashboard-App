@@ -61,6 +61,37 @@ export async function GET(req: NextRequest) {
     .select('id, employee_id, start_time, end_time, employees(id, name, color)')
     .eq('shift_date', todayBerlin)
 
+  // 7. Stündliche Präsenz (für Chart "Wann sind Mitarbeiter da")
+  const startUtc = new Date(year, month - 1, 1)
+  const endUtc = new Date(year, month, 1)
+
+  const { data: monthEntries } = await service
+    .from('time_entries')
+    .select('employee_id, checked_in_at, checked_out_at')
+    .gte('checked_in_at', startUtc.toISOString())
+    .lt('checked_in_at', endUtc.toISOString())
+    .not('checked_out_at', 'is', null)
+    .limit(500)
+
+  // Berlin-Stunde aus UTC-Timestamp
+  function getBerlinHour(iso: string): number {
+    return parseInt(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Berlin', hour: 'numeric', hour12: false,
+    }).format(new Date(iso)), 10)
+  }
+
+  // Für jede Stunde 6–21: wie viele eindeutige Mitarbeiter waren anwesend (kumulativ über den Monat)
+  const hourlyMap = Array.from({ length: 16 }, (_, i) => i + 6).map(hour => {
+    const empSet = new Set<string>()
+    for (const entry of monthEntries ?? []) {
+      if (!entry.checked_out_at) continue
+      const inH = getBerlinHour(entry.checked_in_at)
+      const outH = getBerlinHour(entry.checked_out_at)
+      if (hour >= inH && hour <= outH) empSet.add(entry.employee_id)
+    }
+    return { hour: `${String(hour).padStart(2, '0')}:00`, raw_hour: hour, count: empSet.size }
+  })
+
   return NextResponse.json({
     daily: dailyData ?? [],
     month: monthData ?? [],
@@ -68,5 +99,6 @@ export async function GET(req: NextRequest) {
     recent: recentEntries ?? [],
     live: liveEntries ?? [],
     today_shifts: todayShifts ?? [],
+    hourly: hourlyMap,
   })
 }

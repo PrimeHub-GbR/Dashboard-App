@@ -40,6 +40,7 @@ interface DashboardData {
   recent: RecentEntry[]
   live: Array<{ id: string; employee_id: string; checked_in_at: string; employees: { id: string; name: string; color: string } | null }>
   today_shifts: Array<{ id: string; employee_id: string; start_time: string; end_time: string; employees: { id: string; name: string; color: string } | null }>
+  hourly: Array<{ hour: string; raw_hour: number; count: number }>
 }
 
 export function useZeitDashboard(year?: number, month?: number) {
