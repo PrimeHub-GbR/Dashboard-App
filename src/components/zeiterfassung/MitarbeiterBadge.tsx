@@ -12,7 +12,7 @@ export function MitarbeiterBadge({ name, color, size = 'md' }: Props) {
         className={`${dotSize} rounded-full shrink-0`}
         style={{ backgroundColor: color }}
       />
-      <span className={size === 'sm' ? 'text-sm' : ''}>{name}</span>
+      <span className={`${size === 'sm' ? 'text-sm' : ''} leading-snug`}>{name}</span>
     </div>
   )
 }

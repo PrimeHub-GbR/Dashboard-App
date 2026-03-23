@@ -127,8 +127,10 @@ export function MitarbeiterVerwaltung() {
           employees.map((emp) => (
             <div key={emp.id} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
-                <MitarbeiterBadge name={emp.name} color={emp.color} />
-                <Badge variant="outline" className="text-xs">
+                <div className="w-36 shrink-0">
+                  <MitarbeiterBadge name={emp.name} color={emp.color} />
+                </div>
+                <Badge variant="outline" className="text-xs whitespace-nowrap">
                   {emp.target_hours_per_month}h/Monat
                 </Badge>
                 {!emp.is_active && (
