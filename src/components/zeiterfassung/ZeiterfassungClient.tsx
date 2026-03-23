@@ -21,7 +21,7 @@ export function ZeiterfassungClient({ initialRole }: Props) {
       <TabsList className="flex-wrap h-auto gap-1">
         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         <TabsTrigger value="planung">Schichtplanung</TabsTrigger>
-        <TabsTrigger value="korrektur">Zeitkorrektur</TabsTrigger>
+        <TabsTrigger value="korrektur">Stempelzeiten</TabsTrigger>
         <TabsTrigger value="einstellungen">Einstellungen</TabsTrigger>
       </TabsList>
 
