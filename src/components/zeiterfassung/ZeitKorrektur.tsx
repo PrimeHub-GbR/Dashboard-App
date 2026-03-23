@@ -85,7 +85,7 @@ export function ZeitKorrektur() {
     try {
       const body: Record<string, unknown> = {
         break_minutes: editForm.break_minutes,
-        note: editForm.note || null,
+        note: editForm.note,
       }
       if (editForm.checked_in_at) body.checked_in_at = new Date(editForm.checked_in_at).toISOString()
       if (editForm.checked_out_at) body.checked_out_at = new Date(editForm.checked_out_at).toISOString()
@@ -304,11 +304,11 @@ export function ZeitKorrektur() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Notiz <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Label>Notiz <span className="text-destructive">*</span></Label>
               <Input
                 value={addForm.note}
                 onChange={(e) => setAddForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="z. B. Nacherfassung, Fehler Kiosk…"
+                placeholder="Pflichtfeld — z. B. Nacherfassung, Fehler Kiosk…"
               />
             </div>
           </div>
@@ -316,7 +316,7 @@ export function ZeitKorrektur() {
             <Button variant="outline" onClick={() => setAddOpen(false)}>Abbrechen</Button>
             <Button
               onClick={handleAdd}
-              disabled={adding || !addForm.employee_id || !addForm.checked_in_at}
+              disabled={adding || !addForm.employee_id || !addForm.checked_in_at || !addForm.note.trim()}
             >
               {adding ? 'Erstellt…' : 'Eintrag erstellen'}
             </Button>
@@ -357,17 +357,17 @@ export function ZeitKorrektur() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Notiz (optional)</Label>
+              <Label>Notiz <span className="text-destructive">*</span></Label>
               <Input
                 value={editForm.note}
                 onChange={(e) => setEditForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="Grund der Korrektur"
+                placeholder="Pflichtfeld — Grund der Korrektur angeben"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingEntry(null)}>Abbrechen</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving || !editForm.note.trim()}>
               {saving ? 'Speichert…' : 'Speichern'}
             </Button>
           </DialogFooter>

@@ -8,7 +8,7 @@ const createSchema = z.object({
   checked_in_at: z.string().datetime(),
   checked_out_at: z.string().datetime().optional().nullable(),
   break_minutes: z.coerce.number().int().min(0).optional(),
-  note: z.string().max(500).optional().nullable(),
+  note: z.string().min(1, 'Notiz ist Pflicht').max(500),
 })
 
 const querySchema = z.object({

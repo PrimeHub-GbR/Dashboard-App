@@ -6,7 +6,7 @@ const correctEntrySchema = z.object({
   checked_in_at: z.string().datetime().optional(),
   checked_out_at: z.string().datetime().nullable().optional(),
   break_minutes: z.number().int().min(0).optional(),
-  note: z.string().max(500).optional(),
+  note: z.string().min(1, 'Notiz ist Pflicht').max(500),
 })
 
 async function requireAdmin() {
