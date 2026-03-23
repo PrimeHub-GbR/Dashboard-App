@@ -49,6 +49,12 @@
 |---------|--------|------|
 | Rebuy Buch-Scraper (LXC + Live-Status + Excel) | Deployed | [rebuy-scraper/overview.md](rebuy-scraper/overview.md) |
 
+## Zeiterfassung `/dashboard/zeiterfassung`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Check-in, Stundenauswertung, Schichtplanung, ArbZG | Planned | [zeiterfassung/overview.md](zeiterfassung/overview.md) |
+
 ---
 
 ## Foundation (kein Tab — Querschnittsfunktionen)

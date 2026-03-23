@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
-  RefreshCw, LogOut, Package, BookOpen, ChevronLeft, ChevronRight,
+  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/client'
@@ -54,6 +54,12 @@ const navItems = [
     desc: 'Bücher · wöchentlich · Excel',
     href: '/dashboard/rebuy',
     icon: BookOpen,
+  },
+  {
+    label: 'Zeiterfassung',
+    desc: 'Check-in · Stunden · Planung',
+    href: '/dashboard/zeiterfassung',
+    icon: Clock,
   },
 ]
 
