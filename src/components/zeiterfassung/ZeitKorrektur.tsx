@@ -165,7 +165,7 @@ export function ZeitKorrektur() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 justify-between">
-        <h2 className="text-lg font-semibold">Zeitkorrektur</h2>
+        <h2 className="text-lg font-semibold">Stempelzeiten</h2>
         <div className="flex items-center gap-3">
           <Button size="sm" onClick={openAdd} className="gap-1.5">
             <Plus className="w-4 h-4" />
