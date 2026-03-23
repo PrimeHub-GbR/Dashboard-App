@@ -145,12 +145,12 @@ export function AddMemberDialog({
               <div className="space-y-2">
                 <Label>Vorgesetzter</Label>
                 <Select
-                  value={form.reports_to ?? ''}
-                  onValueChange={(v) => setForm(f => ({ ...f, reports_to: v || null }))}
+                  value={form.reports_to ?? '__none__'}
+                  onValueChange={(v) => setForm(f => ({ ...f, reports_to: v === '__none__' ? null : v }))}
                 >
                   <SelectTrigger><SelectValue placeholder="— kein —" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">— kein —</SelectItem>
+                    <SelectItem value="__none__">— kein —</SelectItem>
                     {availableParents.map((m) => (
                       <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                     ))}
