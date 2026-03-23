@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useEmployees } from '@/hooks/useEmployees'
 import { MonatsSelector } from './MonatsSelector'
-import { MitarbeiterBadge } from './MitarbeiterBadge'
 import { currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { ShiftPlan } from '@/lib/zeiterfassung/types'
 import { Button } from '@/components/ui/button'
@@ -350,76 +349,103 @@ export function Schichtplanung() {
       )}
 
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        <div className="grid grid-cols-7 gap-px">
+          {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
         </div>
       ) : (
-        <div className="space-y-1">
-          {days.map(({ day, dateStr, weekday, wdayNum }) => {
-            const allDayShifts = shiftsByDate.get(dateStr) ?? []
-            // Wochentag-Filter greift auf den Tag selbst (nicht nur Schichten)
-            if (filterWdays.size > 0 && !filterWdays.has(wdayNum)) return null
-            const visibleShifts = filterEmpId !== '__all__'
-              ? allDayShifts.filter(s => s.employee_id === filterEmpId)
-              : allDayShifts
-            // Bei aktivem Filter: Tage ohne sichtbare Schichten ausblenden
-            if (filterActive && visibleShifts.length === 0) return null
-            const isWeekend = weekday === 'Sa' || weekday === 'So'
-            return (
-              <div
-                key={dateStr}
-                className={`flex items-start gap-3 p-3 rounded-lg ${isWeekend ? 'bg-muted/30' : ''}`}
-              >
-                <div className="w-16 shrink-0">
-                  <span className="text-sm font-medium">{weekday}</span>
-                  <span className="text-sm text-muted-foreground ml-1">{day}.</span>
-                </div>
-                <div className="flex flex-wrap gap-2 flex-1 min-h-[24px]">
-                  {visibleShifts.map((s) => {
-                    const emp = s.employees
-                    const isSelected = selectedIds.has(s.id)
-                    return (
-                      <div
-                        key={s.id}
-                        onClick={selectMode ? () => toggleShiftSelect(s.id) : undefined}
-                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs border transition-all ${
-                          selectMode ? 'cursor-pointer' : ''
-                        } ${isSelected ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
-                        style={{
-                          borderColor: isSelected ? 'rgb(239 68 68)' : (emp?.color ?? '#22c55e'),
-                          backgroundColor: isSelected ? 'rgb(239 68 68 / 0.12)' : `${emp?.color ?? '#22c55e'}15`,
-                        }}
-                      >
-                        {selectMode ? (
-                          isSelected
-                            ? <CheckSquare className="w-3.5 h-3.5 text-destructive shrink-0" />
-                            : <Square className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        ) : null}
-                        {emp && <MitarbeiterBadge name={emp.name} color={emp.color} size="sm" />}
-                        <span className="text-muted-foreground">{s.start_time}–{s.end_time}</span>
-                        {!selectMode && (
-                          <button
-                            onClick={() => handleDelete(s.id)}
-                            className="text-muted-foreground hover:text-destructive ml-1"
+        <div className="rounded-lg border overflow-hidden">
+          {/* Wochentag-Header */}
+          <div className="grid grid-cols-7 border-b bg-muted/40">
+            {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(h => (
+              <div key={h} className="text-center text-xs font-semibold text-muted-foreground py-2 border-r border-border last:border-r-0">
+                {h}
+              </div>
+            ))}
+          </div>
+          {/* Tage-Grid */}
+          <div className="grid grid-cols-7">
+            {/* Leerzeilen vor dem 1. des Monats */}
+            {Array.from({ length: (new Date(year, month - 1, 1).getDay() + 6) % 7 }, (_, i) => (
+              <div key={`empty-${i}`} className="min-h-[80px] bg-muted/5 border-r border-b border-border" />
+            ))}
+            {/* Tage */}
+            {days.map(({ day, dateStr, weekday, wdayNum }, idx) => {
+              const offset = (new Date(year, month - 1, 1).getDay() + 6) % 7
+              const colPos = (offset + idx) % 7 // 0=Mo … 6=So
+              const isWeekend = colPos === 5 || colPos === 6
+              const isDimmed = filterWdays.size > 0 && !filterWdays.has(wdayNum)
+              const allDayShifts = shiftsByDate.get(dateStr) ?? []
+              const visibleShifts = filterEmpId !== '__all__'
+                ? allDayShifts.filter(s => s.employee_id === filterEmpId)
+                : allDayShifts
+
+              return (
+                <div
+                  key={dateStr}
+                  className={`min-h-[80px] border-r border-b border-border p-1 flex flex-col transition-opacity ${
+                    isWeekend ? 'bg-muted/20' : ''
+                  } ${isDimmed ? 'opacity-25' : ''}`}
+                >
+                  {/* Tag-Nummer */}
+                  <div className={`text-[11px] font-semibold mb-1 leading-none ${isWeekend ? 'text-muted-foreground' : 'text-foreground'}`}>
+                    {day}
+                  </div>
+                  {/* Schicht-Chips */}
+                  {!isDimmed && (
+                    <div className="flex flex-col gap-0.5">
+                      {visibleShifts.map((s) => {
+                        const emp = s.employees
+                        const isSelected = selectedIds.has(s.id)
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={selectMode ? () => toggleShiftSelect(s.id) : undefined}
+                            className={`group rounded text-[10px] leading-none overflow-hidden ${
+                              selectMode ? 'cursor-pointer' : ''
+                            } ${isSelected ? 'ring-1 ring-destructive' : ''}`}
+                            style={{
+                              backgroundColor: isSelected ? 'rgb(239 68 68 / 0.15)' : `${emp?.color ?? '#22c55e'}1a`,
+                              borderLeft: `2px solid ${isSelected ? 'rgb(239 68 68)' : (emp?.color ?? '#22c55e')}`,
+                            }}
                           >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {/* Gefilterte (unsichtbare) Schichten dieses Tages als Hinweis */}
-                  {filterActive && allDayShifts.length > visibleShifts.length && (
-                    <span className="text-xs text-muted-foreground self-center italic">
-                      +{allDayShifts.length - visibleShifts.length} ausgeblendet
-                    </span>
+                            <div className="px-1 pt-0.5 flex items-center justify-between gap-0.5">
+                              {selectMode && (
+                                isSelected
+                                  ? <CheckSquare className="w-2.5 h-2.5 text-destructive shrink-0" />
+                                  : <Square className="w-2.5 h-2.5 text-muted-foreground shrink-0" />
+                              )}
+                              <span className="font-semibold truncate flex-1" style={{ color: emp?.color ?? '#22c55e' }}>
+                                {emp?.name.split(' ')[0] ?? '?'}
+                              </span>
+                              {!selectMode && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(s.id) }}
+                                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
+                                >
+                                  <Trash2 className="w-2 h-2" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="px-1 pb-0.5 text-muted-foreground">
+                              {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {/* Ausgeblendete Schichten-Hinweis */}
+                      {filterActive && allDayShifts.length > visibleShifts.length && (
+                        <span className="text-[9px] text-muted-foreground italic px-0.5">
+                          +{allDayShifts.length - visibleShifts.length}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
           {filterActive && filteredShiftCount === 0 && (
-            <div className="p-8 text-center text-muted-foreground text-sm">
+            <div className="p-6 text-center text-muted-foreground text-sm">
               Keine Schichten für diesen Filter im aktuellen Monat.
             </div>
           )}
