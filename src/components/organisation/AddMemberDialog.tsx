@@ -64,6 +64,7 @@ export function AddMemberDialog({
 
   async function handleSave() {
     if (!form.name.trim()) { toast.error('Name ist erforderlich'); return }
+    if (!form.position) { toast.error('Position ist erforderlich'); return }
     if (form.position === 'mitarbeiter' && userRole === 'admin' && !form.reports_to) {
       toast.error('Vorgesetzter ist erforderlich'); return
     }
@@ -127,9 +128,9 @@ export function AddMemberDialog({
               />
             </div>
 
-            {!fixedPosition && userRole === 'admin' && (
-              <div className="space-y-2">
-                <Label>Position</Label>
+            <div className="space-y-2">
+              <Label>Position <span className="text-destructive">*</span></Label>
+              {userRole === 'admin' ? (
                 <Select
                   value={form.position}
                   onValueChange={(v) => setForm(f => ({ ...f, position: v as OrgPosition }))}
@@ -141,8 +142,10 @@ export function AddMemberDialog({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
+              ) : (
+                <Input value="Mitarbeiter" disabled className="bg-muted text-muted-foreground" />
+              )}
+            </div>
 
             {userRole === 'admin' && availableParents && availableParents.length > 0 && !fixedPosition && (
               <div className="space-y-2">

@@ -157,9 +157,9 @@ export function EditMemberDialog({
               />
             </div>
 
-            {canEditAll && !isGF && (
-              <div className="space-y-2">
-                <Label>Position</Label>
+            <div className="space-y-2">
+              <Label>Position <span className="text-destructive">*</span></Label>
+              {canEditAll && !isGF ? (
                 <Select
                   value={form.position}
                   onValueChange={(v) => setForm(f => ({ ...f, position: v as OrgPosition }))}
@@ -171,8 +171,14 @@ export function EditMemberDialog({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
+              ) : (
+                <Input
+                  value={POSITION_LABELS[form.position]}
+                  disabled
+                  className="bg-muted text-muted-foreground"
+                />
+              )}
+            </div>
 
             {canEditAll && availableParents && availableParents.length > 0 && !isGF && (
               <div className="space-y-2">
