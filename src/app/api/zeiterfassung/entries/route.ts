@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { calculateBreakMinutes } from '@/lib/zeiterfassung/arbzg'
+
+const createSchema = z.object({
+  employee_id: z.string().uuid(),
+  checked_in_at: z.string().datetime(),
+  checked_out_at: z.string().datetime().optional().nullable(),
+  break_minutes: z.coerce.number().int().min(0).optional(),
+  note: z.string().max(500).optional().nullable(),
+})
 
 const querySchema = z.object({
   employee_id: z.string().uuid().optional(),
@@ -63,4 +72,51 @@ export async function GET(req: NextRequest) {
     page,
     page_size,
   })
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) {
+    return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const parsed = createSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const { employee_id, checked_in_at, checked_out_at, note } = parsed.data
+
+  // Pausenminuten: manuell angegeben oder automatisch via ArbZG
+  let break_minutes = parsed.data.break_minutes ?? 0
+  if (checked_out_at && parsed.data.break_minutes === undefined) {
+    const grossMinutes = Math.floor(
+      (new Date(checked_out_at).getTime() - new Date(checked_in_at).getTime()) / 60_000
+    )
+    break_minutes = calculateBreakMinutes(grossMinutes)
+  }
+
+  const service = createSupabaseServiceClient()
+  const { data, error: dbError } = await service
+    .from('time_entries')
+    .insert({
+      employee_id,
+      checked_in_at,
+      checked_out_at: checked_out_at ?? null,
+      break_minutes,
+      note: note ?? null,
+      corrected_by: user.id,
+      corrected_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+
+  if (dbError) {
+    const msg = dbError.message.includes('unique') ? 'Mitarbeiter ist bereits eingestempelt' : 'Datenbankfehler'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+
+  return NextResponse.json({ id: data.id }, { status: 201 })
 }

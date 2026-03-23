@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pencil } from 'lucide-react'
+import { Pencil, Plus, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface EntryWithEmployee extends TimeEntry {
@@ -33,6 +33,16 @@ export function ZeitKorrektur() {
   const [editingEntry, setEditingEntry] = useState<EntryWithEmployee | null>(null)
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState({ checked_in_at: '', checked_out_at: '', break_minutes: 0, note: '' })
+
+  const [addOpen, setAddOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [addForm, setAddForm] = useState({
+    employee_id: '',
+    checked_in_at: '',
+    checked_out_at: '',
+    break_minutes: '',
+    note: '',
+  })
 
   const { employees } = useEmployees()
   const PAGE_SIZE = 50
@@ -97,6 +107,43 @@ export function ZeitKorrektur() {
     }
   }
 
+  function openAdd() {
+    // Vorausfüllen: aktuelles Datum + Uhrzeit
+    const now = new Date()
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+    setAddForm({ employee_id: '', checked_in_at: local, checked_out_at: '', break_minutes: '', note: '' })
+    setAddOpen(true)
+  }
+
+  async function handleAdd() {
+    if (!addForm.employee_id || !addForm.checked_in_at) return
+    setAdding(true)
+    try {
+      const body: Record<string, unknown> = {
+        employee_id: addForm.employee_id,
+        checked_in_at: new Date(addForm.checked_in_at).toISOString(),
+        note: addForm.note || null,
+      }
+      if (addForm.checked_out_at) body.checked_out_at = new Date(addForm.checked_out_at).toISOString()
+      if (addForm.break_minutes !== '') body.break_minutes = Number(addForm.break_minutes)
+
+      const res = await fetch('/api/zeiterfassung/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(json.error ?? 'Fehler')
+      toast.success('Eintrag manuell erstellt')
+      setAddOpen(false)
+      await load()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erstellen fehlgeschlagen')
+    } finally {
+      setAdding(false)
+    }
+  }
+
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
@@ -104,6 +151,10 @@ export function ZeitKorrektur() {
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <h2 className="text-lg font-semibold">Zeitkorrektur</h2>
         <div className="flex items-center gap-3">
+          <Button size="sm" onClick={openAdd} className="gap-1.5">
+            <Plus className="w-4 h-4" />
+            Manuell einstempeln
+          </Button>
           <Select value={employeeFilter} onValueChange={(v) => { setEmployeeFilter(v); setPage(1) }}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Alle Mitarbeiter" />
@@ -201,6 +252,77 @@ export function ZeitKorrektur() {
           </div>
         </div>
       )}
+
+      {/* Manuell einstempeln Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Manuell einstempeln
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Mitarbeiter *</Label>
+              <Select value={addForm.employee_id} onValueChange={(v) => setAddForm(f => ({ ...f, employee_id: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Mitarbeiter wählen…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Einstempel-Zeitpunkt *</Label>
+              <Input
+                type="datetime-local"
+                value={addForm.checked_in_at}
+                onChange={(e) => setAddForm(f => ({ ...f, checked_in_at: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Ausstempel-Zeitpunkt <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Input
+                type="datetime-local"
+                value={addForm.checked_out_at}
+                onChange={(e) => setAddForm(f => ({ ...f, checked_out_at: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">Leer lassen = offen (nur eingestempelt)</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Pause (Minuten) <span className="text-muted-foreground text-xs">(leer = automatisch per ArbZG)</span></Label>
+              <Input
+                type="number"
+                value={addForm.break_minutes}
+                onChange={(e) => setAddForm(f => ({ ...f, break_minutes: e.target.value }))}
+                placeholder="automatisch"
+                min={0}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notiz <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Input
+                value={addForm.note}
+                onChange={(e) => setAddForm(f => ({ ...f, note: e.target.value }))}
+                placeholder="z. B. Nacherfassung, Fehler Kiosk…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Abbrechen</Button>
+            <Button
+              onClick={handleAdd}
+              disabled={adding || !addForm.employee_id || !addForm.checked_in_at}
+            >
+              {adding ? 'Erstellt…' : 'Eintrag erstellen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
