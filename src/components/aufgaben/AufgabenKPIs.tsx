@@ -2,7 +2,6 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { CheckCircle2, Circle, AlertTriangle, ListTodo, TrendingUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface KPIs {
   total: number
@@ -13,62 +12,83 @@ interface KPIs {
 }
 
 export function AufgabenKPIs({ kpis }: { kpis: KPIs }) {
-  const cards = [
-    {
-      label: 'Gesamt',
-      value: kpis.total,
-      icon: ListTodo,
-      color: 'text-white/70',
-      bg: 'bg-white/5',
-      border: 'border-white/10',
-    },
-    {
-      label: 'Erledigt',
-      value: kpis.done,
-      icon: CheckCircle2,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
-    },
-    {
-      label: 'Offen',
-      value: kpis.open,
-      icon: Circle,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/20',
-    },
-    {
-      label: 'Überfällig',
-      value: kpis.overdue,
-      icon: AlertTriangle,
-      color: kpis.overdue > 0 ? 'text-red-400' : 'text-white/40',
-      bg: kpis.overdue > 0 ? 'bg-red-500/10' : 'bg-white/5',
-      border: kpis.overdue > 0 ? 'border-red-500/20' : 'border-white/10',
-    },
-    {
-      label: 'Abschlussrate',
-      value: `${kpis.rate}%`,
-      icon: TrendingUp,
-      color: kpis.rate >= 70 ? 'text-emerald-400' : kpis.rate >= 40 ? 'text-amber-400' : 'text-red-400',
-      bg: kpis.rate >= 70 ? 'bg-emerald-500/10' : kpis.rate >= 40 ? 'bg-amber-500/10' : 'bg-red-500/10',
-      border: kpis.rate >= 70 ? 'border-emerald-500/20' : kpis.rate >= 40 ? 'border-amber-500/20' : 'border-red-500/20',
-    },
-  ]
-
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {cards.map((c) => (
-        <Card key={c.label} className={cn('border', c.bg, c.border, 'bg-transparent')}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <c.icon className={cn('h-4 w-4 shrink-0', c.color)} />
-              <span className="text-[11px] text-white/40 uppercase tracking-wide font-medium">{c.label}</span>
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Gesamt</p>
+              <p className="text-2xl font-bold tracking-tight">{kpis.total}</p>
             </div>
-            <p className={cn('text-2xl font-bold', c.color)}>{c.value}</p>
-          </CardContent>
-        </Card>
-      ))}
+            <div className="p-2 rounded-lg bg-muted">
+              <ListTodo className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Erledigt</p>
+              <p className="text-2xl font-bold tracking-tight text-green-600">{kpis.done}</p>
+            </div>
+            <div className="p-2 rounded-lg bg-green-50">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Offen</p>
+              <p className="text-2xl font-bold tracking-tight text-blue-600">{kpis.open}</p>
+            </div>
+            <div className="p-2 rounded-lg bg-blue-50">
+              <Circle className="w-5 h-5 text-blue-600" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Überfällig</p>
+              <p className={`text-2xl font-bold tracking-tight ${kpis.overdue > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                {kpis.overdue}
+              </p>
+            </div>
+            <div className={`p-2 rounded-lg ${kpis.overdue > 0 ? 'bg-red-50' : 'bg-muted'}`}>
+              <AlertTriangle className={`w-5 h-5 ${kpis.overdue > 0 ? 'text-red-600' : 'text-muted-foreground'}`} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Abschlussrate</p>
+              <p className={`text-2xl font-bold tracking-tight ${
+                kpis.rate >= 70 ? 'text-green-600' : kpis.rate >= 40 ? 'text-amber-600' : 'text-red-600'
+              }`}>
+                {kpis.rate}%
+              </p>
+            </div>
+            <div className={`p-2 rounded-lg ${kpis.rate >= 70 ? 'bg-green-50' : kpis.rate >= 40 ? 'bg-amber-50' : 'bg-red-50'}`}>
+              <TrendingUp className={`w-5 h-5 ${kpis.rate >= 70 ? 'text-green-600' : kpis.rate >= 40 ? 'text-amber-600' : 'text-red-600'}`} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

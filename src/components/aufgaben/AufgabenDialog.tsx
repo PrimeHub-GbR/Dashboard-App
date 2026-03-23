@@ -94,9 +94,9 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#0f1f16] border-white/15 text-white max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle>
             {isEdit ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}
           </DialogTitle>
         </DialogHeader>
@@ -104,35 +104,34 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
         <div className="space-y-4 py-2">
           {/* Titel */}
           <div className="space-y-1.5">
-            <Label className="text-white/60 text-xs">Titel *</Label>
+            <Label>Titel *</Label>
             <Input
               value={form.title}
               onChange={(e) => set('title', e.target.value)}
               placeholder="Aufgabentitel eingeben..."
-              className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-emerald-500/50"
             />
           </div>
 
           {/* Beschreibung */}
           <div className="space-y-1.5">
-            <Label className="text-white/60 text-xs">Beschreibung</Label>
+            <Label>Beschreibung</Label>
             <Textarea
               value={form.description ?? ''}
               onChange={(e) => set('description', e.target.value)}
               placeholder="Details zur Aufgabe..."
-              className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-emerald-500/50 min-h-[80px] resize-none"
+              className="min-h-[80px] resize-none"
             />
           </div>
 
           {/* Status + Priorität */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-white/60 text-xs">Status</Label>
+              <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => set('status', v as TaskStatus)}>
-                <SelectTrigger className="bg-white/5 border-white/15 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0f1f16] border-white/15">
+                <SelectContent>
                   <SelectItem value="todo">Offen</SelectItem>
                   <SelectItem value="in_progress">In Bearbeitung</SelectItem>
                   <SelectItem value="in_review">In Review</SelectItem>
@@ -142,12 +141,12 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-white/60 text-xs">Priorität</Label>
+              <Label>Priorität</Label>
               <Select value={form.priority} onValueChange={(v) => set('priority', v as TaskPriority)}>
-                <SelectTrigger className="bg-white/5 border-white/15 text-white">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0f1f16] border-white/15">
+                <SelectContent>
                   <SelectItem value="high">Hoch</SelectItem>
                   <SelectItem value="medium">Mittel</SelectItem>
                   <SelectItem value="low">Niedrig</SelectItem>
@@ -158,41 +157,38 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
 
           {/* Fälligkeitsdatum */}
           <div className="space-y-1.5">
-            <Label className="text-white/60 text-xs">Fälligkeitsdatum</Label>
+            <Label>Fälligkeitsdatum</Label>
             <Input
               type="date"
               value={form.due_date ?? ''}
               onChange={(e) => set('due_date', e.target.value || null)}
-              className="bg-white/5 border-white/15 text-white focus:border-emerald-500/50"
             />
           </div>
 
           {/* Erinnerung */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-white/60 text-xs">Erinnerung am</Label>
+              <Label>Erinnerung am</Label>
               <Input
                 type="datetime-local"
                 value={form.reminder_at ?? ''}
                 onChange={(e) => set('reminder_at', e.target.value || null)}
-                className="bg-white/5 border-white/15 text-white focus:border-emerald-500/50"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-white/60 text-xs">Erinnerungs-E-Mail</Label>
+              <Label>Erinnerungs-E-Mail</Label>
               <Input
                 type="email"
                 value={form.reminder_email ?? ''}
                 onChange={(e) => set('reminder_email', e.target.value || null)}
                 placeholder="name@firma.de"
-                className="bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-emerald-500/50"
               />
             </div>
           </div>
 
           {/* Mitarbeiter */}
           <div className="space-y-1.5">
-            <Label className="text-white/60 text-xs">Mitarbeiter zuweisen</Label>
+            <Label>Mitarbeiter zuweisen</Label>
             <AssigneeSelector
               employees={employees}
               selectedIds={form.assignee_ids}
@@ -208,7 +204,7 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
               variant="ghost"
               onClick={handleDelete}
               disabled={deleting}
-              className="text-red-400 hover:bg-red-500/10 hover:text-red-300 mr-auto"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 mr-auto"
             >
               <Trash2 className="h-4 w-4 mr-1.5" />
               {deleting ? 'Löschen...' : 'Löschen'}
@@ -219,25 +215,19 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
               type="button"
               variant="outline"
               onClick={handleComplete}
-              className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+              className="border-green-200 text-green-700 hover:bg-green-50"
             >
               <CheckCircle2 className="h-4 w-4 mr-1.5" />
               Als erledigt markieren
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="border-white/15 text-white/60 hover:bg-white/5"
-          >
+          <Button type="button" variant="outline" onClick={onClose}>
             Abbrechen
           </Button>
           <Button
             type="button"
             onClick={handleSave}
             disabled={saving || !form.title.trim()}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
           >
             {saving ? 'Speichern...' : isEdit ? 'Speichern' : 'Erstellen'}
           </Button>

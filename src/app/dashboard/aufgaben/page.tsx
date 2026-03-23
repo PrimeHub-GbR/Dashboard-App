@@ -13,10 +13,9 @@ export default async function AufgabenPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold text-white">Aufgaben</h1>
-        <p className="mt-1 text-sm text-white/40">
+        <h1 className="text-2xl font-bold tracking-tight">Aufgaben</h1>
+        <p className="text-muted-foreground mt-1">
           Aufgaben erstellen, delegieren und verfolgen
         </p>
       </div>

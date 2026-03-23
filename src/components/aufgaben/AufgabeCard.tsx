@@ -6,18 +6,18 @@ import { cn } from '@/lib/utils'
 import { AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
 
 const PRIORITY_STYLES = {
-  high: 'text-red-400 bg-red-500/15 border-red-500/30',
-  medium: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
-  low: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
+  high: 'text-red-700 bg-red-50 border-red-200',
+  medium: 'text-amber-700 bg-amber-50 border-amber-200',
+  low: 'text-green-700 bg-green-50 border-green-200',
 }
 const PRIORITY_LABELS = { high: 'Hoch', medium: 'Mittel', low: 'Niedrig' }
 
 const STATUS_STYLES = {
-  todo: 'text-white/50 bg-white/8 border-white/15',
-  in_progress: 'text-blue-400 bg-blue-500/15 border-blue-500/30',
-  in_review: 'text-purple-400 bg-purple-500/15 border-purple-500/30',
-  done: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
-  blocked: 'text-red-400 bg-red-500/15 border-red-500/30',
+  todo: 'text-gray-600 bg-gray-100 border-gray-200',
+  in_progress: 'text-blue-700 bg-blue-50 border-blue-200',
+  in_review: 'text-purple-700 bg-purple-50 border-purple-200',
+  done: 'text-green-700 bg-green-50 border-green-200',
+  blocked: 'text-red-700 bg-red-50 border-red-200',
 }
 const STATUS_LABELS = {
   todo: 'Offen',
@@ -36,14 +36,13 @@ interface Props {
 export function AufgabeCard({ task, onClick, compact = false }: Props) {
   const today = new Date().toISOString().split('T')[0]
   const isOverdue = task.due_date && task.due_date < today && task.status !== 'done'
-  const isDueToday = task.due_date === today
 
   const formatDue = (due: string) => {
     const d = new Date(due)
     const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     if (diff < 0) return `${Math.abs(diff)}d überfällig`
     if (diff === 0) return 'Heute fällig'
-    if (diff === 1) return 'Morgen fällig'
+    if (diff === 1) return 'Morgen'
     return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
   }
 
@@ -51,46 +50,45 @@ export function AufgabeCard({ task, onClick, compact = false }: Props) {
     <div
       onClick={() => onClick(task)}
       className={cn(
-        'rounded-xl border bg-white/4 hover:bg-white/7 transition-all cursor-pointer group',
-        task.status === 'done' ? 'border-white/8 opacity-60' : 'border-white/10',
-        isOverdue && 'border-red-500/25 bg-red-500/5',
+        'rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer',
+        isOverdue && 'border-red-200 bg-red-50/50',
+        task.status === 'done' && 'opacity-60',
         compact ? 'p-3' : 'p-4'
       )}
     >
       {/* Header */}
       <div className="flex items-start gap-2 mb-2">
         {task.status === 'done' ? (
-          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-400" />
+          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-green-600" />
         ) : (
           <div className={cn(
             'h-4 w-4 shrink-0 mt-0.5 rounded-full border-2',
-            task.status === 'in_progress' ? 'border-blue-400' :
-            task.status === 'blocked' ? 'border-red-400' :
-            task.status === 'in_review' ? 'border-purple-400' :
-            'border-white/30'
+            task.status === 'in_progress' ? 'border-blue-500' :
+            task.status === 'blocked' ? 'border-red-500' :
+            task.status === 'in_review' ? 'border-purple-500' :
+            'border-gray-300'
           )} />
         )}
         <p className={cn(
           'text-sm font-medium leading-snug flex-1',
-          task.status === 'done' ? 'line-through text-white/40' : 'text-white/90'
+          task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'
         )}>
           {task.title}
         </p>
       </div>
 
-      {/* Beschreibung (nur non-compact) */}
       {!compact && task.description && (
-        <p className="text-xs text-white/40 mb-3 ml-6 line-clamp-2">{task.description}</p>
+        <p className="text-xs text-muted-foreground mb-3 ml-6 line-clamp-2">{task.description}</p>
       )}
 
       {/* Footer */}
       <div className="flex items-center gap-2 flex-wrap ml-6">
-        <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0.5 font-medium', PRIORITY_STYLES[task.priority])}>
+        <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', PRIORITY_STYLES[task.priority])}>
           {PRIORITY_LABELS[task.priority]}
         </Badge>
 
         {!compact && (
-          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0.5', STATUS_STYLES[task.status])}>
+          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', STATUS_STYLES[task.status])}>
             {STATUS_LABELS[task.status]}
           </Badge>
         )}
@@ -98,28 +96,27 @@ export function AufgabeCard({ task, onClick, compact = false }: Props) {
         {task.due_date && (
           <span className={cn(
             'flex items-center gap-1 text-[10px]',
-            isOverdue ? 'text-red-400' : isDueToday ? 'text-amber-400' : 'text-white/35'
+            isOverdue ? 'text-red-600 font-medium' : task.due_date === today ? 'text-amber-600' : 'text-muted-foreground'
           )}>
             {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
             {formatDue(task.due_date)}
           </span>
         )}
 
-        {/* Assignee-Avatare */}
         {task.assignees.length > 0 && (
           <div className="ml-auto flex -space-x-1">
             {task.assignees.slice(0, 3).map((a) => (
               <span
                 key={a.id}
                 title={a.name}
-                className="h-5 w-5 rounded-full border border-[#0f1f16] flex items-center justify-center text-[9px] font-bold text-white"
+                className="h-5 w-5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
                 style={{ backgroundColor: a.color }}
               >
                 {a.name.charAt(0).toUpperCase()}
               </span>
             ))}
             {task.assignees.length > 3 && (
-              <span className="h-5 w-5 rounded-full border border-[#0f1f16] bg-white/10 flex items-center justify-center text-[9px] text-white/50">
+              <span className="h-5 w-5 rounded-full border-2 border-white bg-muted flex items-center justify-center text-[9px] text-muted-foreground">
                 +{task.assignees.length - 3}
               </span>
             )}

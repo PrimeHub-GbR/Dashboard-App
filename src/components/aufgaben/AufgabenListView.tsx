@@ -7,18 +7,18 @@ import { cn } from '@/lib/utils'
 import { AlertTriangle, Calendar } from 'lucide-react'
 
 const PRIORITY_STYLES = {
-  high: 'text-red-400 bg-red-500/15 border-red-500/30',
-  medium: 'text-amber-400 bg-amber-500/15 border-amber-500/30',
-  low: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
+  high: 'text-red-700 bg-red-50 border-red-200',
+  medium: 'text-amber-700 bg-amber-50 border-amber-200',
+  low: 'text-green-700 bg-green-50 border-green-200',
 }
 const PRIORITY_LABELS = { high: 'Hoch', medium: 'Mittel', low: 'Niedrig' }
 
 const STATUS_STYLES = {
-  todo: 'text-white/50 bg-white/8 border-white/15',
-  in_progress: 'text-blue-400 bg-blue-500/15 border-blue-500/30',
-  in_review: 'text-purple-400 bg-purple-500/15 border-purple-500/30',
-  done: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30',
-  blocked: 'text-red-400 bg-red-500/15 border-red-500/30',
+  todo: 'text-gray-600 bg-gray-100 border-gray-200',
+  in_progress: 'text-blue-700 bg-blue-50 border-blue-200',
+  in_review: 'text-purple-700 bg-purple-50 border-purple-200',
+  done: 'text-green-700 bg-green-50 border-green-200',
+  blocked: 'text-red-700 bg-red-50 border-red-200',
 }
 const STATUS_LABELS = {
   todo: 'Offen',
@@ -38,11 +38,11 @@ export function AufgabenListView({ tasks, onTaskClick, onComplete }: Props) {
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
-          <span className="text-2xl">✓</span>
+        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 text-2xl">
+          ✓
         </div>
-        <p className="text-white/40 text-sm">Keine Aufgaben gefunden</p>
-        <p className="text-white/25 text-xs mt-1">Erstelle eine neue Aufgabe oder passe die Filter an</p>
+        <p className="text-muted-foreground text-sm">Keine Aufgaben gefunden</p>
+        <p className="text-muted-foreground/60 text-xs mt-1">Erstelle eine neue Aufgabe oder passe die Filter an</p>
       </div>
     )
   }
@@ -59,88 +59,84 @@ export function AufgabenListView({ tasks, onTaskClick, onComplete }: Props) {
   }
 
   return (
-    <div className="space-y-1.5">
-      {tasks.map((task) => {
-        const isOverdue = task.due_date && task.due_date < today && task.status !== 'done'
-        const isDone = task.status === 'done'
+    <div className="rounded-md border">
+      <div className="divide-y">
+        {tasks.map((task) => {
+          const isOverdue = task.due_date && task.due_date < today && task.status !== 'done'
+          const isDone = task.status === 'done'
 
-        return (
-          <div
-            key={task.id}
-            className={cn(
-              'flex items-center gap-3 rounded-xl border px-4 py-3 transition-all cursor-pointer group',
-              isDone ? 'bg-white/2 border-white/6 opacity-60' : 'bg-white/4 border-white/10 hover:bg-white/7',
-              isOverdue && !isDone && 'border-red-500/20 bg-red-500/5'
-            )}
-            onClick={() => onTaskClick(task)}
-          >
-            {/* Checkbox */}
-            <Checkbox
-              checked={isDone}
-              onCheckedChange={async (checked) => {
-                if (checked && !isDone) {
-                  await onComplete(task.id)
-                }
-              }}
-              onClick={(e) => e.stopPropagation()}
+          return (
+            <div
+              key={task.id}
               className={cn(
-                'shrink-0 border-white/20',
-                isDone ? 'border-emerald-500 bg-emerald-500' : 'hover:border-white/40'
+                'flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors',
+                isOverdue && !isDone && 'bg-red-50/50'
               )}
-            />
+              onClick={() => onTaskClick(task)}
+            >
+              {/* Checkbox */}
+              <Checkbox
+                checked={isDone}
+                onCheckedChange={async (checked) => {
+                  if (checked && !isDone) await onComplete(task.id)
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0"
+              />
 
-            {/* Titel */}
-            <p className={cn(
-              'flex-1 text-sm font-medium min-w-0 truncate',
-              isDone ? 'line-through text-white/35' : 'text-white/85'
-            )}>
-              {task.title}
-            </p>
-
-            {/* Priorität */}
-            <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden sm:flex', PRIORITY_STYLES[task.priority])}>
-              {PRIORITY_LABELS[task.priority]}
-            </Badge>
-
-            {/* Status */}
-            <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden md:flex', STATUS_STYLES[task.status])}>
-              {STATUS_LABELS[task.status]}
-            </Badge>
-
-            {/* Fälligkeitsdatum */}
-            {task.due_date && (
-              <span className={cn(
-                'flex items-center gap-1 text-xs shrink-0 hidden sm:flex',
-                isOverdue ? 'text-red-400' : task.due_date === today ? 'text-amber-400' : 'text-white/35'
+              {/* Titel */}
+              <p className={cn(
+                'flex-1 text-sm font-medium min-w-0 truncate',
+                isDone ? 'line-through text-muted-foreground' : 'text-foreground'
               )}>
-                {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
-                {formatDue(task.due_date)}
-              </span>
-            )}
+                {task.title}
+              </p>
 
-            {/* Assignees */}
-            {task.assignees.length > 0 && (
-              <div className="flex -space-x-1 shrink-0">
-                {task.assignees.slice(0, 3).map((a) => (
-                  <span
-                    key={a.id}
-                    title={a.name}
-                    className="h-6 w-6 rounded-full border-2 border-[#0f1f16] flex items-center justify-center text-[10px] font-bold text-white"
-                    style={{ backgroundColor: a.color }}
-                  >
-                    {a.name.charAt(0).toUpperCase()}
-                  </span>
-                ))}
-                {task.assignees.length > 3 && (
-                  <span className="h-6 w-6 rounded-full border-2 border-[#0f1f16] bg-white/10 flex items-center justify-center text-[9px] text-white/50">
-                    +{task.assignees.length - 3}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
+              {/* Priorität */}
+              <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden sm:flex', PRIORITY_STYLES[task.priority])}>
+                {PRIORITY_LABELS[task.priority]}
+              </Badge>
+
+              {/* Status */}
+              <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden md:flex', STATUS_STYLES[task.status])}>
+                {STATUS_LABELS[task.status]}
+              </Badge>
+
+              {/* Fälligkeitsdatum */}
+              {task.due_date && (
+                <span className={cn(
+                  'flex items-center gap-1 text-xs shrink-0 hidden sm:flex',
+                  isOverdue ? 'text-red-600 font-medium' : task.due_date === today ? 'text-amber-600' : 'text-muted-foreground'
+                )}>
+                  {isOverdue ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+                  {formatDue(task.due_date)}
+                </span>
+              )}
+
+              {/* Assignees */}
+              {task.assignees.length > 0 && (
+                <div className="flex -space-x-1 shrink-0">
+                  {task.assignees.slice(0, 3).map((a) => (
+                    <span
+                      key={a.id}
+                      title={a.name}
+                      className="h-6 w-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white"
+                      style={{ backgroundColor: a.color }}
+                    >
+                      {a.name.charAt(0).toUpperCase()}
+                    </span>
+                  ))}
+                  {task.assignees.length > 3 && (
+                    <span className="h-6 w-6 rounded-full border-2 border-white bg-muted flex items-center justify-center text-[9px] text-muted-foreground">
+                      +{task.assignees.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

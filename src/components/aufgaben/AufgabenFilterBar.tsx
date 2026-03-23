@@ -33,21 +33,21 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
     <div className="flex flex-wrap items-center gap-2">
       {/* Suche */}
       <div className="relative flex-1 min-w-[180px]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           value={filters.search ?? ''}
           onChange={(e) => set('search', e.target.value)}
           placeholder="Aufgaben suchen..."
-          className="pl-9 bg-white/5 border-white/15 text-white placeholder:text-white/30 focus:border-emerald-500/50 h-9"
+          className="pl-9 h-9"
         />
       </div>
 
       {/* Status */}
       <Select value={filters.status || ALL} onValueChange={(v) => set('status', v)}>
-        <SelectTrigger className="w-[140px] bg-white/5 border-white/15 text-white h-9 text-sm">
+        <SelectTrigger className="w-[140px] h-9 text-sm">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
-        <SelectContent className="bg-[#0f1f16] border-white/15">
+        <SelectContent>
           <SelectItem value={ALL}>Alle Status</SelectItem>
           <SelectItem value="todo">Offen</SelectItem>
           <SelectItem value="in_progress">In Bearbeitung</SelectItem>
@@ -59,10 +59,10 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
 
       {/* Priorität */}
       <Select value={filters.priority || ALL} onValueChange={(v) => set('priority', v)}>
-        <SelectTrigger className="w-[130px] bg-white/5 border-white/15 text-white h-9 text-sm">
+        <SelectTrigger className="w-[130px] h-9 text-sm">
           <SelectValue placeholder="Priorität" />
         </SelectTrigger>
-        <SelectContent className="bg-[#0f1f16] border-white/15">
+        <SelectContent>
           <SelectItem value={ALL}>Alle Prioritäten</SelectItem>
           <SelectItem value="high">Hoch</SelectItem>
           <SelectItem value="medium">Mittel</SelectItem>
@@ -72,10 +72,10 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
 
       {/* Fälligkeit */}
       <Select value={filters.due_filter || ALL} onValueChange={(v) => set('due_filter', v)}>
-        <SelectTrigger className="w-[140px] bg-white/5 border-white/15 text-white h-9 text-sm">
+        <SelectTrigger className="w-[140px] h-9 text-sm">
           <SelectValue placeholder="Fälligkeit" />
         </SelectTrigger>
-        <SelectContent className="bg-[#0f1f16] border-white/15">
+        <SelectContent>
           <SelectItem value={ALL}>Alle Daten</SelectItem>
           <SelectItem value="overdue">Überfällig</SelectItem>
           <SelectItem value="today">Heute fällig</SelectItem>
@@ -86,15 +86,13 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
       {/* Mitarbeiter */}
       {employees.length > 0 && (
         <Select value={filters.employee_id || ALL} onValueChange={(v) => set('employee_id', v)}>
-          <SelectTrigger className="w-[150px] bg-white/5 border-white/15 text-white h-9 text-sm">
+          <SelectTrigger className="w-[150px] h-9 text-sm">
             <SelectValue placeholder="Mitarbeiter" />
           </SelectTrigger>
-          <SelectContent className="bg-[#0f1f16] border-white/15">
+          <SelectContent>
             <SelectItem value={ALL}>Alle Mitarbeiter</SelectItem>
             {employees.map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.name}
-              </SelectItem>
+              <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -106,10 +104,10 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
           variant="ghost"
           size="sm"
           onClick={() => onChange({})}
-          className="h-9 px-3 text-white/40 hover:text-white/70 hover:bg-white/5"
+          className="h-9 px-3 text-muted-foreground"
         >
           <X className="h-3.5 w-3.5 mr-1" />
-          Filter zurücksetzen
+          Zurücksetzen
         </Button>
       )}
     </div>
