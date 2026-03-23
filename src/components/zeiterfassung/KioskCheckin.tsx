@@ -3,7 +3,7 @@
 import { useKioskCheckin } from '@/hooks/useKioskCheckin'
 import { formatTimeBerlin, formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { Employee } from '@/lib/zeiterfassung/types'
-import { CheckCircle, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, LogOut } from 'lucide-react'
+import { CheckCircle, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 
@@ -50,76 +50,122 @@ function PersonalView({
       .catch(() => { /* ignore */ })
   }, [employee.id, year, month])
 
-  const netMinutes = stats ? Math.max(0, stats.total_work_minutes - stats.total_break_minutes) : 0
-  const targetMinutes = stats ? stats.target_hours_per_month * 60 : 0
+  // Null-safe Berechnungen
+  const netMinutes = stats ? Math.max(0, (stats.total_work_minutes ?? 0) - (stats.total_break_minutes ?? 0)) : 0
+  const targetMinutes = stats ? (stats.target_hours_per_month ?? 0) * 60 : 0
   const diff = netMinutes - targetMinutes
-  const progressPct = targetMinutes > 0 ? Math.min(100, Math.round((netMinutes / targetMinutes) * 100)) : 0
+  const hasData = netMinutes > 0
+  const progressPct = targetMinutes > 0 && hasData ? Math.min(100, Math.round((netMinutes / targetMinutes) * 100)) : 0
+
+  // Erwarteter Fortschritt basierend auf aktuellem Tag im Monat
+  const today = new Date()
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+  const currentDay = today.getDate()
+  const expectedPct = Math.round((currentDay / daysInMonth) * 100)
+  const pctDiff = progressPct - expectedPct
+  const contextMsg = hasData && targetMinutes > 0
+    ? pctDiff >= 5
+      ? `Gut dabei — du liegst ${pctDiff}% vor dem Tagesziel`
+      : pctDiff <= -5
+      ? `Du liegst ${Math.abs(pctDiff)}% hinter dem Tagesziel`
+      : `Du liegst genau im Plan`
+    : null
 
   const mm = String(Math.floor(countdown / 60)).padStart(2, '0')
   const ss = String(countdown % 60).padStart(2, '0')
 
   return (
-    <div className="flex flex-col items-center gap-6 max-w-sm mx-auto px-4 w-full text-center">
-      {/* Avatar */}
-      <div
-        className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg"
-        style={{ backgroundColor: employee.color }}
-      >
-        {employee.name.charAt(0).toUpperCase()}
-      </div>
-      <div>
-        <h1 className="text-2xl font-bold text-white">Hallo, {employee.name}!</h1>
-        <p className="text-gray-400 text-sm mt-1">Deine Übersicht für diesen Monat</p>
+    <div className="flex flex-col items-center gap-5 max-w-sm mx-auto px-4 w-full text-center">
+      {/* Avatar + Begrüßung */}
+      <div className="flex flex-col items-center gap-3">
+        <div
+          className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg"
+          style={{ backgroundColor: employee.color }}
+        >
+          {employee.name.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Hallo, {employee.name}!</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Monatsübersicht · {month}/{year}</p>
+        </div>
       </div>
 
       {/* Stats */}
-      {stats ? (
+      {stats === null ? (
+        <div className="w-full h-28 bg-gray-900 rounded-xl animate-pulse" />
+      ) : (
         <>
           <div className="grid grid-cols-3 gap-3 w-full">
+            {/* Ist */}
             <div className="bg-gray-900 rounded-xl p-3">
               <p className="text-xs text-gray-500 mb-1">Ist</p>
-              <p className="text-lg font-bold text-white">{formatDuration(netMinutes)}</p>
-            </div>
-            <div className="bg-gray-900 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Soll</p>
-              <p className="text-lg font-bold text-white">{stats.target_hours_per_month}h</p>
-            </div>
-            <div className="bg-gray-900 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Diff</p>
-              <p className={`text-lg font-bold flex items-center justify-center gap-0.5 ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {diff >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
+              <p className="text-lg font-bold text-white">
+                {hasData ? formatDuration(netMinutes) : <span className="text-gray-600 text-base">—</span>}
               </p>
             </div>
-          </div>
-          {/* Fortschritt */}
-          <div className="w-full space-y-1">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>{progressPct}% des Monatsziels</span>
-              <span>{stats.entry_count} Buchungen</span>
+            {/* Soll */}
+            <div className="bg-gray-900 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1">Soll</p>
+              <p className="text-lg font-bold text-white">
+                {targetMinutes > 0 ? `${stats.target_hours_per_month}h` : <span className="text-gray-600 text-base">—</span>}
+              </p>
             </div>
-            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${progressPct}%`, backgroundColor: employee.color }}
-              />
+            {/* Diff */}
+            <div className="bg-gray-900 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1">Diff</p>
+              {hasData && targetMinutes > 0 ? (
+                <p className={`text-lg font-bold flex items-center justify-center gap-0.5 ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {diff >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                  {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
+                </p>
+              ) : (
+                <p className="text-gray-600 text-base">—</p>
+              )}
             </div>
           </div>
+
+          {/* Fortschrittsbalken — nur wenn Daten vorhanden */}
+          {targetMinutes > 0 && (
+            <div className="w-full space-y-1.5">
+              <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${progressPct}%`, backgroundColor: employee.color }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>
+                  {hasData ? `${progressPct}% des Monatsziels` : 'Noch keine Stunden erfasst'}
+                </span>
+                <span>{(stats.entry_count ?? 0) > 0 ? `${stats.entry_count} Buchungen` : ''}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Kontext-Hinweis */}
+          {contextMsg && (
+            <div className={`w-full rounded-xl px-4 py-2.5 text-sm font-medium ${
+              pctDiff >= 5 ? 'bg-green-500/10 text-green-400' :
+              pctDiff <= -5 ? 'bg-red-500/10 text-red-400' :
+              'bg-gray-800 text-gray-400'
+            }`}>
+              {contextMsg}
+            </div>
+          )}
         </>
-      ) : (
-        <div className="w-full h-24 bg-gray-900 rounded-xl animate-pulse" />
       )}
 
-      {/* Countdown + Exit */}
-      <div className="flex flex-col items-center gap-3 w-full">
-        <p className="text-gray-600 text-sm">Automatische Rückkehr in {mm}:{ss}</p>
+      {/* Großer Exit-Button + Countdown */}
+      <div className="w-full flex flex-col items-center gap-2 pt-1">
         <button
           onClick={onExit}
-          className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
+          className="w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-white font-semibold text-lg transition-all active:scale-95"
+          style={{ backgroundColor: employee.color }}
         >
-          <LogOut className="w-4 h-4" />
-          Jetzt beenden
+          <X className="w-6 h-6" />
+          Beenden
         </button>
+        <p className="text-gray-700 text-xs">Automatisch in {mm}:{ss}</p>
       </div>
     </div>
   )
