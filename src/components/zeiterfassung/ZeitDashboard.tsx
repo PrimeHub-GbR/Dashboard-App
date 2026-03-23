@@ -131,7 +131,7 @@ export function ZeitDashboard() {
   const liveCount = data?.live_count ?? 0
   const liveEntries = (data?.live ?? []) as LiveEntry[]
   const todayShifts = (data?.today_shifts ?? []) as TodayShift[]
-  const hourly = (data?.hourly ?? []) as Array<{ hour: string; raw_hour: number; count: number }>
+  const hourly = (data?.hourly ?? []) as Array<{ hour: string; raw_hour: number; count: number; planned: number }>
 
   // KPI-Berechnungen
   const totalNetMinutes = monthData.reduce((s, r) => s + Math.max(0, r.total_work_minutes - r.total_break_minutes), 0)
@@ -348,58 +348,98 @@ export function ZeitDashboard() {
                 Noch keine Daten für diesen Monat.
               </div>
             ) : (
-              /* Stündliche Besetzung — Bar Chart */
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground px-1">Durchschnittliche Besetzung nach Tageszeit</p>
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={hourly} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="hourly-grad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0.3} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                    <XAxis
-                      dataKey="hour"
-                      tick={{ fontSize: 10 }}
-                      tickLine={false}
-                      axisLine={false}
-                      interval={1}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10 }}
-                      tickLine={false}
-                      axisLine={false}
-                      allowDecimals={false}
-                      tickFormatter={v => v === 0 ? '' : `${v}×`}
-                      domain={[0, 'dataMax + 1']}
-                    />
-                    <Tooltip
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length) return null
-                        const d = payload[0].payload as { hour: string; count: number }
-                        return (
-                          <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
-                            <p className="font-medium">{d.hour} Uhr</p>
-                            <p className="text-muted-foreground">Ø <span className="text-foreground font-medium">{d.count} {d.count === 1 ? 'Mitarbeiter' : 'Mitarbeiter'}</span> anwesend</p>
-                          </div>
-                        )
-                      }}
-                    />
-                    <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={32}>
-                      {hourly.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={entry.count > 2 ? '#22c55e' : entry.count > 0 ? '#86efac' : '#374151'}
-                          fillOpacity={entry.count > 0 ? 1 : 0.3}
+              /* Stündliche Besetzung — gestapelter Bar Chart (Anwesend + Geplant) */
+              (() => {
+                const chartData = hourly.map(h => ({
+                  ...h,
+                  planned_extra: Math.max(0, h.planned - h.count),
+                }))
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                      <p className="text-xs text-muted-foreground">Besetzung nach Tageszeit — kumulativ über den Monat</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <span className="w-2.5 h-2.5 rounded-sm inline-block bg-green-500" />
+                          Anwesend
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-2.5 h-2.5 rounded-sm inline-block bg-muted-foreground/30" />
+                          Geplant
+                        </span>
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }} barSize={20}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                        <XAxis
+                          dataKey="hour"
+                          tick={{ fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={false}
+                          interval={1}
                         />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                        <YAxis
+                          tick={{ fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={false}
+                          allowDecimals={false}
+                          tickFormatter={v => v === 0 ? '' : `${v}`}
+                          domain={[0, 'dataMax + 1']}
+                        />
+                        <Tooltip
+                          cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0].payload as typeof chartData[number]
+                            return (
+                              <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm min-w-[160px]">
+                                <p className="font-medium mb-2">{d.hour} Uhr</p>
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between gap-4">
+                                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                                      <span className="w-2 h-2 rounded-sm bg-green-500 inline-block" />
+                                      Anwesend
+                                    </span>
+                                    <span className="font-medium">{d.count}×</span>
+                                  </div>
+                                  {d.planned > 0 && (
+                                    <div className="flex items-center justify-between gap-4">
+                                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                                        <span className="w-2 h-2 rounded-sm bg-muted-foreground/40 inline-block" />
+                                        Geplant gesamt
+                                      </span>
+                                      <span className="font-medium">{d.planned}×</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          }}
+                        />
+                        {/* Tatsächlich anwesend — grün */}
+                        <Bar dataKey="count" stackId="a" radius={[0, 0, 2, 2]}>
+                          {chartData.map((entry, i) => (
+                            <Cell
+                              key={i}
+                              fill={entry.count > 2 ? '#16a34a' : entry.count > 0 ? '#22c55e' : 'transparent'}
+                            />
+                          ))}
+                        </Bar>
+                        {/* Geplant aber noch nicht da — grau (gestapelt oben) */}
+                        <Bar dataKey="planned_extra" stackId="a" radius={[2, 2, 0, 0]}>
+                          {chartData.map((entry, i) => (
+                            <Cell
+                              key={i}
+                              fill={entry.planned_extra > 0 ? '#6b728066' : 'transparent'}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )
+              })()
             )}
           </CardContent>
         </Card>
