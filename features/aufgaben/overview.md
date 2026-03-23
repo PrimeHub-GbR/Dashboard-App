@@ -71,3 +71,10 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 4. Aufgabe als erledigt markieren → `completed_at` gesetzt, KPI-Rate steigt
 5. Filter "Überfällig" → zeigt nur Tasks mit `due_date < heute AND status != 'done'`
 6. Aufgabe löschen → kein verwaister Eintrag in `task_assignees` (CASCADE)
+
+## Deployment
+
+**Production URL:** https://dashboard.primehubgbr.com
+**Deployed:** 2026-03-23
+**Build:** Ready
+**Vercel Deployment:** https://app-klue6b0yl-primehubgbr-2551s-projects.vercel.app
