@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, CalendarDays } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Plus, Trash2, CalendarDays, CheckSquare, Square, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ShiftWithEmployee extends ShiftPlan {
@@ -30,6 +31,12 @@ export function Schichtplanung() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Sammelauswahl
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   // Multi-day form
   const [employeeId, setEmployeeId] = useState('')
@@ -143,6 +150,47 @@ export function Schichtplanung() {
     }
   }
 
+  function toggleSelectMode() {
+    setSelectMode(v => !v)
+    setSelectedIds(new Set())
+  }
+
+  function toggleShiftSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(shifts.map(s => s.id)))
+  }
+
+  function deselectAll() {
+    setSelectedIds(new Set())
+  }
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true)
+    let ok = 0
+    let fail = 0
+    await Promise.all([...selectedIds].map(async (id) => {
+      try {
+        const res = await fetch(`/api/zeiterfassung/shifts/${id}`, { method: 'DELETE' })
+        if (res.ok) { ok += 1 } else { fail += 1 }
+      } catch { fail += 1 }
+    }))
+    setBulkDeleting(false)
+    setConfirmDeleteOpen(false)
+    setSelectedIds(new Set())
+    setSelectMode(false)
+    if (ok > 0) toast.success(`${ok} Schicht${ok > 1 ? 'en' : ''} gelöscht`)
+    if (fail > 0) toast.error(`${fail} konnten nicht gelöscht werden`)
+    await load()
+  }
+
   const days = buildDays()
   const daysInMonth = days.length
 
@@ -162,16 +210,50 @@ export function Schichtplanung() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Schichtplanung</h2>
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold shrink-0">Schichtplanung</h2>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <MonatsSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} />
+          <Button
+            size="sm"
+            variant={selectMode ? 'secondary' : 'outline'}
+            onClick={toggleSelectMode}
+            className="gap-2"
+          >
+            <CheckSquare className="w-4 h-4" />
+            {selectMode ? 'Abbrechen' : 'Auswählen'}
+          </Button>
           <Button size="sm" onClick={openDialog} className="gap-2">
             <Plus className="w-4 h-4" />
             Schichten
           </Button>
         </div>
       </div>
+
+      {/* Sammelauswahl-Aktionsleiste */}
+      {selectMode && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border bg-muted/40">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">
+              {selectedIds.size > 0 ? `${selectedIds.size} ausgewählt` : 'Schichten antippen zum Auswählen'}
+            </span>
+            <button onClick={selectAll} className="text-xs text-primary hover:underline">Alle</button>
+            {selectedIds.size > 0 && (
+              <button onClick={deselectAll} className="text-xs text-muted-foreground hover:underline">Keine</button>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={selectedIds.size === 0}
+            onClick={() => setConfirmDeleteOpen(true)}
+            className="gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            {selectedIds.size > 0 ? `${selectedIds.size} löschen` : 'Löschen'}
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-2">
@@ -194,17 +276,34 @@ export function Schichtplanung() {
                 <div className="flex flex-wrap gap-2 flex-1 min-h-[24px]">
                   {dayShifts.map((s) => {
                     const emp = s.employees
+                    const isSelected = selectedIds.has(s.id)
                     return (
                       <div
                         key={s.id}
-                        className="flex items-center gap-2 px-3 py-1 rounded-full text-xs border"
-                        style={{ borderColor: emp?.color ?? '#22c55e', backgroundColor: `${emp?.color ?? '#22c55e'}15` }}
+                        onClick={selectMode ? () => toggleShiftSelect(s.id) : undefined}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs border transition-all ${
+                          selectMode ? 'cursor-pointer' : ''
+                        } ${isSelected ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
+                        style={{
+                          borderColor: isSelected ? 'rgb(239 68 68)' : (emp?.color ?? '#22c55e'),
+                          backgroundColor: isSelected ? 'rgb(239 68 68 / 0.12)' : `${emp?.color ?? '#22c55e'}15`,
+                        }}
                       >
+                        {selectMode ? (
+                          isSelected
+                            ? <CheckSquare className="w-3.5 h-3.5 text-destructive shrink-0" />
+                            : <Square className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        ) : null}
                         {emp && <MitarbeiterBadge name={emp.name} color={emp.color} size="sm" />}
                         <span className="text-muted-foreground">{s.start_time}–{s.end_time}</span>
-                        <button onClick={() => handleDelete(s.id)} className="text-muted-foreground hover:text-destructive ml-1">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        {!selectMode && (
+                          <button
+                            onClick={() => handleDelete(s.id)}
+                            className="text-muted-foreground hover:text-destructive ml-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
                     )
                   })}
@@ -214,6 +313,28 @@ export function Schichtplanung() {
           })}
         </div>
       )}
+
+      {/* Bulk-Delete Bestätigung */}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selectedIds.size} Schicht{selectedIds.size > 1 ? 'en' : ''} löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? 'Löscht…' : `${selectedIds.size} löschen`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Multi-Day Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
