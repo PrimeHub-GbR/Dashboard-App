@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Plus, Trash2, CalendarDays, CheckSquare, Square, X } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, CheckSquare, Square, X, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ShiftWithEmployee extends ShiftPlan {
@@ -31,6 +31,10 @@ export function Schichtplanung() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Filter
+  const [filterEmpId, setFilterEmpId] = useState<string>('') // '' = alle
+  const [filterWdays, setFilterWdays] = useState<Set<number>>(new Set()) // leer = alle
 
   // Sammelauswahl
   const [selectMode, setSelectMode] = useState(false)
@@ -164,8 +168,32 @@ export function Schichtplanung() {
     })
   }
 
-  function selectAll() {
-    setSelectedIds(new Set(shifts.map(s => s.id)))
+  function toggleFilterWday(wday: number) {
+    setFilterWdays(prev => {
+      const next = new Set(prev)
+      if (next.has(wday)) next.delete(wday)
+      else next.add(wday)
+      return next
+    })
+  }
+
+  function clearFilter() {
+    setFilterEmpId('')
+    setFilterWdays(new Set())
+  }
+
+  // Gibt true zurück, wenn diese Schicht aktuell durch den Filter sichtbar ist
+  function isShiftVisible(s: ShiftWithEmployee): boolean {
+    if (filterEmpId && s.employee_id !== filterEmpId) return false
+    if (filterWdays.size > 0) {
+      const wday = new Date(s.shift_date).getDay()
+      if (!filterWdays.has(wday)) return false
+    }
+    return true
+  }
+
+  function selectAllFiltered() {
+    setSelectedIds(new Set(shifts.filter(isShiftVisible).map(s => s.id)))
   }
 
   function deselectAll() {
@@ -194,11 +222,16 @@ export function Schichtplanung() {
   const days = buildDays()
   const daysInMonth = days.length
 
+  // Alle Schichten nach Datum gruppieren (ungefiltert)
   const shiftsByDate = new Map<string, ShiftWithEmployee[]>()
   for (const s of shifts) {
     if (!shiftsByDate.has(s.shift_date)) shiftsByDate.set(s.shift_date, [])
     shiftsByDate.get(s.shift_date)!.push(s)
   }
+
+  const filterActive = filterEmpId !== '' || filterWdays.size > 0
+  const filteredShiftCount = shifts.filter(isShiftVisible).length
+  const filterEmpName = filterEmpId ? employees.find(e => e.id === filterEmpId)?.name : null
 
   const selectedEmp = employees.find(e => e.id === employeeId)
 
@@ -230,6 +263,65 @@ export function Schichtplanung() {
         </div>
       </div>
 
+      {/* Filterleiste */}
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-muted/20">
+        <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
+
+        {/* Mitarbeiter-Filter */}
+        <Select value={filterEmpId} onValueChange={setFilterEmpId}>
+          <SelectTrigger className="h-8 w-48 text-xs">
+            <SelectValue placeholder="Alle Mitarbeiter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Alle Mitarbeiter</SelectItem>
+            {employees.filter(e => e.is_active).map(e => (
+              <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Wochentag-Filter */}
+        <div className="flex gap-1">
+          {[
+            { label: 'Mo', wday: 1 }, { label: 'Di', wday: 2 }, { label: 'Mi', wday: 3 },
+            { label: 'Do', wday: 4 }, { label: 'Fr', wday: 5 }, { label: 'Sa', wday: 6 }, { label: 'So', wday: 0 },
+          ].map(({ label, wday }) => {
+            const active = filterWdays.has(wday)
+            return (
+              <button
+                key={wday}
+                onClick={() => toggleFilterWday(wday)}
+                className={`h-8 px-2.5 rounded text-xs font-medium border transition-colors ${
+                  active
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Filter aktiv: Zusammenfassung + Reset */}
+        {filterActive && (
+          <div className="flex items-center gap-2 ml-auto">
+            <Badge variant="secondary" className="text-xs gap-1">
+              {filteredShiftCount} Schicht{filteredShiftCount !== 1 ? 'en' : ''}
+              {filterEmpName ? ` · ${filterEmpName}` : ''}
+              {filterWdays.size > 0 ? ` · ${filterWdays.size} Wochentag${filterWdays.size > 1 ? 'e' : ''}` : ''}
+            </Badge>
+            <button
+              onClick={clearFilter}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Filter löschen
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Sammelauswahl-Aktionsleiste */}
       {selectMode && (
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border bg-muted/40">
@@ -237,7 +329,9 @@ export function Schichtplanung() {
             <span className="text-sm font-medium">
               {selectedIds.size > 0 ? `${selectedIds.size} ausgewählt` : 'Schichten antippen zum Auswählen'}
             </span>
-            <button onClick={selectAll} className="text-xs text-primary hover:underline">Alle</button>
+            <button onClick={selectAllFiltered} className="text-xs text-primary hover:underline">
+              {filterActive ? `Gefilterte (${filteredShiftCount})` : 'Alle'}
+            </button>
             {selectedIds.size > 0 && (
               <button onClick={deselectAll} className="text-xs text-muted-foreground hover:underline">Keine</button>
             )}
@@ -261,8 +355,15 @@ export function Schichtplanung() {
         </div>
       ) : (
         <div className="space-y-1">
-          {days.map(({ day, dateStr, weekday }) => {
-            const dayShifts = shiftsByDate.get(dateStr) ?? []
+          {days.map(({ day, dateStr, weekday, wdayNum }) => {
+            const allDayShifts = shiftsByDate.get(dateStr) ?? []
+            // Wochentag-Filter greift auf den Tag selbst (nicht nur Schichten)
+            if (filterWdays.size > 0 && !filterWdays.has(wdayNum)) return null
+            const visibleShifts = filterEmpId
+              ? allDayShifts.filter(s => s.employee_id === filterEmpId)
+              : allDayShifts
+            // Bei aktivem Filter: Tage ohne sichtbare Schichten ausblenden
+            if (filterActive && visibleShifts.length === 0) return null
             const isWeekend = weekday === 'Sa' || weekday === 'So'
             return (
               <div
@@ -274,7 +375,7 @@ export function Schichtplanung() {
                   <span className="text-sm text-muted-foreground ml-1">{day}.</span>
                 </div>
                 <div className="flex flex-wrap gap-2 flex-1 min-h-[24px]">
-                  {dayShifts.map((s) => {
+                  {visibleShifts.map((s) => {
                     const emp = s.employees
                     const isSelected = selectedIds.has(s.id)
                     return (
@@ -307,10 +408,21 @@ export function Schichtplanung() {
                       </div>
                     )
                   })}
+                  {/* Gefilterte (unsichtbare) Schichten dieses Tages als Hinweis */}
+                  {filterActive && allDayShifts.length > visibleShifts.length && (
+                    <span className="text-xs text-muted-foreground self-center italic">
+                      +{allDayShifts.length - visibleShifts.length} ausgeblendet
+                    </span>
+                  )}
                 </div>
               </div>
             )
           })}
+          {filterActive && filteredShiftCount === 0 && (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              Keine Schichten für diesen Filter im aktuellen Monat.
+            </div>
+          )}
         </div>
       )}
 
