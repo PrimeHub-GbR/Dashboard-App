@@ -53,7 +53,7 @@
 
 | Feature | Status | Spec |
 |---------|--------|------|
-| Check-in, Stundenauswertung, Schichtplanung, ArbZG | Planned | [zeiterfassung/overview.md](zeiterfassung/overview.md) |
+| Check-in, Stundenauswertung, Schichtplanung, ArbZG | Deployed | [zeiterfassung/overview.md](zeiterfassung/overview.md) |
 
 ---
 

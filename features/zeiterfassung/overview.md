@@ -1,7 +1,7 @@
 # Feature-Spec: Zeiterfassungssystem
 
 **Tab:** `/dashboard/zeiterfassung`
-**Status:** Planned
+**Status:** Deployed
 **Spec-Pfad:** `features/zeiterfassung/overview.md`
 
 ---
