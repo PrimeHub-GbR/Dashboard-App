@@ -37,7 +37,7 @@ function GfManagerConnector({ gfCount }: { gfCount: number }) {
     return (
       <svg width={totalWidth} height={svgH} className="overflow-visible">
         <line x1={totalWidth / 2} y1={0} x2={totalWidth / 2} y2={svgH}
-          stroke="hsl(var(--border))" strokeWidth={2} />
+          stroke="hsl(var(--foreground))" strokeWidth={2} />
       </svg>
     )
   }
@@ -55,15 +55,15 @@ function GfManagerConnector({ gfCount }: { gfCount: number }) {
         const cx = halfCard + i * (cardWidth + gap)
         return (
           <line key={i} x1={cx} y1={0} x2={cx} y2={bridgeY}
-            stroke="hsl(var(--border))" strokeWidth={2} />
+            stroke="hsl(var(--foreground))" strokeWidth={2} />
         )
       })}
       {/* Horizontale Brückenlinie */}
       <line x1={x1} y1={bridgeY} x2={x2} y2={bridgeY}
-        stroke="hsl(var(--border))" strokeWidth={2} />
+        stroke="hsl(var(--foreground))" strokeWidth={2} />
       {/* Senkrechte Linie von der Mitte der Brücke nach unten */}
       <line x1={midX} y1={bridgeY} x2={midX} y2={svgH}
-        stroke="hsl(var(--border))" strokeWidth={2} />
+        stroke="hsl(var(--foreground))" strokeWidth={2} />
     </svg>
   )
 }
@@ -82,7 +82,7 @@ function ManagerEmployeeConnector({ employeeCount }: { employeeCount: number }) 
     return (
       <svg width={totalWidth} height={svgH} className="overflow-visible">
         <line x1={totalWidth / 2} y1={0} x2={totalWidth / 2} y2={svgH}
-          stroke="hsl(var(--border))" strokeWidth={2} />
+          stroke="hsl(var(--foreground))" strokeWidth={2} />
       </svg>
     )
   }
@@ -93,16 +93,16 @@ function ManagerEmployeeConnector({ employeeCount }: { employeeCount: number }) 
     <svg width={totalWidth} height={svgH} className="overflow-visible">
       {/* Senkrechte Linie von Manager zur Brücke */}
       <line x1={midX} y1={0} x2={midX} y2={bridgeY}
-        stroke="hsl(var(--border))" strokeWidth={2} />
+        stroke="hsl(var(--foreground))" strokeWidth={2} />
       {/* Horizontale Brücke */}
       <line x1={halfCard} y1={bridgeY} x2={totalWidth - halfCard} y2={bridgeY}
-        stroke="hsl(var(--border))" strokeWidth={2} />
+        stroke="hsl(var(--foreground))" strokeWidth={2} />
       {/* Kurze Linien von Brücke zu jedem Mitarbeiter */}
       {Array.from({ length: employeeCount }).map((_, i) => {
         const cx = halfCard + i * (cardWidth + gap)
         return (
           <line key={i} x1={cx} y1={bridgeY} x2={cx} y2={svgH}
-            stroke="hsl(var(--border))" strokeWidth={2} />
+            stroke="hsl(var(--foreground))" strokeWidth={2} />
         )
       })}
     </svg>

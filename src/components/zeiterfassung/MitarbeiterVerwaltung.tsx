@@ -31,7 +31,7 @@ const defaultForm: FormState = {
   weekly_schedule: { ...DEFAULT_WEEKLY_SCHEDULE },
 }
 
-export function MitarbeiterVerwaltung() {
+export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boolean }) {
   const { employees, loading, createEmployee, updateEmployee, deleteEmployee } = useEmployees()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -103,12 +103,12 @@ export function MitarbeiterVerwaltung() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Mitarbeiter</h2>
-        <div className="flex gap-2">
+        {!hideCreate && (
           <Button size="sm" onClick={openCreate} className="gap-2">
             <Plus className="w-4 h-4" />
             Neu
           </Button>
-        </div>
+        )}
       </div>
 
       <div className="rounded-md border divide-y">

@@ -84,7 +84,7 @@ export function OrganisationClient({ userRole }: OrganisationClientProps) {
               Mitarbeiter für das Kiosk-Check-in-System verwalten (PIN, Sollstunden, Wochenplan).
             </p>
           </div>
-          <MitarbeiterVerwaltung />
+          <MitarbeiterVerwaltung hideCreate />
         </>
       )}
     </div>
