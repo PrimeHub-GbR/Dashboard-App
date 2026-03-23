@@ -55,6 +55,12 @@
 |---------|--------|------|
 | Check-in, Stundenauswertung, Schichtplanung, ArbZG | Deployed | [zeiterfassung/overview.md](zeiterfassung/overview.md) |
 
+## Aufgaben `/dashboard/aufgaben`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| To-Do-Liste, Delegation, KPIs, E-Mail-Erinnerungen | In Progress | [aufgaben/overview.md](aufgaben/overview.md) |
+
 ---
 
 ## Foundation (kein Tab — Querschnittsfunktionen)
