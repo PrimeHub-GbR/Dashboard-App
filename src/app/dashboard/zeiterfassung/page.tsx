@@ -19,6 +19,10 @@ export default async function ZeiterfassungPage() {
   const role = roleData?.role as 'admin' | 'staff' | undefined
   if (!role) redirect('/')
 
+  const kioskRegisterUrl = process.env.KIOSK_DEVICE_SECRET
+    ? `/api/kiosk/register?key=${process.env.KIOSK_DEVICE_SECRET}`
+    : null
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
@@ -27,7 +31,7 @@ export default async function ZeiterfassungPage() {
           Mitarbeiter-Check-in, Stundenauswertung und Schichtplanung
         </p>
       </div>
-      <ZeiterfassungClient initialRole={role} />
+      <ZeiterfassungClient initialRole={role} kioskRegisterUrl={kioskRegisterUrl} />
     </div>
   )
 }

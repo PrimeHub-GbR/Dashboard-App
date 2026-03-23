@@ -9,9 +9,10 @@ import { Einstellungen } from './Einstellungen'
 
 interface Props {
   initialRole: 'admin' | 'staff'
+  kioskRegisterUrl: string | null
 }
 
-export function ZeiterfassungClient({ initialRole }: Props) {
+export function ZeiterfassungClient({ initialRole, kioskRegisterUrl }: Props) {
   if (initialRole === 'staff') {
     return <EigeneZeiten />
   }
@@ -38,7 +39,7 @@ export function ZeiterfassungClient({ initialRole }: Props) {
       </TabsContent>
 
       <TabsContent value="einstellungen">
-        <Einstellungen />
+        <Einstellungen kioskRegisterUrl={kioskRegisterUrl} />
       </TabsContent>
     </Tabs>
   )

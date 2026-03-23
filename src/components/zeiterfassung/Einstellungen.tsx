@@ -9,9 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, ShieldCheck, Copy } from 'lucide-react'
 
-export function Einstellungen() {
+interface Props {
+  kioskRegisterUrl: string | null
+}
+
+export function Einstellungen({ kioskRegisterUrl }: Props) {
   const [settings, setSettings] = useState<TimeTrackingSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -164,6 +168,43 @@ export function Einstellungen() {
               Für iPad: Browser im Vollbild-Modus öffnen (Guided Access).
             </p>
           </div>
+
+          {/* Admin-only: Gerät registrieren */}
+          {kioskRegisterUrl && (
+            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-amber-400">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span className="text-sm font-medium">Kiosk-Gerät autorisieren</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Der Kiosk ist durch einen Geräteschutz gesichert — nur autorisierte Geräte können ihn aufrufen.
+                Um ein neues Gerät (z.B. iPad) zu registrieren, diesen Link einmalig im Browser des Geräts öffnen.
+                Der Link setzt einen dauerhaften Cookie auf dem Gerät.
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-background border rounded px-2 py-1.5 text-amber-300 break-all">
+                  {typeof window !== 'undefined' ? `${window.location.origin}${kioskRegisterUrl}` : kioskRegisterUrl}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-8 w-8"
+                  onClick={() => {
+                    const url = typeof window !== 'undefined'
+                      ? `${window.location.origin}${kioskRegisterUrl}`
+                      : kioskRegisterUrl
+                    navigator.clipboard.writeText(url)
+                  }}
+                  title="Link kopieren"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Nach dem Öffnen des Links landet das Gerät direkt auf dem Kiosk. Fertig.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
