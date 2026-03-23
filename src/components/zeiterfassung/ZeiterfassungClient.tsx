@@ -1,6 +1,7 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ZeitDashboard } from './ZeitDashboard'
 import { LiveUebersicht } from './LiveUebersicht'
 import { StundenUebersicht } from './StundenUebersicht'
 import { Schichtplanung } from './Schichtplanung'
@@ -19,8 +20,9 @@ export function ZeiterfassungClient({ initialRole }: Props) {
   }
 
   return (
-    <Tabs defaultValue="live" className="space-y-6">
+    <Tabs defaultValue="dashboard" className="space-y-6">
       <TabsList className="flex-wrap h-auto gap-1">
+        <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         <TabsTrigger value="live">Live-Übersicht</TabsTrigger>
         <TabsTrigger value="stunden">Stundenauswertung</TabsTrigger>
         <TabsTrigger value="planung">Schichtplanung</TabsTrigger>
@@ -28,6 +30,10 @@ export function ZeiterfassungClient({ initialRole }: Props) {
         <TabsTrigger value="mitarbeiter">Mitarbeiter</TabsTrigger>
         <TabsTrigger value="einstellungen">Einstellungen</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="dashboard">
+        <ZeitDashboard />
+      </TabsContent>
 
       <TabsContent value="live">
         <LiveUebersicht />
