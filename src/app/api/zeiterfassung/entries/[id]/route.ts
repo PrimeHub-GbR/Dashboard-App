@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { calculateBreakMinutes } from '@/lib/zeiterfassung/arbzg'
 
 const correctEntrySchema = z.object({
   checked_in_at: z.string().datetime().optional(),
@@ -45,10 +46,29 @@ export async function PATCH(
   }
 
   const service = createSupabaseServiceClient()
+
+  // Pause automatisch berechnen wenn Zeiten geändert aber break_minutes nicht explizit angegeben
+  const updateData = { ...parsed.data }
+  if (updateData.break_minutes === undefined && updateData.checked_out_at) {
+    // Bestehenden Eintrag holen um check-in Zeit zu kennen
+    const { data: existing } = await service
+      .from('time_entries')
+      .select('checked_in_at')
+      .eq('id', id)
+      .single()
+    const effectiveIn = updateData.checked_in_at ?? existing?.checked_in_at
+    if (effectiveIn && updateData.checked_out_at) {
+      const gross = Math.floor(
+        (new Date(updateData.checked_out_at).getTime() - new Date(effectiveIn).getTime()) / 60_000
+      )
+      updateData.break_minutes = gross > 0 ? calculateBreakMinutes(gross) : 0
+    }
+  }
+
   const { data, error } = await service
     .from('time_entries')
     .update({
-      ...parsed.data,
+      ...updateData,
       corrected_by: user.id,
       corrected_at: new Date().toISOString(),
     })

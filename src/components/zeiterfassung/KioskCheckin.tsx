@@ -6,7 +6,6 @@ import type { Employee, KioskCheckinResult } from '@/lib/zeiterfassung/types'
 import { CheckCircle, LogIn, LogOut, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import {
-  AreaChart,
   Area,
   Line,
   XAxis,
@@ -43,7 +42,6 @@ function buildChartData(
     ? today.getDate()
     : daysInMonth
 
-  // Map day → net minutes worked
   const dayMap: Record<number, number> = {}
   for (const entry of entries) {
     if (!entry.checked_out_at) continue
@@ -169,7 +167,6 @@ function PersonalView({
       .catch(() => { /* ignore */ })
   }, [employee.id, year, month])
 
-  // Null-safe Berechnungen
   const netMinutes = stats ? Math.max(0, (stats.total_work_minutes ?? 0) - (stats.total_break_minutes ?? 0)) : 0
   const targetMinutes = stats ? (stats.target_hours_per_month ?? 0) * 60 : 0
   const diff = netMinutes - targetMinutes
@@ -190,8 +187,6 @@ function PersonalView({
     : null
 
   const ss = String(countdown % 60).padStart(2, '0')
-
-  // Chart-Daten
   const chartData = stats
     ? buildChartData(entries, stats.target_hours_per_month, year, month)
     : []
@@ -302,7 +297,6 @@ function PersonalView({
                       name === 'ist' ? 'Ist' : 'Soll',
                     ]}
                   />
-                  {/* Soll als gestrichelte Linie */}
                   <Line
                     type="monotone"
                     dataKey="soll"
@@ -311,7 +305,6 @@ function PersonalView({
                     strokeDasharray="4 3"
                     dot={false}
                   />
-                  {/* Ist als gefüllte Fläche */}
                   <Area
                     type="monotone"
                     dataKey="ist"

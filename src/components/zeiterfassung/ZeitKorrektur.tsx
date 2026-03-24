@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useEmployees } from '@/hooks/useEmployees'
 import { MonatsSelector } from './MonatsSelector'
+import { calculateBreakMinutes } from '@/lib/zeiterfassung/arbzg'
 import { MitarbeiterBadge } from './MitarbeiterBadge'
 import { formatDateTimeBerlin, formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { TimeEntry } from '@/lib/zeiterfassung/types'
@@ -15,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pencil, Plus, Clock, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Clock, Trash2, Fingerprint, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface EntryWithEmployee extends TimeEntry {
@@ -196,6 +197,7 @@ export function ZeitKorrektur() {
               <TableHead className="text-right">Pause</TableHead>
               <TableHead>Notiz</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-8" />
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -203,14 +205,14 @@ export function ZeitKorrektur() {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : entries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Keine Einträge gefunden.
                 </TableCell>
               </TableRow>
@@ -243,6 +245,14 @@ export function ZeitKorrektur() {
                       ) : grossMinutes !== null && grossMinutes > 0 ? (
                         <span className="text-xs text-muted-foreground">{formatDuration(grossMinutes)}</span>
                       ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <span title={e.auth_method === 'fingerprint' ? 'Fingerabdruck' : 'PIN'}>
+                        {e.auth_method === 'fingerprint'
+                          ? <Fingerprint className="w-3.5 h-3.5 text-blue-400" />
+                          : <KeyRound className="w-3.5 h-3.5 text-gray-400" />
+                        }
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>
@@ -372,7 +382,15 @@ export function ZeitKorrektur() {
               <Input
                 type="datetime-local"
                 value={editForm.checked_in_at}
-                onChange={(e) => setEditForm(f => ({ ...f, checked_in_at: e.target.value }))}
+                onChange={(e) => {
+                  const newIn = e.target.value
+                  setEditForm(f => {
+                    const gross = f.checked_out_at
+                      ? Math.floor((new Date(f.checked_out_at).getTime() - new Date(newIn).getTime()) / 60_000)
+                      : 0
+                    return { ...f, checked_in_at: newIn, break_minutes: gross > 0 ? calculateBreakMinutes(gross) : 0 }
+                  })
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -380,11 +398,19 @@ export function ZeitKorrektur() {
               <Input
                 type="datetime-local"
                 value={editForm.checked_out_at}
-                onChange={(e) => setEditForm(f => ({ ...f, checked_out_at: e.target.value }))}
+                onChange={(e) => {
+                  const newOut = e.target.value
+                  setEditForm(f => {
+                    const gross = f.checked_in_at && newOut
+                      ? Math.floor((new Date(newOut).getTime() - new Date(f.checked_in_at).getTime()) / 60_000)
+                      : 0
+                    return { ...f, checked_out_at: newOut, break_minutes: gross > 0 ? calculateBreakMinutes(gross) : 0 }
+                  })
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label>Pause (Minuten)</Label>
+              <Label>Pause (Minuten) <span className="text-muted-foreground text-xs">(automatisch per ArbZG)</span></Label>
               <Input
                 type="number"
                 value={editForm.break_minutes}

@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
       .update({
         checked_out_at: now.toISOString(),
         break_minutes: breakMinutes,
+        auth_method: 'pin',
       })
       .eq('id', openEntry.id)
 
@@ -94,7 +95,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ausstempeln fehlgeschlagen' }, { status: 500 })
     }
 
-    // Überstunden-Check async
     checkOvertimeAndNotify(
       service,
       employee_id,
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString()
     const { data: entry, error: insertError } = await service
       .from('time_entries')
-      .insert({ employee_id, checked_in_at: now })
+      .insert({ employee_id, checked_in_at: now, auth_method: 'pin' })
       .select('id, checked_in_at')
       .single()
 

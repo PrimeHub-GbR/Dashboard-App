@@ -7,6 +7,7 @@ import type { TimeEntry } from '@/lib/zeiterfassung/types'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Fingerprint, KeyRound } from 'lucide-react'
 
 interface Props {
   employeeId?: string
@@ -75,13 +76,14 @@ export function EigeneZeiten({ employeeId }: Props) {
               <TableHead className="text-right">Pause</TableHead>
               <TableHead className="text-right">Netto</TableHead>
               <TableHead>Notiz</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 5 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                   ))}
                 </TableRow>
@@ -114,6 +116,14 @@ export function EigeneZeiten({ employeeId }: Props) {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {e.note ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <span title={e.auth_method === 'fingerprint' ? 'Fingerabdruck' : 'PIN'}>
+                        {e.auth_method === 'fingerprint'
+                          ? <Fingerprint className="w-3.5 h-3.5 text-blue-400" />
+                          : <KeyRound className="w-3.5 h-3.5 text-gray-400" />
+                        }
+                      </span>
                     </TableCell>
                   </TableRow>
                 )

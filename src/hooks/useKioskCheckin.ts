@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { KioskCheckinResult, Employee } from '@/lib/zeiterfassung/types'
 
-type KioskStep = 'select' | 'pin' | 'success' | 'personal'
+export type KioskStep = 'select' | 'pin' | 'success' | 'personal'
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
 const PERSONAL_VIEW_SECONDS = 30
@@ -60,8 +60,6 @@ export function useKioskCheckin() {
 
       setResult(json)
       setStep('success')
-
-      // Nach 5s: Personal View zeigen (Reset läuft über den Countdown in PersonalView)
       setTimeout(() => setStep('personal'), 5000)
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
@@ -70,7 +68,7 @@ export function useKioskCheckin() {
     } finally {
       setLoading(false)
     }
-  }, [resetFull])
+  }, [])
 
   // Ref to always have the latest submitWithPin
   const submitRef = useRef(submitWithPin)
@@ -89,7 +87,6 @@ export function useKioskCheckin() {
     setPin(prev => {
       if (prev.length >= 8) return prev
       const next = prev + digit
-      // Auto-submit when 4 digits reached
       if (next.length === 4) {
         setTimeout(() => submitRef.current(next), 50)
       }

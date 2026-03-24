@@ -35,6 +35,7 @@ export interface TimeEntry {
   checked_in_at: string       // UTC ISO
   checked_out_at: string | null
   break_minutes: number
+  auth_method: 'pin' | 'fingerprint'
   note: string | null
   corrected_by: string | null
   corrected_at: string | null
@@ -101,4 +102,5 @@ export interface KioskCheckinResult {
   gross_minutes?: number
   break_minutes?: number
   net_minutes?: number
+  auth_method?: 'pin' | 'fingerprint'
 }
