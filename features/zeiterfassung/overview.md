@@ -129,3 +129,17 @@ Struktur: `Webhook (POST /zeiterfassung-overtime)` → `Respond 202` → `Switch
 - [ ] Überstundenwarnung-Webhook wird bei Überschreitung gefeuert
 - [ ] Kiosk-Seite ohne Sidebar, touch-optimiert
 - [ ] Mitarbeiter (Staff) sieht eigene Zeiten
+
+---
+
+## Deployment
+
+**Production URL:** https://dashboard.primehubgbr.com
+**Deployed:** 2026-03-24
+**Build:** Ready
+**Vercel Deployment:** https://app-btaap2wka-primehubgbr-2551s-projects.vercel.app
+**Letzte Änderungen:**
+- ZeitKorrektur.tsx: Automatische Neuberechnung von break_minutes bei Zeitänderung im Edit-Dialog
+- entries/[id]/route.ts: Server-seitiger Safety-Net für ArbZG-Pausenberechnung
+- auth_method Feld in TimeEntry (Migration 029)
+- Geschäftsführer-Ausschluss aus Statistiken (Migration 030)
