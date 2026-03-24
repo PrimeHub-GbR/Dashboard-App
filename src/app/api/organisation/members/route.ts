@@ -67,12 +67,14 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const { data, error: dbError } = await service
     .from('employees')
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule, pin')
     .order('position', { ascending: false })
     .order('name')
 
   if (dbError) return NextResponse.json({ error: 'Datenbankfehler' }, { status: 500 })
-  return NextResponse.json({ members: data })
+
+  const members = (data ?? []).map(({ pin, ...m }) => ({ ...m, pin_is_set: pin !== null }))
+  return NextResponse.json({ members })
 }
 
 export async function POST(req: NextRequest) {

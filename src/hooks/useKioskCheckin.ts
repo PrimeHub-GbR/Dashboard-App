@@ -151,13 +151,14 @@ export function useKioskCheckin() {
   const submitSetPinRef = useRef(submitSetPin)
   useEffect(() => { submitSetPinRef.current = submitSetPin }, [submitSetPin])
 
-  const selectEmployee = useCallback((emp: Pick<Employee, 'id' | 'name' | 'color'>) => {
+  const selectEmployee = useCallback((emp: Pick<Employee, 'id' | 'name' | 'color'>, pinIsSet = true) => {
     setSelectedEmployee(emp)
     setPin('')
     setFirstPin('')
     setError(null)
     submitting.current = false
-    setStep('pin')
+    // Direkt zum PIN-Setup wenn noch keine PIN hinterlegt
+    setStep(pinIsSet ? 'pin' : 'set_pin')
   }, [])
 
   const appendDigit = useCallback((digit: string) => {

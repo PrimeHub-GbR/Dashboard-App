@@ -338,7 +338,7 @@ function PersonalView({
 }
 
 interface Props {
-  employees: Pick<Employee, 'id' | 'name' | 'color'>[]
+  employees: (Pick<Employee, 'id' | 'name' | 'color'> & { pin_is_set: boolean })[]
 }
 
 export function KioskCheckin({ employees }: Props) {
@@ -582,7 +582,7 @@ export function KioskCheckin({ employees }: Props) {
           {employees.map((emp) => (
             <button
               key={emp.id}
-              onClick={() => selectEmployee(emp)}
+              onClick={() => selectEmployee(emp, emp.pin_is_set)}
               className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-900 border border-gray-800 hover:border-green-500 active:scale-95 transition-all min-h-[120px]"
             >
               <div

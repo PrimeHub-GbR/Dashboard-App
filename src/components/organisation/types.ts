@@ -27,6 +27,7 @@ export interface OrgMember {
   is_active: boolean
   target_hours_per_month: number
   weekly_schedule: WeekSchedule
+  pin_is_set: boolean
   display_order?: number
 }
 

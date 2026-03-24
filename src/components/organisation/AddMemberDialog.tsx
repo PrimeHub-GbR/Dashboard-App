@@ -50,7 +50,6 @@ export function AddMemberDialog({
     name:                   '',
     position:               (fixedPosition ?? 'mitarbeiter') as OrgPosition,
     reports_to:             defaultReportsTo ?? null as string | null,
-    pin:                    '',
     color:                  '#22c55e',
     target_hours_per_month: 160,
     weekly_schedule:        { ...DEFAULT_SCHEDULE } as Record<WeekKey, number>,
@@ -59,8 +58,7 @@ export function AddMemberDialog({
     home_address:           '',
   })
   const [saving, setSaving] = useState(false)
-
-  const needsPin = form.position === 'mitarbeiter' || form.position === 'manager'
+  const showKioskFields = form.position === 'mitarbeiter' || form.position === 'manager'
 
   async function handleSave() {
     if (!form.name.trim()) { toast.error('Name ist erforderlich'); return }
@@ -68,7 +66,6 @@ export function AddMemberDialog({
     if (form.position === 'mitarbeiter' && userRole === 'admin' && !form.reports_to) {
       toast.error('Vorgesetzter ist erforderlich'); return
     }
-    if (needsPin && form.pin.length > 0 && form.pin.length < 4) { toast.error('PIN muss mindestens 4 Ziffern haben'); return }
 
     setSaving(true)
     try {
@@ -79,7 +76,6 @@ export function AddMemberDialog({
           name:                   form.name.trim(),
           position:               form.position,
           reports_to:             form.reports_to,
-          pin:                    needsPin && form.pin.length >= 4 ? form.pin : undefined,
           color:                  form.color,
           target_hours_per_month: form.target_hours_per_month,
           weekly_schedule:        form.weekly_schedule,
@@ -95,7 +91,7 @@ export function AddMemberDialog({
       toast.success('Mitglied angelegt')
       setForm({
         name: '', position: fixedPosition ?? 'mitarbeiter', reports_to: defaultReportsTo ?? null,
-        pin: '', color: '#22c55e', target_hours_per_month: 160,
+        color: '#22c55e', target_hours_per_month: 160,
         weekly_schedule: { ...DEFAULT_SCHEDULE }, birth_date: '', work_address: '', home_address: '',
       })
       onSaved()
@@ -199,20 +195,13 @@ export function AddMemberDialog({
           </div>
 
           {/* ── Zeiterfassung (nur für Mitarbeiter / Manager) ── */}
-          {needsPin && (
+          {showKioskFields && (
             <div className="space-y-3 border-t pt-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Zeiterfassung (Kiosk)</p>
 
-              <div className="space-y-2">
-                <Label>PIN (optional — Mitarbeiter setzt beim ersten Check-in)</Label>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  value={form.pin}
-                  onChange={(e) => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
-                  maxLength={8}
-                  placeholder="4–8 Ziffern (oder leer lassen)"
-                />
+              <div className="flex items-center gap-2 rounded-lg border border-orange-400/20 bg-orange-400/5 px-3 py-2">
+                <div className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+                <p className="text-xs text-orange-400">PIN Setup ausstehend — Mitarbeiter setzt PIN beim ersten Kiosk-Check-in</p>
               </div>
 
               <div className="space-y-2">

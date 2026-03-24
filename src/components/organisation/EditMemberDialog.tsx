@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { RotateCcw } from 'lucide-react'
 import type { OrgMember, OrgPosition, UserRole, WeekSchedule } from './types'
 import { POSITION_LABELS } from './types'
 
@@ -41,7 +42,6 @@ export function EditMemberDialog({
     name:                   '',
     position:               'mitarbeiter' as OrgPosition,
     reports_to:             null as string | null,
-    pin:                    '',
     color:                  '#22c55e',
     target_hours_per_month: 160,
     weekly_schedule:        { ...DEFAULT_SCHEDULE } as WeekSchedule,
@@ -51,6 +51,7 @@ export function EditMemberDialog({
     home_address:           '',
   })
   const [saving, setSaving] = useState(false)
+  const [resettingPin, setResettingPin] = useState(false)
 
   useEffect(() => {
     if (member) {
@@ -58,7 +59,6 @@ export function EditMemberDialog({
         name:                   member.name,
         position:               member.position,
         reports_to:             member.reports_to,
-        pin:                    '',
         color:                  member.color,
         target_hours_per_month: member.target_hours_per_month ?? 160,
         weekly_schedule:        member.weekly_schedule ?? { ...DEFAULT_SCHEDULE },
@@ -76,6 +76,25 @@ export function EditMemberDialog({
   const isManager = member.position === 'manager'
   const showKioskFields = form.position === 'mitarbeiter' || form.position === 'manager'
   const canEditAll = userRole === 'admin'
+
+  async function handleResetPin() {
+    if (!member) return
+    setResettingPin(true)
+    try {
+      const res = await fetch(`/api/organisation/members/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset_pin: true }),
+      })
+      if (!res.ok) throw new Error('Fehler beim Zurücksetzen')
+      toast.success('PIN zurückgesetzt — Mitarbeiter muss beim nächsten Check-in eine neue PIN vergeben')
+      onSaved()
+    } catch {
+      toast.error('PIN-Reset fehlgeschlagen')
+    } finally {
+      setResettingPin(false)
+    }
+  }
 
   async function handleSave() {
     if (!member) return
@@ -100,14 +119,12 @@ export function EditMemberDialog({
         body.target_hours_per_month = form.target_hours_per_month
         body.weekly_schedule        = form.weekly_schedule
         body.is_active              = form.is_active
-        if (form.pin.length >= 4) body.pin = form.pin
       } else {
         // Manager: nur Kiosk-Felder
         body.color                  = form.color
         body.target_hours_per_month = form.target_hours_per_month
         body.weekly_schedule        = form.weekly_schedule
         body.is_active              = form.is_active
-        if (form.pin.length >= 4) body.pin = form.pin
       }
 
       const res = await fetch(`/api/organisation/members/${member.id}`, {
@@ -245,16 +262,32 @@ export function EditMemberDialog({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>PIN ändern (4–8 Ziffern, leer lassen = unverändert)</Label>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  value={form.pin}
-                  onChange={(e) => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
-                  maxLength={8}
-                  placeholder="••••"
-                />
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-muted/30"
+                style={member.pin_is_set ? undefined : { borderColor: 'rgb(251 146 60 / 0.3)' }}>
+                <div className="flex items-center gap-2">
+                  {member.pin_is_set ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-xs text-muted-foreground">PIN gesetzt</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-orange-400" />
+                      <span className="text-xs text-orange-400">Setup ausstehend</span>
+                    </>
+                  )}
+                </div>
+                {member.pin_is_set && (
+                  <button
+                    type="button"
+                    onClick={handleResetPin}
+                    disabled={resettingPin || saving}
+                    className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 disabled:opacity-40 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    {resettingPin ? 'Wird zurückgesetzt…' : 'Zurücksetzen'}
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2">

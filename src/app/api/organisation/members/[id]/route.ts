@@ -16,7 +16,7 @@ const updateMemberSchema = z.object({
   name:                   z.string().min(1).max(100).optional(),
   position:               z.enum(['geschaeftsfuehrer', 'manager', 'mitarbeiter']).optional(),
   reports_to:             z.string().uuid().nullable().optional(),
-  pin:                    z.string().regex(/^\d{4,8}$/).optional(),
+  reset_pin:              z.boolean().optional(), // true = PIN auf null setzen
   color:                  z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   target_hours_per_month: z.number().min(0).max(400).optional(),
   weekly_schedule:        weeklyScheduleSchema.optional(),
@@ -101,16 +101,12 @@ export async function PATCH(
     }
   }
 
-  // PIN hashen wenn vorhanden
-  const updateData: Record<string, unknown> = { ...parsed.data, updated_at: new Date().toISOString() }
-  if (parsed.data.pin) {
-    const encoder = new TextEncoder()
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(parsed.data.pin))
-    updateData.pin = Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
-  } else {
-    delete updateData.pin
+  // reset_pin und pin aus updateData heraushalten, separat behandeln
+  const { reset_pin, ...restData } = parsed.data
+  const updateData: Record<string, unknown> = { ...restData, updated_at: new Date().toISOString() }
+
+  if (reset_pin) {
+    updateData.pin = null
   }
 
   // reports_to_ids synchron halten
