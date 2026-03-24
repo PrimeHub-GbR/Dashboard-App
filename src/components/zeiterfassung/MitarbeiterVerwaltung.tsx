@@ -20,14 +20,13 @@ const COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06
 
 interface FormState {
   name: string
-  pin: string
   color: string
   target_hours_per_month: number
   weekly_schedule: WeeklySchedule
 }
 
 const defaultForm: FormState = {
-  name: '', pin: '', color: '#22c55e', target_hours_per_month: 160,
+  name: '', color: '#22c55e', target_hours_per_month: 160,
   weekly_schedule: { ...DEFAULT_WEEKLY_SCHEDULE },
 }
 
@@ -35,21 +34,23 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
   const { employees, loading, createEmployee, updateEmployee, deleteEmployee } = useEmployees()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingPinIsSet, setEditingPinIsSet] = useState(false)
   const [form, setForm] = useState<FormState>(defaultForm)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   function openCreate() {
     setEditingId(null)
+    setEditingPinIsSet(false)
     setForm(defaultForm)
     setDialogOpen(true)
   }
 
   function openEdit(emp: typeof employees[number]) {
     setEditingId(emp.id)
+    setEditingPinIsSet((emp as { pin_is_set?: boolean }).pin_is_set ?? false)
     setForm({
       name: emp.name,
-      pin: '',
       color: emp.color,
       target_hours_per_month: emp.target_hours_per_month,
       weekly_schedule: emp.weekly_schedule ?? { ...DEFAULT_WEEKLY_SCHEDULE },
@@ -72,21 +73,15 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
 
   async function handleSave() {
     if (!form.name.trim()) return
-    if (!editingId && form.pin.length > 0 && form.pin.length < 4) {
-      toast.error('PIN muss mindestens 4 Ziffern haben')
-      return
-    }
     setSaving(true)
     try {
       if (editingId) {
-        const data: Parameters<typeof updateEmployee>[1] = {
+        await updateEmployee(editingId, {
           name: form.name,
           color: form.color,
           target_hours_per_month: form.target_hours_per_month,
           weekly_schedule: form.weekly_schedule,
-        }
-        if (form.pin.length >= 4) data.pin = form.pin
-        await updateEmployee(editingId, data)
+        })
         toast.success('Mitarbeiter aktualisiert')
       } else {
         await createEmployee(form)
@@ -194,17 +189,9 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
                 placeholder="Vorname Nachname"
               />
             </div>
-            <div className="space-y-2">
-              <Label>{editingId ? 'Neue PIN setzen (optional)' : 'PIN (optional — Mitarbeiter setzt beim ersten Check-in)'}</Label>
-              <Input
-                type="password"
-                inputMode="numeric"
-                value={form.pin}
-                onChange={(e) => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
-                maxLength={8}
-                placeholder={editingId ? 'leer lassen = unverändert' : '4–8 Ziffern (oder leer lassen)'}
-              />
-              {editingId && (
+            {editingId && editingPinIsSet && (
+              <div className="flex items-center justify-between rounded-lg border border-orange-400/20 bg-orange-400/5 px-3 py-2">
+                <span className="text-xs text-muted-foreground">PIN ist gesetzt</span>
                 <button
                   type="button"
                   onClick={handleResetPin}
@@ -212,10 +199,10 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
                   className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 disabled:opacity-40 transition-colors"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  PIN zurücksetzen (Mitarbeiter muss neue PIN vergeben)
+                  PIN zurücksetzen
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Farbe</Label>
               <div className="flex gap-2 flex-wrap">
