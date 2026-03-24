@@ -7,7 +7,7 @@ import { formatMonthLabel } from '@/lib/zeiterfassung/timezone'
 
 const toggleSchema = z.object({
   employee_id: z.string().uuid(),
-  pin: z.string().regex(/^\d{4,8}$/),
+  pin: z.string().regex(/^\d{4,8}$/).optional(),
 })
 
 function verifyKioskToken(req: NextRequest): boolean {
@@ -49,10 +49,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { employee_id, pin } = parsed.data
-  const pinHash = await hashPin(pin)
   const service = createSupabaseServiceClient()
 
-  // Mitarbeiter + PIN prüfen
+  // Mitarbeiter laden
   const { data: employee, error: empError } = await service
     .from('employees')
     .select('id, name, color, pin, is_active, target_hours_per_month')
@@ -64,6 +63,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Mitarbeiter nicht gefunden' }, { status: 404 })
   }
 
+  // PIN noch nicht gesetzt → Mitarbeiter muss erst eine PIN vergeben
+  if (employee.pin === null) {
+    return NextResponse.json({ error: 'PIN_NOT_SET' }, { status: 428 })
+  }
+
+  // PIN-Validierung
+  if (!pin) {
+    return NextResponse.json({ error: 'PIN fehlt' }, { status: 400 })
+  }
+  const pinHash = await hashPin(pin)
   if (employee.pin !== pinHash) {
     return NextResponse.json({ error: 'Falsche PIN' }, { status: 401 })
   }

@@ -14,7 +14,7 @@ export function useEmployees() {
     try {
       const res = await fetch('/api/zeiterfassung/employees')
       if (!res.ok) throw new Error('Fehler beim Laden der Mitarbeiter')
-      const json = await res.json() as { employees: Omit<Employee, 'pin'>[] }
+      const json = await res.json() as { employees: Array<Omit<Employee, 'pin'> & { pin_is_set: boolean }> }
       setEmployees(json.employees)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unbekannter Fehler')
@@ -27,7 +27,7 @@ export function useEmployees() {
 
   const createEmployee = useCallback(async (data: {
     name: string
-    pin: string
+    pin?: string
     color: string
     target_hours_per_month: number
     weekly_schedule?: import('@/lib/zeiterfassung/types').WeeklySchedule
@@ -48,6 +48,7 @@ export function useEmployees() {
   const updateEmployee = useCallback(async (id: string, data: Partial<{
     name: string
     pin: string
+    reset_pin: boolean
     color: string
     target_hours_per_month: number
     is_active: boolean

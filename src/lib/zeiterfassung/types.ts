@@ -19,7 +19,8 @@ export const WEEKDAY_LABELS: Record<keyof WeeklySchedule, string> = {
 export interface Employee {
   id: string
   name: string
-  pin: string
+  pin: string        // nur intern / nicht an Client gesendet
+  pin_is_set: boolean
   color: string
   is_active: boolean
   target_hours_per_month: number

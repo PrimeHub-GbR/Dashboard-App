@@ -353,6 +353,7 @@ export function KioskCheckin({ employees }: Props) {
     selectEmployee,
     appendDigit,
     deleteDigit,
+    backToSetPin,
     reset,
   } = useKioskCheckin()
 
@@ -368,6 +369,121 @@ export function KioskCheckin({ employees }: Props) {
         onExit={reset}
         personalViewSeconds={personalViewSeconds}
       />
+    )
+  }
+
+  if ((step === 'set_pin' || step === 'set_pin_confirm') && selectedEmployee) {
+    const isConfirm = step === 'set_pin_confirm'
+    return (
+      <div className="flex flex-col items-center gap-8 max-w-xs mx-auto px-4 w-full">
+        {/* Header */}
+        <div className="text-center">
+          <div
+            className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-white"
+            style={{ backgroundColor: selectedEmployee.color }}
+          >
+            {selectedEmployee.name.charAt(0).toUpperCase()}
+          </div>
+          <h2 className="text-2xl font-bold text-white">{selectedEmployee.name}</h2>
+          <p className="text-gray-400 mt-1 text-sm">
+            {loading
+              ? 'Bitte warten…'
+              : isConfirm
+              ? 'PIN zur Bestätigung wiederholen'
+              : 'Neue PIN vergeben (4 Ziffern)'}
+          </p>
+          {/* Schritt-Indikator */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className={`w-2 h-2 rounded-full ${!isConfirm ? 'bg-green-400' : 'bg-gray-600'}`} />
+            <div className={`w-6 h-0.5 ${isConfirm ? 'bg-green-400' : 'bg-gray-700'}`} />
+            <div className={`w-2 h-2 rounded-full ${isConfirm ? 'bg-green-400' : 'bg-gray-600'}`} />
+          </div>
+        </div>
+
+        {/* PIN-Punkte */}
+        <div className="flex gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
+                loading
+                  ? 'bg-gray-500 border-gray-500 animate-pulse'
+                  : i < pin.length
+                  ? 'bg-green-400 border-green-400 scale-110'
+                  : 'border-gray-600'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Hinweis-Box */}
+        {!error && !loading && (
+          <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-900 px-4 py-3 rounded-xl w-full">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-yellow-600" />
+            <span>
+              {isConfirm
+                ? 'Dieselbe PIN noch einmal eingeben, um zu bestätigen.'
+                : 'Diese PIN wird für alle zukünftigen Check-ins verwendet. Merke sie dir gut.'}
+            </span>
+          </div>
+        )}
+
+        {/* Fehler */}
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 px-4 py-2 rounded-lg w-full justify-center">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Numpad */}
+        <div className="grid grid-cols-3 gap-3 w-full">
+          {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((key, i) => {
+            if (key === '') return <div key={i} />
+            if (key === '⌫') {
+              return (
+                <button
+                  key={i}
+                  onClick={deleteDigit}
+                  disabled={loading}
+                  className="h-16 rounded-2xl bg-gray-800 text-white flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+                >
+                  <Delete className="w-6 h-6" />
+                </button>
+              )
+            }
+            return (
+              <button
+                key={i}
+                onClick={() => appendDigit(key)}
+                disabled={loading || pin.length >= 4}
+                className="h-16 rounded-2xl bg-gray-800 hover:bg-gray-700 text-white text-2xl font-semibold active:scale-95 transition-all disabled:opacity-40"
+              >
+                {key}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex gap-4">
+          {isConfirm && (
+            <button
+              onClick={backToSetPin}
+              disabled={loading}
+              className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
+            >
+              ← Zurück
+            </button>
+          )}
+          <button
+            onClick={reset}
+            disabled={loading}
+            className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
     )
   }
 

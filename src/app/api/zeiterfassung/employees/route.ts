@@ -14,7 +14,7 @@ const weeklyScheduleSchema = z.object({
 
 const createEmployeeSchema = z.object({
   name: z.string().min(1).max(100),
-  pin: z.string().regex(/^\d{4,8}$/, 'PIN muss 4–8 Ziffern sein'),
+  pin: z.string().regex(/^\d{4,8}$/, 'PIN muss 4–8 Ziffern sein').optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#22c55e'),
   target_hours_per_month: z.number().min(1).max(400).default(160),
   weekly_schedule: weeklyScheduleSchema,
@@ -45,7 +45,7 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const { data, error: dbError } = await service
     .from('employees')
-    .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at')
+    .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at, pin')
     .neq('position', 'geschaeftsfuehrer') // GF erscheinen nicht in der Zeiterfassung
     .order('name')
 
@@ -53,7 +53,13 @@ export async function GET() {
     return NextResponse.json({ error: 'Datenbankfehler' }, { status: 500 })
   }
 
-  return NextResponse.json({ employees: data })
+  // pin-Hash niemals an den Client senden, nur ob eine PIN gesetzt ist
+  const employees = (data ?? []).map(({ pin, ...emp }) => ({
+    ...emp,
+    pin_is_set: pin !== null,
+  }))
+
+  return NextResponse.json({ employees })
 }
 
 export async function POST(req: NextRequest) {
@@ -76,19 +82,22 @@ export async function POST(req: NextRequest) {
 
   const { name, pin, color, target_hours_per_month, weekly_schedule } = parsed.data
 
-  // PIN als einfacher Hash (SHA-256 via Web Crypto)
-  const encoder = new TextEncoder()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(pin))
-  const hashHex = Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
+  // PIN optional: wenn angegeben → hashen, sonst null (Mitarbeiter setzt PIN selbst beim ersten Check-in)
+  let pinHash: string | null = null
+  if (pin) {
+    const encoder = new TextEncoder()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(pin))
+    pinHash = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+  }
 
   const service = createSupabaseServiceClient()
   const { data, error } = await service
     .from('employees')
     .insert({
       name,
-      pin: hashHex,
+      pin: pinHash,
       color,
       target_hours_per_month,
       weekly_schedule,

@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Pencil, Trash2, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, RotateCcw, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import type { WeeklySchedule } from '@/lib/zeiterfassung/types'
 import { DEFAULT_WEEKLY_SCHEDULE, WEEKDAY_LABELS } from '@/lib/zeiterfassung/types'
@@ -57,9 +57,22 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
     setDialogOpen(true)
   }
 
+  async function handleResetPin() {
+    if (!editingId) return
+    setSaving(true)
+    try {
+      await updateEmployee(editingId, { reset_pin: true })
+      toast.success('PIN zurückgesetzt — Mitarbeiter muss beim nächsten Check-in eine neue PIN vergeben')
+    } catch {
+      toast.error('PIN-Reset fehlgeschlagen')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleSave() {
     if (!form.name.trim()) return
-    if (!editingId && form.pin.length < 4) {
+    if (!editingId && form.pin.length > 0 && form.pin.length < 4) {
       toast.error('PIN muss mindestens 4 Ziffern haben')
       return
     }
@@ -136,6 +149,12 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
                 {!emp.is_active && (
                   <Badge variant="secondary" className="text-xs">Inaktiv</Badge>
                 )}
+                {!emp.pin_is_set && (
+                  <Badge variant="outline" className="text-xs text-orange-400 border-orange-400/40 gap-1 whitespace-nowrap">
+                    <ShieldAlert className="w-3 h-3" />
+                    PIN nicht gesetzt
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground gap-1">
@@ -176,15 +195,26 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
               />
             </div>
             <div className="space-y-2">
-              <Label>{editingId ? 'Neue PIN (leer lassen = unverändert)' : 'PIN (4–8 Ziffern)'}</Label>
+              <Label>{editingId ? 'Neue PIN setzen (optional)' : 'PIN (optional — Mitarbeiter setzt beim ersten Check-in)'}</Label>
               <Input
                 type="password"
                 inputMode="numeric"
                 value={form.pin}
                 onChange={(e) => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
                 maxLength={8}
-                placeholder="••••"
+                placeholder={editingId ? 'leer lassen = unverändert' : '4–8 Ziffern (oder leer lassen)'}
               />
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleResetPin}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 disabled:opacity-40 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  PIN zurücksetzen (Mitarbeiter muss neue PIN vergeben)
+                </button>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Farbe</Label>

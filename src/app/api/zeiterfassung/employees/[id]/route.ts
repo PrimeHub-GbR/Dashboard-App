@@ -5,6 +5,7 @@ import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/s
 const updateEmployeeSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   pin: z.string().regex(/^\d{4,8}$/).optional(),
+  reset_pin: z.boolean().optional(), // true = PIN auf null setzen (Mitarbeiter muss neu vergeben)
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   target_hours_per_month: z.number().min(1).max(400).optional(),
   is_active: z.boolean().optional(),
@@ -54,12 +55,16 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const updates: Record<string, unknown> = { ...parsed.data }
+  const { reset_pin, pin, ...rest } = parsed.data
+  const updates: Record<string, unknown> = { ...rest }
 
-  // PIN neu hashen wenn angegeben
-  if (parsed.data.pin) {
+  // PIN zurücksetzen (Mitarbeiter muss beim nächsten Check-in eine neue PIN vergeben)
+  if (reset_pin) {
+    updates.pin = null
+  } else if (pin) {
+    // Neue PIN vom Admin setzen → hashen
     const encoder = new TextEncoder()
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(parsed.data.pin))
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(pin))
     const hashHex = Array.from(new Uint8Array(hashBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
