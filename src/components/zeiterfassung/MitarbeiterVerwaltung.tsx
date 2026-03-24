@@ -189,18 +189,33 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
                 placeholder="Vorname Nachname"
               />
             </div>
-            {editingId && editingPinIsSet && (
-              <div className="flex items-center justify-between rounded-lg border border-orange-400/20 bg-orange-400/5 px-3 py-2">
-                <span className="text-xs text-muted-foreground">PIN ist gesetzt</span>
-                <button
-                  type="button"
-                  onClick={handleResetPin}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 disabled:opacity-40 transition-colors"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  PIN zurücksetzen
-                </button>
+            {editingId && (
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-muted/30"
+                style={editingPinIsSet ? undefined : { borderColor: 'rgb(251 146 60 / 0.3)' }}>
+                <div className="flex items-center gap-2">
+                  {editingPinIsSet ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-xs text-muted-foreground">PIN gesetzt</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-orange-400" />
+                      <span className="text-xs text-orange-400">Setup ausstehend</span>
+                    </>
+                  )}
+                </div>
+                {editingPinIsSet && (
+                  <button
+                    type="button"
+                    onClick={handleResetPin}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 disabled:opacity-40 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Zurücksetzen
+                  </button>
+                )}
               </div>
             )}
             <div className="space-y-2">
