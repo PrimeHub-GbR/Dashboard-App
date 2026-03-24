@@ -68,7 +68,7 @@ export function AddMemberDialog({
     if (form.position === 'mitarbeiter' && userRole === 'admin' && !form.reports_to) {
       toast.error('Vorgesetzter ist erforderlich'); return
     }
-    if (needsPin && form.pin.length < 4) { toast.error('PIN muss mindestens 4 Ziffern haben'); return }
+    if (needsPin && form.pin.length > 0 && form.pin.length < 4) { toast.error('PIN muss mindestens 4 Ziffern haben'); return }
 
     setSaving(true)
     try {
@@ -204,14 +204,14 @@ export function AddMemberDialog({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Zeiterfassung (Kiosk)</p>
 
               <div className="space-y-2">
-                <Label>PIN (4–8 Ziffern)</Label>
+                <Label>PIN (optional — Mitarbeiter setzt beim ersten Check-in)</Label>
                 <Input
                   type="password"
                   inputMode="numeric"
                   value={form.pin}
                   onChange={(e) => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '') }))}
                   maxLength={8}
-                  placeholder="••••"
+                  placeholder="4–8 Ziffern (oder leer lassen)"
                 />
               </div>
 
