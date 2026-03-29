@@ -78,3 +78,10 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 **Deployed:** 2026-03-29
 **Build:** Ready
 **Vercel Deployment:** https://app-7rmdz2ysy-primehubgbr-2551s-projects.vercel.app
+
+### Update 2026-03-29 — Organigramm-Tab
+
+**Build:** Ready
+**Vercel Deployment:** https://app-r7ogoxowh-primehubgbr-2551s-projects.vercel.app
+**Neue Komponenten:** `src/components/aufgaben/OrgChartView.tsx`
+**Neues Package:** `react-organizational-chart@2.2.1`
