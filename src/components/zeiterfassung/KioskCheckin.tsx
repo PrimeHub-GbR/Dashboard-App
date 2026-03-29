@@ -338,7 +338,7 @@ function PersonalView({
 }
 
 interface Props {
-  employees: (Pick<Employee, 'id' | 'name' | 'color'> & { pin_is_set: boolean })[]
+  employees: (Pick<Employee, 'id' | 'name' | 'color'> & { pin_is_set: boolean; position: string; is_checked_in: boolean })[]
 }
 
 export function KioskCheckin({ employees }: Props) {
@@ -567,6 +567,34 @@ export function KioskCheckin({ employees }: Props) {
   }
 
   // Step: select
+  const managers = employees.filter(e => e.position === 'manager')
+  const mitarbeiter = employees.filter(e => e.position !== 'manager')
+
+  function EmployeeCard({ emp }: { emp: typeof employees[number] }) {
+    return (
+      <button
+        key={emp.id}
+        onClick={() => selectEmployee(emp, emp.pin_is_set)}
+        className="relative flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-900 border border-gray-800 hover:border-green-500 active:scale-95 transition-all min-h-[120px]"
+      >
+        {/* Anwesenheits-Indikator */}
+        <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${
+          emp.is_checked_in ? 'bg-green-400 shadow-[0_0_6px_2px_rgba(74,222,128,0.4)]' : 'bg-gray-700'
+        }`} />
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white"
+          style={{ backgroundColor: emp.color }}
+        >
+          {emp.name.charAt(0).toUpperCase()}
+        </div>
+        <span className="text-white font-medium text-center leading-tight">{emp.name}</span>
+        {emp.is_checked_in && (
+          <span className="text-xs text-green-400 font-medium">anwesend</span>
+        )}
+      </button>
+    )
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto px-4">
       <div className="text-center mb-10">
@@ -578,22 +606,37 @@ export function KioskCheckin({ employees }: Props) {
       {employees.length === 0 ? (
         <p className="text-center text-gray-500">Keine aktiven Mitarbeiter vorhanden.</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {employees.map((emp) => (
-            <button
-              key={emp.id}
-              onClick={() => selectEmployee(emp, emp.pin_is_set)}
-              className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-900 border border-gray-800 hover:border-green-500 active:scale-95 transition-all min-h-[120px]"
-            >
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white"
-                style={{ backgroundColor: emp.color }}
-              >
-                {emp.name.charAt(0).toUpperCase()}
+        <div className="flex flex-col gap-6">
+          {/* Manager-Bereich */}
+          {managers.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 px-1">
+                Management
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {managers.map(emp => <EmployeeCard key={emp.id} emp={emp} />)}
               </div>
-              <span className="text-white font-medium text-center leading-tight">{emp.name}</span>
-            </button>
-          ))}
+            </div>
+          )}
+
+          {/* Trennlinie nur wenn beides vorhanden */}
+          {managers.length > 0 && mitarbeiter.length > 0 && (
+            <div className="border-t border-gray-800" />
+          )}
+
+          {/* Mitarbeiter-Bereich */}
+          {mitarbeiter.length > 0 && (
+            <div>
+              {managers.length > 0 && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 px-1">
+                  Mitarbeiter
+                </p>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {mitarbeiter.map(emp => <EmployeeCard key={emp.id} emp={emp} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
