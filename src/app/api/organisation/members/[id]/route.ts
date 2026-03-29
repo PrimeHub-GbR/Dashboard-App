@@ -22,8 +22,12 @@ const updateMemberSchema = z.object({
   weekly_schedule:        weeklyScheduleSchema.optional(),
   is_active:              z.boolean().optional(),
   birth_date:             z.string().nullable().optional(),
-  work_address:           z.string().nullable().optional(),
   home_address:           z.string().nullable().optional(),
+  tax_number:             z.string().nullable().optional(),
+  phone:                  z.string().nullable().optional(),
+  email:                  z.string().email().nullable().optional(),
+  arbeitsvertrag_path:    z.string().nullable().optional(),
+  personalfragebogen_path: z.string().nullable().optional(),
   auth_user_id:           z.string().uuid().nullable().optional(),
 })
 
@@ -118,7 +122,7 @@ export async function PATCH(
     .from('employees')
     .update(updateData)
     .eq('id', id)
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, home_address, tax_number, phone, email, arbeitsvertrag_path, personalfragebogen_path, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
     .single()
 
   if (updateError) return NextResponse.json({ error: updateError.message ?? 'Fehler beim Aktualisieren' }, { status: 500 })

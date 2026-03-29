@@ -21,8 +21,10 @@ const createMemberSchema = z.object({
   target_hours_per_month: z.number().min(0).max(400).default(160),
   weekly_schedule:        weeklyScheduleSchema,
   birth_date:             z.string().nullable().optional(),
-  work_address:           z.string().nullable().optional(),
   home_address:           z.string().nullable().optional(),
+  tax_number:             z.string().nullable().optional(),
+  phone:                  z.string().nullable().optional(),
+  email:                  z.string().email().nullable().optional(),
 })
 
 type UserRole = 'admin' | 'manager' | 'staff'
@@ -67,7 +69,7 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const { data, error: dbError } = await service
     .from('employees')
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule, pin')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, home_address, tax_number, phone, email, arbeitsvertrag_path, personalfragebogen_path, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule, pin')
     .order('position', { ascending: false })
     .order('name')
 
@@ -130,10 +132,12 @@ export async function POST(req: NextRequest) {
       weekly_schedule:        data.weekly_schedule,
       is_active:              isActive,
       birth_date:             data.birth_date ?? null,
-      work_address:           data.work_address ?? null,
       home_address:           data.home_address ?? null,
+      tax_number:             data.tax_number ?? null,
+      phone:                  data.phone ?? null,
+      email:                  data.email ?? null,
     })
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, work_address, home_address, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, home_address, tax_number, phone, email, arbeitsvertrag_path, personalfragebogen_path, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule')
     .single()
 
   if (dbError) return NextResponse.json({ error: dbError.message ?? 'Fehler beim Anlegen' }, { status: 500 })

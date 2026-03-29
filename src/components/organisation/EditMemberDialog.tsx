@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 import type { OrgMember, OrgPosition, UserRole, WeekSchedule } from './types'
 import { POSITION_LABELS } from './types'
+import { PdfUploadField } from './AddMemberDialog'
 
 const COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16']
 const WEEKDAYS = [
@@ -47,9 +48,15 @@ export function EditMemberDialog({
     weekly_schedule:        { ...DEFAULT_SCHEDULE } as WeekSchedule,
     is_active:              true,
     birth_date:             '',
-    work_address:           '',
     home_address:           '',
+    tax_number:             '',
+    phone:                  '',
+    email:                  '',
   })
+  const [arbeitsvertragFile, setArbeitsvertragFile] = useState<File | null>(null)
+  const [personalfragebogenFile, setPersonalfragebogenFile] = useState<File | null>(null)
+  const arbeitsvertragRef = useRef<HTMLInputElement>(null)
+  const personalfragebogenRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [resettingPin, setResettingPin] = useState(false)
 
@@ -64,16 +71,19 @@ export function EditMemberDialog({
         weekly_schedule:        member.weekly_schedule ?? { ...DEFAULT_SCHEDULE },
         is_active:              member.is_active,
         birth_date:             member.birth_date ?? '',
-        work_address:           member.work_address ?? '',
         home_address:           member.home_address ?? '',
+        tax_number:             member.tax_number ?? '',
+        phone:                  member.phone ?? '',
+        email:                  member.email ?? '',
       })
+      setArbeitsvertragFile(null)
+      setPersonalfragebogenFile(null)
     }
   }, [member])
 
   if (!member) return null
 
   const isGF = member.position === 'geschaeftsfuehrer'
-  const isManager = member.position === 'manager'
   const showKioskFields = form.position === 'mitarbeiter' || form.position === 'manager'
   const canEditAll = userRole === 'admin'
 
@@ -96,20 +106,64 @@ export function EditMemberDialog({
     }
   }
 
+  async function uploadDocument(file: File, type: 'arbeitsvertrag' | 'personalfragebogen') {
+    const fd = new FormData()
+    fd.append('type', type)
+    fd.append('file', file)
+    const res = await fetch(`/api/organisation/members/${member!.id}/documents`, {
+      method: 'POST',
+      body: fd,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error((err as { error?: string })?.error ?? `Fehler beim Upload (${type})`)
+    }
+  }
+
+  async function handleDeleteDocument(type: 'arbeitsvertrag' | 'personalfragebogen') {
+    try {
+      const res = await fetch(`/api/organisation/members/${member!.id}/documents?type=${type}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Fehler beim Löschen')
+      toast.success('Dokument gelöscht')
+      onSaved()
+    } catch {
+      toast.error('Dokument konnte nicht gelöscht werden')
+    }
+  }
+
+  async function handleDownloadDocument(type: 'arbeitsvertrag' | 'personalfragebogen') {
+    try {
+      const res = await fetch(`/api/organisation/members/${member!.id}/documents?type=${type}`)
+      if (!res.ok) throw new Error('Nicht gefunden')
+      const { url } = await res.json()
+      window.open(url, '_blank')
+    } catch {
+      toast.error('Dokument konnte nicht geöffnet werden')
+    }
+  }
+
   async function handleSave() {
     if (!member) return
-    if (!form.name.trim()) { toast.error('Name ist erforderlich'); return }
+    if (!form.name.trim())         { toast.error('Name ist erforderlich'); return }
     if (form.position === 'mitarbeiter' && canEditAll && !form.reports_to) {
       toast.error('Vorgesetzter ist erforderlich'); return
     }
+    if (!form.birth_date)          { toast.error('Geburtsdatum ist erforderlich'); return }
+    if (!form.home_address.trim()) { toast.error('Heimadresse ist erforderlich'); return }
+    if (!form.tax_number.trim())   { toast.error('Steuernummer ist erforderlich'); return }
+    if (!form.phone.trim())        { toast.error('Telefonnummer ist erforderlich'); return }
 
     setSaving(true)
     try {
       const body: Record<string, unknown> = {
-        name:         form.name.trim(),
-        birth_date:   form.birth_date || null,
-        work_address: form.work_address.trim() || null,
+        name:       form.name.trim(),
+        birth_date: form.birth_date || null,
         home_address: form.home_address.trim() || null,
+        tax_number:   form.tax_number.trim() || null,
+        phone:        form.phone.trim() || null,
+        email:        form.email.trim() || null,
       }
 
       if (canEditAll) {
@@ -120,7 +174,6 @@ export function EditMemberDialog({
         body.weekly_schedule        = form.weekly_schedule
         body.is_active              = form.is_active
       } else {
-        // Manager: nur Kiosk-Felder
         body.color                  = form.color
         body.target_hours_per_month = form.target_hours_per_month
         body.weekly_schedule        = form.weekly_schedule
@@ -137,6 +190,10 @@ export function EditMemberDialog({
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { error?: string })?.error ?? 'Fehler beim Speichern')
       }
+
+      // Dokumente hochladen falls neu ausgewählt
+      if (arbeitsvertragFile) await uploadDocument(arbeitsvertragFile, 'arbeitsvertrag')
+      if (personalfragebogenFile) await uploadDocument(personalfragebogenFile, 'personalfragebogen')
 
       toast.success('Daten gespeichert')
       onSaved()
@@ -166,7 +223,7 @@ export function EditMemberDialog({
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stammdaten</p>
 
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>Name <span className="text-destructive">*</span></Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
@@ -219,7 +276,7 @@ export function EditMemberDialog({
             )}
 
             <div className="space-y-2">
-              <Label>Geburtsdatum</Label>
+              <Label>Geburtsdatum <span className="text-destructive">*</span></Label>
               <Input
                 type="date"
                 value={form.birth_date}
@@ -228,17 +285,7 @@ export function EditMemberDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Geschäftsadresse</Label>
-              <Textarea
-                value={form.work_address}
-                onChange={(e) => setForm(f => ({ ...f, work_address: e.target.value }))}
-                placeholder="Straße, PLZ, Ort"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Heimadresse</Label>
+              <Label>Heimadresse <span className="text-destructive">*</span></Label>
               <Textarea
                 value={form.home_address}
                 onChange={(e) => setForm(f => ({ ...f, home_address: e.target.value }))}
@@ -246,6 +293,60 @@ export function EditMemberDialog({
                 rows={2}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>Steuernummer <span className="text-destructive">*</span></Label>
+              <Input
+                value={form.tax_number}
+                onChange={(e) => setForm(f => ({ ...f, tax_number: e.target.value }))}
+                placeholder="z.B. 12/345/67890"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Telefonnummer <span className="text-destructive">*</span></Label>
+              <Input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+49 123 456789"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>E-Mail</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="name@beispiel.de"
+              />
+            </div>
+          </div>
+
+          {/* ── Dokumente ── */}
+          <div className="space-y-3 border-t pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dokumente (optional)</p>
+
+            <PdfUploadField
+              label="Arbeitsvertrag"
+              file={arbeitsvertragFile}
+              inputRef={arbeitsvertragRef}
+              onChange={setArbeitsvertragFile}
+              existingPath={member.arbeitsvertrag_path}
+              onDownload={() => handleDownloadDocument('arbeitsvertrag')}
+              onDelete={() => handleDeleteDocument('arbeitsvertrag')}
+            />
+
+            <PdfUploadField
+              label="Personalfragebogen"
+              file={personalfragebogenFile}
+              inputRef={personalfragebogenRef}
+              onChange={setPersonalfragebogenFile}
+              existingPath={member.personalfragebogen_path}
+              onDownload={() => handleDownloadDocument('personalfragebogen')}
+              onDelete={() => handleDeleteDocument('personalfragebogen')}
+            />
           </div>
 
           {/* ── Zeiterfassung (Kiosk) ── */}
@@ -253,7 +354,6 @@ export function EditMemberDialog({
             <div className="space-y-3 border-t pt-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Zeiterfassung (Kiosk)</p>
 
-              {/* Kiosk aktiv/inaktiv */}
               <div className="flex items-center justify-between">
                 <Label>Für Kiosk aktiv</Label>
                 <Switch

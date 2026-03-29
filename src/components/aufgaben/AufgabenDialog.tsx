@@ -255,23 +255,25 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
         </div>
 
         {/* Footer: Löschen links — Status-Dropdown + Abbrechen + Speichern rechts */}
-        <div className="shrink-0 border-t pt-4 mt-2 flex flex-wrap items-center gap-2">
-          {/* Links: Löschen */}
-          {isEdit && onDelete && (
+        <div className="shrink-0 border-t pt-4 mt-2 flex items-center justify-between gap-2">
+          {/* Links: Löschen (oder Platzhalter) */}
+          {isEdit && onDelete ? (
             <Button
               type="button"
               variant="ghost"
               onClick={handleDelete}
               disabled={deleting}
-              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0"
             >
               <Trash2 className="h-4 w-4 mr-1.5" />
               {deleting ? 'Löschen...' : 'Löschen'}
             </Button>
+          ) : (
+            <span />
           )}
 
           {/* Rechts: Status-Dropdown + Abbrechen + Speichern */}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             {/* Status-Dropdown */}
             <Select value={form.status} onValueChange={(v) => set('status', v as TaskStatus)}>
               <SelectTrigger className={`w-[150px] font-medium ${currentStatusOption?.color ?? ''}`}>

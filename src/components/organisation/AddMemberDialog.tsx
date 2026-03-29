@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { FileText, Upload, X } from 'lucide-react'
 import type { OrgMember, OrgPosition, UserRole } from './types'
 import { POSITION_LABELS } from './types'
 
@@ -28,11 +29,8 @@ interface AddMemberDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   userRole: UserRole
-  /** Vorausgewählter Vorgesetzter */
   defaultReportsTo?: string | null
-  /** Wenn gesetzt: Position kann nicht geändert werden */
   fixedPosition?: OrgPosition
-  /** Für Vorgesetzten-Dropdown (nur admin) */
   availableParents?: OrgMember[]
   onSaved: () => void
 }
@@ -54,18 +52,54 @@ export function AddMemberDialog({
     target_hours_per_month: 160,
     weekly_schedule:        { ...DEFAULT_SCHEDULE } as Record<WeekKey, number>,
     birth_date:             '',
-    work_address:           '',
     home_address:           '',
+    tax_number:             '',
+    phone:                  '',
+    email:                  '',
   })
+  const [arbeitsvertragFile, setArbeitsvertragFile] = useState<File | null>(null)
+  const [personalfragebogenFile, setPersonalfragebogenFile] = useState<File | null>(null)
+  const arbeitsvertragRef = useRef<HTMLInputElement>(null)
+  const personalfragebogenRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
+
   const showKioskFields = form.position === 'mitarbeiter' || form.position === 'manager'
 
+  function resetForm() {
+    setForm({
+      name: '', position: fixedPosition ?? 'mitarbeiter', reports_to: defaultReportsTo ?? null,
+      color: '#22c55e', target_hours_per_month: 160,
+      weekly_schedule: { ...DEFAULT_SCHEDULE }, birth_date: '', home_address: '',
+      tax_number: '', phone: '', email: '',
+    })
+    setArbeitsvertragFile(null)
+    setPersonalfragebogenFile(null)
+  }
+
+  async function uploadDocument(memberId: string, file: File, type: 'arbeitsvertrag' | 'personalfragebogen') {
+    const fd = new FormData()
+    fd.append('type', type)
+    fd.append('file', file)
+    const res = await fetch(`/api/organisation/members/${memberId}/documents`, {
+      method: 'POST',
+      body: fd,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error((err as { error?: string })?.error ?? `Fehler beim Upload (${type})`)
+    }
+  }
+
   async function handleSave() {
-    if (!form.name.trim()) { toast.error('Name ist erforderlich'); return }
-    if (!form.position) { toast.error('Position ist erforderlich'); return }
+    if (!form.name.trim())        { toast.error('Name ist erforderlich'); return }
+    if (!form.position)           { toast.error('Position ist erforderlich'); return }
     if (form.position === 'mitarbeiter' && userRole === 'admin' && !form.reports_to) {
       toast.error('Vorgesetzter ist erforderlich'); return
     }
+    if (!form.birth_date)         { toast.error('Geburtsdatum ist erforderlich'); return }
+    if (!form.home_address.trim()) { toast.error('Heimadresse ist erforderlich'); return }
+    if (!form.tax_number.trim())  { toast.error('Steuernummer ist erforderlich'); return }
+    if (!form.phone.trim())       { toast.error('Telefonnummer ist erforderlich'); return }
 
     setSaving(true)
     try {
@@ -80,20 +114,25 @@ export function AddMemberDialog({
           target_hours_per_month: form.target_hours_per_month,
           weekly_schedule:        form.weekly_schedule,
           birth_date:             form.birth_date || null,
-          work_address:           form.work_address.trim() || null,
           home_address:           form.home_address.trim() || null,
+          tax_number:             form.tax_number.trim() || null,
+          phone:                  form.phone.trim() || null,
+          email:                  form.email.trim() || null,
         }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { error?: string })?.error ?? 'Fehler beim Anlegen')
       }
+
+      const { member } = await res.json()
+
+      // Dokumente hochladen (optional)
+      if (arbeitsvertragFile) await uploadDocument(member.id, arbeitsvertragFile, 'arbeitsvertrag')
+      if (personalfragebogenFile) await uploadDocument(member.id, personalfragebogenFile, 'personalfragebogen')
+
       toast.success('Mitglied angelegt')
-      setForm({
-        name: '', position: fixedPosition ?? 'mitarbeiter', reports_to: defaultReportsTo ?? null,
-        color: '#22c55e', target_hours_per_month: 160,
-        weekly_schedule: { ...DEFAULT_SCHEDULE }, birth_date: '', work_address: '', home_address: '',
-      })
+      resetForm()
       onSaved()
       onOpenChange(false)
     } catch (e) {
@@ -116,7 +155,7 @@ export function AddMemberDialog({
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stammdaten</p>
 
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>Name <span className="text-destructive">*</span></Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
@@ -165,7 +204,7 @@ export function AddMemberDialog({
             )}
 
             <div className="space-y-2">
-              <Label>Geburtsdatum</Label>
+              <Label>Geburtsdatum <span className="text-destructive">*</span></Label>
               <Input
                 type="date"
                 value={form.birth_date}
@@ -174,17 +213,7 @@ export function AddMemberDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Geschäftsadresse</Label>
-              <Textarea
-                value={form.work_address}
-                onChange={(e) => setForm(f => ({ ...f, work_address: e.target.value }))}
-                placeholder="Straße, PLZ, Ort"
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Heimadresse</Label>
+              <Label>Heimadresse <span className="text-destructive">*</span></Label>
               <Textarea
                 value={form.home_address}
                 onChange={(e) => setForm(f => ({ ...f, home_address: e.target.value }))}
@@ -192,6 +221,54 @@ export function AddMemberDialog({
                 rows={2}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>Steuernummer <span className="text-destructive">*</span></Label>
+              <Input
+                value={form.tax_number}
+                onChange={(e) => setForm(f => ({ ...f, tax_number: e.target.value }))}
+                placeholder="z.B. 12/345/67890"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Telefonnummer <span className="text-destructive">*</span></Label>
+              <Input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+49 123 456789"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>E-Mail</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="name@beispiel.de"
+              />
+            </div>
+          </div>
+
+          {/* ── Dokumente ── */}
+          <div className="space-y-3 border-t pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dokumente (optional)</p>
+
+            <PdfUploadField
+              label="Arbeitsvertrag"
+              file={arbeitsvertragFile}
+              inputRef={arbeitsvertragRef}
+              onChange={setArbeitsvertragFile}
+            />
+
+            <PdfUploadField
+              label="Personalfragebogen"
+              file={personalfragebogenFile}
+              inputRef={personalfragebogenRef}
+              onChange={setPersonalfragebogenFile}
+            />
           </div>
 
           {/* ── Zeiterfassung (nur für Mitarbeiter / Manager) ── */}
@@ -266,5 +343,80 @@ export function AddMemberDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+interface PdfUploadFieldProps {
+  label: string
+  file: File | null
+  inputRef: React.RefObject<HTMLInputElement | null>
+  onChange: (file: File | null) => void
+  existingPath?: string | null
+  onDownload?: () => void
+  onDelete?: () => void
+}
+
+export function PdfUploadField({ label, file, inputRef, onChange, existingPath, onDownload, onDelete }: PdfUploadFieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {existingPath && !file ? (
+        <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-blue-400" />
+            <span className="text-sm text-muted-foreground">{label}.pdf</span>
+          </div>
+          <div className="flex gap-1">
+            {onDownload && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onDownload}>
+                Öffnen
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost" size="icon"
+                className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={onDelete}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : file ? (
+        <div className="flex items-center justify-between rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-green-300 truncate max-w-[200px]">{file.name}</span>
+          </div>
+          <Button
+            variant="ghost" size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = '' }}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground hover:border-muted-foreground/50 hover:text-foreground transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          PDF auswählen
+        </button>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null
+          onChange(f)
+        }}
+      />
+    </div>
   )
 }

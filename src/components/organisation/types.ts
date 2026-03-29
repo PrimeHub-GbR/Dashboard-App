@@ -20,8 +20,12 @@ export interface OrgMember {
   /** Array aller Vorgesetzten-IDs (für Organigramm-Linien) */
   reports_to_ids: string[]
   birth_date: string | null
-  work_address: string | null
   home_address: string | null
+  tax_number: string | null
+  phone: string | null
+  email: string | null
+  arbeitsvertrag_path: string | null
+  personalfragebogen_path: string | null
   auth_user_id: string | null
   color: string
   is_active: boolean
