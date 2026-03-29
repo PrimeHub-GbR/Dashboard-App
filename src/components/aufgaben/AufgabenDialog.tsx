@@ -18,7 +18,15 @@ import {
 import { AssigneeSelector } from './AssigneeSelector'
 import { Task, TaskPriority, TaskStatus, CreateTaskPayload } from '@/hooks/useAufgaben'
 import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
-import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react'
+import { AlertTriangle, Trash2 } from 'lucide-react'
+
+const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: 'todo',        label: 'Offen',          color: 'text-gray-600' },
+  { value: 'in_progress', label: 'In Bearbeitung',  color: 'text-blue-600' },
+  { value: 'in_review',   label: 'In Review',       color: 'text-purple-600' },
+  { value: 'done',        label: 'Erledigt',        color: 'text-green-600' },
+  { value: 'blocked',     label: 'Blockiert',       color: 'text-red-600' },
+]
 
 interface Employee {
   id: string
@@ -127,17 +135,20 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
   const isEdit = !!task
   const isDone = task?.status === 'done'
 
+  const currentStatusOption = STATUS_OPTIONS.find((s) => s.value === form.status)
+
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="w-full max-w-lg flex flex-col max-h-[90dvh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {isEdit ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        {/* Scrollbarer Body */}
+        <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
           {/* Titel */}
           <div className="space-y-1.5">
             <Label>Titel *</Label>
@@ -145,6 +156,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
               value={form.title}
               onChange={(e) => set('title', e.target.value)}
               placeholder="Aufgabentitel eingeben..."
+              className="w-full"
             />
           </div>
 
@@ -155,7 +167,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
               value={form.description ?? ''}
               onChange={(e) => set('description', e.target.value)}
               placeholder="Details zur Aufgabe..."
-              className="min-h-[80px] resize-none"
+              className="min-h-[80px] resize-none w-full"
             />
           </div>
 
@@ -167,7 +179,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
                 value={form.org_node_id ?? '__none__'}
                 onValueChange={(v) => set('org_node_id', v === '__none__' ? null : v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Keinem Bereich zugeordnet" />
                 </SelectTrigger>
                 <SelectContent>
@@ -182,36 +194,19 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
             </div>
           )}
 
-          {/* Status + Priorität */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => set('status', v as TaskStatus)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todo">Offen</SelectItem>
-                  <SelectItem value="in_progress">In Bearbeitung</SelectItem>
-                  <SelectItem value="in_review">In Review</SelectItem>
-                  <SelectItem value="done">Erledigt</SelectItem>
-                  <SelectItem value="blocked">Blockiert</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Priorität</Label>
-              <Select value={form.priority} onValueChange={(v) => set('priority', v as TaskPriority)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">Hoch</SelectItem>
-                  <SelectItem value="medium">Mittel</SelectItem>
-                  <SelectItem value="low">Niedrig</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Priorität (Status ist im Footer) */}
+          <div className="space-y-1.5">
+            <Label>Priorität</Label>
+            <Select value={form.priority} onValueChange={(v) => set('priority', v as TaskPriority)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="high">Hoch</SelectItem>
+                <SelectItem value="medium">Mittel</SelectItem>
+                <SelectItem value="low">Niedrig</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Fälligkeitsdatum */}
@@ -221,17 +216,19 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
               type="date"
               value={form.due_date ?? ''}
               onChange={(e) => set('due_date', e.target.value || null)}
+              className="w-full"
             />
           </div>
 
           {/* Erinnerung */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Erinnerung am</Label>
               <Input
                 type="datetime-local"
                 value={form.reminder_at ?? ''}
                 onChange={(e) => set('reminder_at', e.target.value || null)}
+                className="w-full"
               />
             </div>
             <div className="space-y-1.5">
@@ -241,6 +238,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
                 value={form.reminder_email ?? ''}
                 onChange={(e) => set('reminder_email', e.target.value || null)}
                 placeholder="name@firma.de"
+                className="w-full"
               />
             </div>
           </div>
@@ -256,40 +254,52 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
           </div>
         </div>
 
-        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-          {isEdit && onDelete && (
+        {/* Footer: Löschen links — Status-Dropdown + Abbrechen + Speichern rechts */}
+        <DialogFooter className="shrink-0 border-t pt-4 mt-2 flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Links: Löschen */}
+          <div className="sm:mr-auto">
+            {isEdit && onDelete && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                {deleting ? 'Löschen...' : 'Löschen'}
+              </Button>
+            )}
+          </div>
+
+          {/* Rechts: Status-Dropdown + Abbrechen + Speichern */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {/* Status-Dropdown */}
+            <Select value={form.status} onValueChange={(v) => set('status', v as TaskStatus)}>
+              <SelectTrigger className={`w-full sm:w-[160px] font-medium ${currentStatusOption?.color ?? ''}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    <span className={s.color}>{s.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
+              Abbrechen
+            </Button>
             <Button
               type="button"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-red-600 hover:bg-red-50 hover:text-red-700 mr-auto"
+              onClick={handleSave}
+              disabled={saving || !form.title.trim()}
+              className="w-full sm:w-auto"
             >
-              <Trash2 className="h-4 w-4 mr-1.5" />
-              {deleting ? 'Löschen...' : 'Löschen'}
+              {saving ? 'Speichern...' : isEdit ? 'Speichern' : 'Erstellen'}
             </Button>
-          )}
-          {isEdit && !isDone && onComplete && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleComplete}
-              className="border-green-200 text-green-700 hover:bg-green-50"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-1.5" />
-              Als erledigt markieren
-            </Button>
-          )}
-          <Button type="button" variant="outline" onClick={onClose}>
-            Abbrechen
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !form.title.trim()}
-          >
-            {saving ? 'Speichern...' : isEdit ? 'Speichern' : 'Erstellen'}
-          </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
