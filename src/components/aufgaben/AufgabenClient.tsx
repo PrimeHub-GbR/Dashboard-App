@@ -24,7 +24,7 @@ export function AufgabenClient() {
   const { tasks, isLoading, error, refresh, createTask, updateTask, deleteTask, completeTask } =
     useAufgaben(filters)
 
-  const { employees } = useEmployees()
+  const { employees } = useEmployees({ includeGF: true })
 
   const kpis = computeKPIs(tasks)
 

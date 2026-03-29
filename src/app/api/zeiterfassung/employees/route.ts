@@ -35,19 +35,27 @@ async function requireAdmin(req: NextRequest) {
   return user
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) {
     return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 })
   }
 
+  const includeGF = new URL(req.url).searchParams.get('include_gf') === 'true'
+
   const service = createSupabaseServiceClient()
-  const { data, error: dbError } = await service
+  let query = service
     .from('employees')
     .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at, pin')
-    .neq('position', 'geschaeftsfuehrer') // GF erscheinen nicht in der Zeiterfassung
     .order('name')
+
+  // GF erscheinen nicht in der Zeiterfassung — aber bei Aufgaben-Zuweisung schon
+  if (!includeGF) {
+    query = query.neq('position', 'geschaeftsfuehrer')
+  }
+
+  const { data, error: dbError } = await query
 
   if (dbError) {
     return NextResponse.json({ error: 'Datenbankfehler' }, { status: 500 })

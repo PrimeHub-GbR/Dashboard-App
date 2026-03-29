@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Employee } from '@/lib/zeiterfassung/types'
 
-export function useEmployees() {
+export function useEmployees(options?: { includeGF?: boolean }) {
   const [employees, setEmployees] = useState<Omit<Employee, 'pin'>[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -12,7 +12,10 @@ export function useEmployees() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/zeiterfassung/employees')
+      const url = options?.includeGF
+        ? '/api/zeiterfassung/employees?include_gf=true'
+        : '/api/zeiterfassung/employees'
+      const res = await fetch(url)
       if (!res.ok) throw new Error('Fehler beim Laden der Mitarbeiter')
       const json = await res.json() as { employees: Array<Omit<Employee, 'pin'> & { pin_is_set: boolean }> }
       setEmployees(json.employees)
