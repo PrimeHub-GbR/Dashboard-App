@@ -103,3 +103,9 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 **Build:** Ready
 **Vercel Deployment:** https://app-om1w8b9vx-primehubgbr-2551s-projects.vercel.app
 **Aenderungen:** Responsives Layout (max-h-[90dvh], scrollbarer Body, w-full Inputs, sm: Breakpoints auf Grids); Status-Dropdown aus dem Formular-Body in den Footer verschoben (ersetzt "Als erledigt markieren"-Button); Footer-Layout: [Loeschen links] | [Status-Dropdown + Abbrechen + Speichern rechts]; Status-Optionen farbkodiert (grau/blau/lila/gruen/rot)
+
+### Update 2026-03-29 — AufgabenDialog Footer Layout Fix
+
+**Build:** Ready
+**Vercel Deployment:** https://app-ouofkah6r-primehubgbr-2551s-projects.vercel.app
+**Aenderungen:** DialogFooter durch plain flex div ersetzt (`flex flex-wrap items-center gap-2`); Loeschen-Button links ohne mr-auto-Overflow; rechte Seite mit `ml-auto flex flex-wrap` — verhindert dass der Loeschen-Button bei kleinen Dialogen ausserhalb der Dialog-Grenzen haengt
