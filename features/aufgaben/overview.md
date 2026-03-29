@@ -3,7 +3,7 @@
 **Tab:** `/dashboard/aufgaben`
 **Status:** Deployed
 **Production:** https://dashboard.primehubgbr.com/dashboard/aufgaben
-**Deployed:** 2026-03-23
+**Deployed:** 2026-03-29
 **Priorität:** P1
 
 ## Ziel
