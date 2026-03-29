@@ -75,6 +75,6 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 ## Deployment
 
 **Production URL:** https://dashboard.primehubgbr.com
-**Deployed:** 2026-03-23
+**Deployed:** 2026-03-29
 **Build:** Ready
-**Vercel Deployment:** https://app-klue6b0yl-primehubgbr-2551s-projects.vercel.app
+**Vercel Deployment:** https://app-7rmdz2ysy-primehubgbr-2551s-projects.vercel.app
