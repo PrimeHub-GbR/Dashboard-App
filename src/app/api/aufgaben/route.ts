@@ -11,6 +11,7 @@ const createTaskSchema = z.object({
   reminder_at: z.string().optional().nullable(),
   reminder_email: z.string().email().optional().nullable(),
   assignee_ids: z.array(z.string().uuid()).default([]),
+  org_node_id: z.string().uuid().optional().nullable(),
 })
 
 async function requireAuth() {
@@ -33,12 +34,15 @@ export async function GET(req: NextRequest) {
 
   const service = createSupabaseServiceClient()
 
+  const org_node_id = searchParams.get('org_node_id')
+
   let query = service
     .from('tasks')
     .select(`
       id, title, description, status, priority,
       due_date, reminder_at, reminder_email, reminder_sent,
       created_by, created_at, updated_at, completed_at,
+      org_node_id,
       task_assignees (
         employee_id,
         employees ( id, name, color )
@@ -50,6 +54,7 @@ export async function GET(req: NextRequest) {
   if (status) query = query.eq('status', status)
   if (priority) query = query.eq('priority', priority)
   if (search) query = query.ilike('title', `%${search}%`)
+  if (org_node_id) query = query.eq('org_node_id', org_node_id)
 
   const today = new Date().toISOString().split('T')[0]
   if (due_filter === 'overdue') {
@@ -98,7 +103,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { assignee_ids, ...taskData } = parsed.data
+  const { assignee_ids, org_node_id, ...taskData } = parsed.data
   const service = createSupabaseServiceClient()
 
   const { data: task, error: taskError } = await service
@@ -110,6 +115,7 @@ export async function POST(req: NextRequest) {
       reminder_email: taskData.reminder_email || null,
       completed_at: taskData.status === 'done' ? new Date().toISOString() : null,
       created_by: user.id,
+      org_node_id: org_node_id ?? null,
     })
     .select('id')
     .single()

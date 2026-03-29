@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { AssigneeSelector } from './AssigneeSelector'
 import { Task, TaskPriority, TaskStatus, CreateTaskPayload } from '@/hooks/useAufgaben'
+import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
 import { CheckCircle2, Trash2 } from 'lucide-react'
 
 interface Employee {
@@ -25,13 +26,14 @@ interface Props {
   open: boolean
   task?: Task | null
   employees: Employee[]
+  defaultOrgNodeId?: string | null
   onClose: () => void
   onSave: (payload: CreateTaskPayload) => Promise<boolean>
   onDelete?: (id: string) => Promise<boolean>
   onComplete?: (id: string) => Promise<boolean>
 }
 
-const defaultPayload = (): CreateTaskPayload => ({
+const defaultPayload = (orgNodeId?: string | null): CreateTaskPayload => ({
   title: '',
   description: '',
   status: 'todo',
@@ -40,12 +42,16 @@ const defaultPayload = (): CreateTaskPayload => ({
   reminder_at: null,
   reminder_email: null,
   assignee_ids: [],
+  org_node_id: orgNodeId ?? null,
 })
 
-export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelete, onComplete }: Props) {
+export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClose, onSave, onDelete, onComplete }: Props) {
   const [form, setForm] = useState<CreateTaskPayload>(defaultPayload())
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const { nodes } = useOrgNodes()
+  const flatNodes = buildFlatList(nodes)
 
   useEffect(() => {
     if (task) {
@@ -58,11 +64,12 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
         reminder_at: task.reminder_at ? task.reminder_at.slice(0, 16) : null,
         reminder_email: task.reminder_email ?? null,
         assignee_ids: task.assignees.map((a) => a.id),
+        org_node_id: task.org_node_id ?? null,
       })
     } else {
-      setForm(defaultPayload())
+      setForm(defaultPayload(defaultOrgNodeId))
     }
-  }, [task, open])
+  }, [task, open, defaultOrgNodeId])
 
   const set = <K extends keyof CreateTaskPayload>(key: K, value: CreateTaskPayload[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -122,6 +129,29 @@ export function AufgabenDialog({ open, task, employees, onClose, onSave, onDelet
               className="min-h-[80px] resize-none"
             />
           </div>
+
+          {/* Bereich */}
+          {flatNodes.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Bereich</Label>
+              <Select
+                value={form.org_node_id ?? '__none__'}
+                onValueChange={(v) => set('org_node_id', v === '__none__' ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Keinem Bereich zugeordnet" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Kein Bereich</SelectItem>
+                  {flatNodes.map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      {'  '.repeat(n.depth)}{n.depth > 0 ? '└ ' : ''}{n.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Status + Priorität */}
           <div className="grid grid-cols-2 gap-3">

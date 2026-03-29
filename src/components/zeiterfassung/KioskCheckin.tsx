@@ -570,71 +570,123 @@ export function KioskCheckin({ employees }: Props) {
   const managers = employees.filter(e => e.position === 'manager')
   const mitarbeiter = employees.filter(e => e.position !== 'manager')
 
-  function EmployeeCard({ emp }: { emp: typeof employees[number] }) {
+  function ManagerCard({ emp }: { emp: typeof employees[number] }) {
     return (
       <button
-        key={emp.id}
         onClick={() => selectEmployee(emp, emp.pin_is_set)}
-        className="relative flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-900 border border-gray-800 hover:border-green-500 active:scale-95 transition-all min-h-[120px]"
+        className="relative flex flex-col items-center gap-4 px-10 py-7 rounded-2xl active:scale-95 transition-all duration-200 group"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+          border: `1px solid ${emp.color}33`,
+          boxShadow: emp.is_checked_in
+            ? `0 0 0 1px ${emp.color}55, 0 8px 32px ${emp.color}22`
+            : '0 4px 24px rgba(0,0,0,0.3)',
+        }}
       >
         {/* Anwesenheits-Indikator */}
-        <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${
-          emp.is_checked_in ? 'bg-green-400 shadow-[0_0_6px_2px_rgba(74,222,128,0.4)]' : 'bg-gray-700'
-        }`} />
+        <div className={`absolute top-3.5 right-3.5 flex items-center gap-1.5 ${emp.is_checked_in ? 'opacity-100' : 'opacity-40'}`}>
+          <div className={`w-2 h-2 rounded-full ${emp.is_checked_in ? 'animate-pulse' : ''}`}
+            style={{ backgroundColor: emp.is_checked_in ? '#4ade80' : '#374151' }} />
+          <span className="text-xs font-medium" style={{ color: emp.is_checked_in ? '#4ade80' : '#4b5563' }}>
+            {emp.is_checked_in ? 'anwesend' : 'abwesend'}
+          </span>
+        </div>
+
+        {/* Avatar mit Glow-Ring wenn anwesend */}
+        <div className="relative">
+          {emp.is_checked_in && (
+            <div className="absolute inset-0 rounded-full animate-ping opacity-20"
+              style={{ backgroundColor: emp.color, transform: 'scale(1.3)' }} />
+          )}
+          <div
+            className="relative w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg"
+            style={{
+              backgroundColor: emp.color,
+              boxShadow: emp.is_checked_in ? `0 0 20px ${emp.color}66` : 'none',
+            }}
+          >
+            {emp.name.charAt(0).toUpperCase()}
+          </div>
+        </div>
+
+        <div className="text-center">
+          <span className="text-white font-semibold text-lg leading-tight block">{emp.name}</span>
+          <span className="text-xs font-medium tracking-wider uppercase mt-1 block"
+            style={{ color: `${emp.color}aa` }}>Manager</span>
+        </div>
+      </button>
+    )
+  }
+
+  function MitarbeiterCard({ emp }: { emp: typeof employees[number] }) {
+    return (
+      <button
+        onClick={() => selectEmployee(emp, emp.pin_is_set)}
+        className="relative flex flex-col items-center gap-3 p-5 rounded-2xl active:scale-95 transition-all duration-200 w-[140px]"
+        style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: emp.is_checked_in ? `1px solid ${emp.color}44` : '1px solid rgba(255,255,255,0.06)',
+          boxShadow: emp.is_checked_in ? `0 0 16px ${emp.color}18` : 'none',
+        }}
+      >
+        {/* Punkt oben rechts */}
         <div
-          className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white"
-          style={{ backgroundColor: emp.color }}
+          className={`absolute top-2.5 right-2.5 w-2 h-2 rounded-full ${emp.is_checked_in ? 'animate-pulse' : ''}`}
+          style={{ backgroundColor: emp.is_checked_in ? '#4ade80' : '#1f2937',
+            boxShadow: emp.is_checked_in ? '0 0 6px #4ade8088' : 'none' }}
+        />
+
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold text-white"
+          style={{ backgroundColor: emp.color,
+            boxShadow: emp.is_checked_in ? `0 0 12px ${emp.color}55` : 'none' }}
         >
           {emp.name.charAt(0).toUpperCase()}
         </div>
-        <span className="text-white font-medium text-center leading-tight">{emp.name}</span>
-        {emp.is_checked_in && (
-          <span className="text-xs text-green-400 font-medium">anwesend</span>
-        )}
+        <span className="text-white font-medium text-sm text-center leading-tight">{emp.name}</span>
       </button>
     )
   }
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4">
-      <div className="text-center mb-10">
+      <div className="text-center mb-12">
         <Clock className="w-12 h-12 text-green-400 mx-auto mb-3" />
         <h1 className="text-3xl font-bold text-white">Zeiterfassung</h1>
-        <p className="text-gray-400 mt-2">Mitarbeiter auswählen</p>
+        <p className="text-gray-500 mt-2 text-sm tracking-wide">Mitarbeiter auswählen</p>
       </div>
 
       {employees.length === 0 ? (
         <p className="text-center text-gray-500">Keine aktiven Mitarbeiter vorhanden.</p>
       ) : (
-        <div className="flex flex-col gap-6">
-          {/* Manager-Bereich */}
+        <div className="flex flex-col items-center gap-8">
+          {/* Manager — zentriert */}
           {managers.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 px-1">
+            <div className="flex flex-col items-center gap-4 w-full">
+              <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-gray-600">
                 Management
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {managers.map(emp => <EmployeeCard key={emp.id} emp={emp} />)}
+              <div className="flex flex-wrap justify-center gap-4">
+                {managers.map(emp => <ManagerCard key={emp.id} emp={emp} />)}
               </div>
             </div>
           )}
 
-          {/* Trennlinie nur wenn beides vorhanden */}
+          {/* Trenner */}
           {managers.length > 0 && mitarbeiter.length > 0 && (
-            <div className="border-t border-gray-800" />
+            <div className="flex items-center gap-4 w-full max-w-md">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent to-gray-800" />
+              <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-gray-600 shrink-0">
+                Mitarbeiter
+              </p>
+              <div className="flex-1 h-px bg-gradient-to-l from-transparent to-gray-800" />
+            </div>
           )}
 
-          {/* Mitarbeiter-Bereich */}
+          {/* Mitarbeiter — flex-wrap zentriert */}
           {mitarbeiter.length > 0 && (
-            <div>
-              {managers.length > 0 && (
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 px-1">
-                  Mitarbeiter
-                </p>
-              )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {mitarbeiter.map(emp => <EmployeeCard key={emp.id} emp={emp} />)}
-              </div>
+            <div className="flex flex-wrap justify-center gap-4">
+              {mitarbeiter.map(emp => <MitarbeiterCard key={emp.id} emp={emp} />)}
             </div>
           )}
         </div>

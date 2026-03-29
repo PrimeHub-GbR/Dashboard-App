@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Plus, List, LayoutGrid, RefreshCw } from 'lucide-react'
+import { Plus, List, LayoutGrid, GitBranch, RefreshCw } from 'lucide-react'
 import { useAufgaben, computeKPIs, Task, TaskFilters, CreateTaskPayload } from '@/hooks/useAufgaben'
 import { useEmployees } from '@/hooks/useEmployees'
 import { AufgabenKPIs } from './AufgabenKPIs'
@@ -11,11 +11,14 @@ import { AufgabenFilterBar } from './AufgabenFilterBar'
 import { AufgabenListView } from './AufgabenListView'
 import { AufgabenKanbanView } from './AufgabenKanbanView'
 import { AufgabenDialog } from './AufgabenDialog'
+import { OrgTreeView } from './OrgTreeView'
 
 export function AufgabenClient() {
   const [filters, setFilters] = useState<TaskFilters>({})
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [defaultOrgNodeId, setDefaultOrgNodeId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('list')
 
   const { tasks, isLoading, error, refresh, createTask, updateTask, deleteTask, completeTask } =
     useAufgaben(filters)
@@ -24,13 +27,15 @@ export function AufgabenClient() {
 
   const kpis = computeKPIs(tasks)
 
-  const handleNewTask = () => {
+  const handleNewTask = (orgNodeId?: string) => {
     setSelectedTask(null)
+    setDefaultOrgNodeId(orgNodeId ?? null)
     setDialogOpen(true)
   }
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task)
+    setDefaultOrgNodeId(null)
     setDialogOpen(true)
   }
 
@@ -41,13 +46,16 @@ export function AufgabenClient() {
     return createTask(payload)
   }
 
+  // In the Baum tab we load ALL tasks (no filters) so the tree is always complete
+  const { tasks: allTasks } = useAufgaben({})
+
   return (
     <div className="space-y-6">
       {/* KPI-Leiste */}
       <AufgabenKPIs kpis={kpis} />
 
       {/* Tabs */}
-      <Tabs defaultValue="list" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="list" className="gap-1.5">
@@ -55,6 +63,9 @@ export function AufgabenClient() {
             </TabsTrigger>
             <TabsTrigger value="kanban" className="gap-1.5">
               <LayoutGrid className="h-3.5 w-3.5" /> Kanban
+            </TabsTrigger>
+            <TabsTrigger value="tree" className="gap-1.5">
+              <GitBranch className="h-3.5 w-3.5" /> Baum
             </TabsTrigger>
           </TabsList>
 
@@ -67,19 +78,21 @@ export function AufgabenClient() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button size="sm" onClick={handleNewTask} className="gap-1.5">
+            <Button size="sm" onClick={() => handleNewTask()} className="gap-1.5">
               <Plus className="h-4 w-4" />
               Neue Aufgabe
             </Button>
           </div>
         </div>
 
-        {/* Filter-Bar */}
-        <AufgabenFilterBar
-          filters={filters}
-          employees={employees ?? []}
-          onChange={setFilters}
-        />
+        {/* Filter-Bar (nur für Liste + Kanban) */}
+        {activeTab !== 'tree' && (
+          <AufgabenFilterBar
+            filters={filters}
+            employees={employees ?? []}
+            onChange={setFilters}
+          />
+        )}
 
         {/* Fehler */}
         {error && (
@@ -103,6 +116,15 @@ export function AufgabenClient() {
             <AufgabenKanbanView tasks={tasks} onTaskClick={handleTaskClick} />
           )}
         </TabsContent>
+
+        <TabsContent value="tree" className="mt-0">
+          <OrgTreeView
+            tasks={allTasks}
+            onTaskClick={handleTaskClick}
+            onComplete={async (id) => completeTask(id)}
+            onNewTaskWithNode={(nodeId) => handleNewTask(nodeId)}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Dialog */}
@@ -110,7 +132,8 @@ export function AufgabenClient() {
         open={dialogOpen}
         task={selectedTask}
         employees={employees ?? []}
-        onClose={() => { setDialogOpen(false); setSelectedTask(null) }}
+        defaultOrgNodeId={defaultOrgNodeId}
+        onClose={() => { setDialogOpen(false); setSelectedTask(null); setDefaultOrgNodeId(null) }}
         onSave={handleSave}
         onDelete={async (id) => deleteTask(id)}
         onComplete={async (id) => completeTask(id)}

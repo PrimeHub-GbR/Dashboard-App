@@ -25,6 +25,7 @@ export interface Task {
   created_at: string
   updated_at: string
   completed_at: string | null
+  org_node_id: string | null
   assignees: TaskAssignee[]
 }
 
@@ -34,6 +35,7 @@ export interface TaskFilters {
   employee_id?: string
   due_filter?: 'overdue' | 'today' | 'week' | ''
   search?: string
+  org_node_id?: string
 }
 
 export interface CreateTaskPayload {
@@ -45,6 +47,7 @@ export interface CreateTaskPayload {
   reminder_at?: string | null
   reminder_email?: string | null
   assignee_ids: string[]
+  org_node_id?: string | null
 }
 
 export function useAufgaben(filters: TaskFilters = {}) {
@@ -59,6 +62,7 @@ export function useAufgaben(filters: TaskFilters = {}) {
     if (f.employee_id) params.set('employee_id', f.employee_id)
     if (f.due_filter) params.set('due_filter', f.due_filter)
     if (f.search) params.set('search', f.search)
+    if (f.org_node_id) params.set('org_node_id', f.org_node_id)
     return `/api/aufgaben?${params.toString()}`
   }, [])
 
@@ -80,7 +84,7 @@ export function useAufgaben(filters: TaskFilters = {}) {
   useEffect(() => {
     load(filters)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.status, filters.priority, filters.employee_id, filters.due_filter, filters.search])
+  }, [filters.status, filters.priority, filters.employee_id, filters.due_filter, filters.search, filters.org_node_id])
 
   const refresh = () => load(filters)
 

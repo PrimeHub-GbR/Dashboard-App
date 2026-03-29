@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Search, X } from 'lucide-react'
 import { TaskFilters } from '@/hooks/useAufgaben'
+import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
 
 interface Employee {
   id: string
@@ -23,11 +24,14 @@ interface Props {
 const ALL = '__all__'
 
 export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
+  const { nodes } = useOrgNodes()
+  const flatNodes = buildFlatList(nodes)
+
   const set = (key: keyof TaskFilters, value: string) => {
     onChange({ ...filters, [key]: value === ALL ? '' : value })
   }
 
-  const hasActiveFilters = !!(filters.status || filters.priority || filters.employee_id || filters.due_filter || filters.search)
+  const hasActiveFilters = !!(filters.status || filters.priority || filters.employee_id || filters.due_filter || filters.search || filters.org_node_id)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -93,6 +97,23 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
             <SelectItem value={ALL}>Alle Mitarbeiter</SelectItem>
             {employees.map((e) => (
               <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {/* Bereich */}
+      {flatNodes.length > 0 && (
+        <Select value={filters.org_node_id || ALL} onValueChange={(v) => set('org_node_id', v)}>
+          <SelectTrigger className="w-[170px] h-9 text-sm">
+            <SelectValue placeholder="Bereich" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Alle Bereiche</SelectItem>
+            {flatNodes.map((n) => (
+              <SelectItem key={n.id} value={n.id}>
+                {'  '.repeat(n.depth)}{n.depth > 0 ? '└ ' : ''}{n.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>

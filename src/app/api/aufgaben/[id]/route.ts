@@ -11,6 +11,7 @@ const updateTaskSchema = z.object({
   reminder_at: z.string().optional().nullable(),
   reminder_email: z.string().email().optional().nullable(),
   assignee_ids: z.array(z.string().uuid()).optional(),
+  org_node_id: z.string().uuid().optional().nullable(),
 })
 
 async function requireAuth() {
@@ -36,6 +37,7 @@ export async function GET(
       id, title, description, status, priority,
       due_date, reminder_at, reminder_email, reminder_sent,
       created_by, created_at, updated_at, completed_at,
+      org_node_id,
       task_assignees (
         employee_id,
         employees ( id, name, color )
