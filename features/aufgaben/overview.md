@@ -85,3 +85,9 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 **Vercel Deployment:** https://app-r7ogoxowh-primehubgbr-2551s-projects.vercel.app
 **Neue Komponenten:** `src/components/aufgaben/OrgChartView.tsx`
 **Neues Package:** `react-organizational-chart@2.2.1`
+
+### Update 2026-03-29 — GF in Aufgaben-Zuweisung
+
+**Build:** Ready
+**Vercel Deployment:** https://app-6q0totp1e-primehubgbr-2551s-projects.vercel.app
+**Aenderungen:** employees API erhaelt `?include_gf=true` Query-Param; `useEmployees` erhaelt optionales `options.includeGF`; `AufgabenClient` nutzt `includeGF: true` damit Geschaeftsfuehrer in der Aufgaben-Zuweisung erscheinen
