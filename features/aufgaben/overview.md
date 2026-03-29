@@ -91,3 +91,9 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 **Build:** Ready
 **Vercel Deployment:** https://app-6q0totp1e-primehubgbr-2551s-projects.vercel.app
 **Aenderungen:** employees API erhaelt `?include_gf=true` Query-Param; `useEmployees` erhaelt optionales `options.includeGF`; `AufgabenClient` nutzt `includeGF: true` damit Geschaeftsfuehrer in der Aufgaben-Zuweisung erscheinen
+
+### Update 2026-03-29 — GF-Eskalationswarnung + position-Feld
+
+**Build:** Ready
+**Vercel Deployment:** https://app-2m8z69c8q-primehubgbr-2551s-projects.vercel.app
+**Aenderungen:** `AufgabenDialog` zeigt einen amber AlertDialog wenn eine Aufgabe einem Geschaeftsfuehrer (`position='geschaeftsfuehrer'`) zugewiesen wird — Bestaetigung erforderlich vor dem Speichern; employees API Select-Query erhaelt das `position`-Feld
