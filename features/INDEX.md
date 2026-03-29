@@ -71,6 +71,12 @@
 | Dashboard-Navigation (Sidebar) | Deployed | [_foundation/navigation.md](_foundation/navigation.md) |
 | Custom Domain Setup | Deployed | [_foundation/custom-domain.md](_foundation/custom-domain.md) |
 
+## Organisation `/dashboard/organisation`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Mitarbeiter-Kontaktfelder + Dokumente-API | Deployed | — |
+
 ---
 
 ## Neues Feature anlegen
