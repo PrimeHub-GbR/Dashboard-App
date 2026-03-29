@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   const service = createSupabaseServiceClient()
   let query = service
     .from('employees')
-    .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at, pin')
+    .select('id, name, color, is_active, target_hours_per_month, weekly_schedule, created_at, pin, position')
     .order('name')
 
   // GF erscheinen nicht in der Zeiterfassung — aber bei Aufgaben-Zuweisung schon

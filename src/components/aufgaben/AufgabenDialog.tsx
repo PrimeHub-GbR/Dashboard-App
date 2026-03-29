@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -14,12 +18,13 @@ import {
 import { AssigneeSelector } from './AssigneeSelector'
 import { Task, TaskPriority, TaskStatus, CreateTaskPayload } from '@/hooks/useAufgaben'
 import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
-import { CheckCircle2, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react'
 
 interface Employee {
   id: string
   name: string
   color: string
+  position?: string | null
 }
 
 interface Props {
@@ -49,6 +54,8 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
   const [form, setForm] = useState<CreateTaskPayload>(defaultPayload())
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [gfWarningOpen, setGfWarningOpen] = useState(false)
+  const [pendingPayload, setPendingPayload] = useState<CreateTaskPayload | null>(null)
 
   const { nodes } = useOrgNodes()
   const flatNodes = buildFlatList(nodes)
@@ -76,9 +83,30 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
 
   const handleSave = async () => {
     if (!form.title.trim()) return
+
+    // Prüfen ob ein GF zugewiesen wird
+    const assignedGF = employees.filter(
+      (e) => form.assignee_ids.includes(e.id) && e.position === 'geschaeftsfuehrer'
+    )
+    if (assignedGF.length > 0) {
+      setPendingPayload(form)
+      setGfWarningOpen(true)
+      return
+    }
+
     setSaving(true)
     const ok = await onSave(form)
     setSaving(false)
+    if (ok) onClose()
+  }
+
+  const handleGfConfirm = async () => {
+    if (!pendingPayload) return
+    setGfWarningOpen(false)
+    setSaving(true)
+    const ok = await onSave(pendingPayload)
+    setSaving(false)
+    setPendingPayload(null)
     if (ok) onClose()
   }
 
@@ -100,6 +128,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
   const isDone = task?.status === 'done'
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -264,5 +293,39 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* GF-Eskalierungs-Warnung */}
+    <AlertDialog open={gfWarningOpen} onOpenChange={setGfWarningOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            Eskalation an Geschäftsführung
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm text-foreground space-y-2">
+            <p>
+              Sie sind dabei, diese Aufgabe an einen <strong>Geschäftsführer</strong> zu delegieren.
+            </p>
+            <p className="text-muted-foreground">
+              Bitte stellen Sie sicher, dass eine Eskalation wirklich notwendig ist und alle
+              anderen Lösungswege bereits geprüft wurden.
+            </p>
+            <p className="font-medium">Sind Sie sicher, dass Sie eskalieren möchten?</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => { setGfWarningOpen(false); setPendingPayload(null) }}>
+            Abbrechen
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleGfConfirm}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            Ja, eskalieren
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
