@@ -255,28 +255,26 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
         </div>
 
         {/* Footer: Löschen links — Status-Dropdown + Abbrechen + Speichern rechts */}
-        <DialogFooter className="shrink-0 border-t pt-4 mt-2 flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="shrink-0 border-t pt-4 mt-2 flex flex-wrap items-center gap-2">
           {/* Links: Löschen */}
-          <div className="sm:mr-auto">
-            {isEdit && onDelete && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-              >
-                <Trash2 className="h-4 w-4 mr-1.5" />
-                {deleting ? 'Löschen...' : 'Löschen'}
-              </Button>
-            )}
-          </div>
+          {isEdit && onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              {deleting ? 'Löschen...' : 'Löschen'}
+            </Button>
+          )}
 
           {/* Rechts: Status-Dropdown + Abbrechen + Speichern */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             {/* Status-Dropdown */}
             <Select value={form.status} onValueChange={(v) => set('status', v as TaskStatus)}>
-              <SelectTrigger className={`w-full sm:w-[160px] font-medium ${currentStatusOption?.color ?? ''}`}>
+              <SelectTrigger className={`w-[150px] font-medium ${currentStatusOption?.color ?? ''}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -288,19 +286,18 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
               </SelectContent>
             </Select>
 
-            <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
+            <Button type="button" variant="outline" onClick={onClose}>
               Abbrechen
             </Button>
             <Button
               type="button"
               onClick={handleSave}
               disabled={saving || !form.title.trim()}
-              className="w-full sm:w-auto"
             >
               {saving ? 'Speichern...' : isEdit ? 'Speichern' : 'Erstellen'}
             </Button>
           </div>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
 
