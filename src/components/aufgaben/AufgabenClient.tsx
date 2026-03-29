@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Plus, List, LayoutGrid, GitBranch, RefreshCw } from 'lucide-react'
+import { Plus, List, LayoutGrid, GitBranch, Network, RefreshCw } from 'lucide-react'
 import { useAufgaben, computeKPIs, Task, TaskFilters, CreateTaskPayload } from '@/hooks/useAufgaben'
 import { useEmployees } from '@/hooks/useEmployees'
 import { AufgabenKPIs } from './AufgabenKPIs'
@@ -12,6 +12,7 @@ import { AufgabenListView } from './AufgabenListView'
 import { AufgabenKanbanView } from './AufgabenKanbanView'
 import { AufgabenDialog } from './AufgabenDialog'
 import { OrgTreeView } from './OrgTreeView'
+import { OrgChartView } from './OrgChartView'
 
 export function AufgabenClient() {
   const [filters, setFilters] = useState<TaskFilters>({})
@@ -67,6 +68,9 @@ export function AufgabenClient() {
             <TabsTrigger value="tree" className="gap-1.5">
               <GitBranch className="h-3.5 w-3.5" /> Baum
             </TabsTrigger>
+            <TabsTrigger value="chart" className="gap-1.5">
+              <Network className="h-3.5 w-3.5" /> Organigramm
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex items-center gap-2">
@@ -86,7 +90,7 @@ export function AufgabenClient() {
         </div>
 
         {/* Filter-Bar (nur für Liste + Kanban) */}
-        {activeTab !== 'tree' && (
+        {activeTab !== 'tree' && activeTab !== 'chart' && (
           <AufgabenFilterBar
             filters={filters}
             employees={employees ?? []}
@@ -119,6 +123,15 @@ export function AufgabenClient() {
 
         <TabsContent value="tree" className="mt-0">
           <OrgTreeView
+            tasks={allTasks}
+            onTaskClick={handleTaskClick}
+            onComplete={async (id) => completeTask(id)}
+            onNewTaskWithNode={(nodeId) => handleNewTask(nodeId)}
+          />
+        </TabsContent>
+
+        <TabsContent value="chart" className="mt-0">
+          <OrgChartView
             tasks={allTasks}
             onTaskClick={handleTaskClick}
             onComplete={async (id) => completeTask(id)}
