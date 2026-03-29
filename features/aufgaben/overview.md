@@ -97,3 +97,9 @@ Anleitung: Scheduled Workflow in N8N anlegen → Webhook GET auf `/api/aufgaben/
 **Build:** Ready
 **Vercel Deployment:** https://app-2m8z69c8q-primehubgbr-2551s-projects.vercel.app
 **Aenderungen:** `AufgabenDialog` zeigt einen amber AlertDialog wenn eine Aufgabe einem Geschaeftsfuehrer (`position='geschaeftsfuehrer'`) zugewiesen wird — Bestaetigung erforderlich vor dem Speichern; employees API Select-Query erhaelt das `position`-Feld
+
+### Update 2026-03-29 — AufgabenDialog Responsive Redesign + Status in Footer
+
+**Build:** Ready
+**Vercel Deployment:** https://app-om1w8b9vx-primehubgbr-2551s-projects.vercel.app
+**Aenderungen:** Responsives Layout (max-h-[90dvh], scrollbarer Body, w-full Inputs, sm: Breakpoints auf Grids); Status-Dropdown aus dem Formular-Body in den Footer verschoben (ersetzt "Als erledigt markieren"-Button); Footer-Layout: [Loeschen links] | [Status-Dropdown + Abbrechen + Speichern rechts]; Status-Optionen farbkodiert (grau/blau/lila/gruen/rot)
