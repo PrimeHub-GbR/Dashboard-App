@@ -41,7 +41,21 @@ Guide the user through:
 - [ ] Build settings: Framework Preset = Next.js (auto-detected)
 - [ ] Configure domain (or use default `*.vercel.app`)
 
-### 3. Deploy
+### 3. Supabase Migration anwenden (falls neue Migration vorhanden)
+
+Prüfe ob neue Migrations-Dateien existieren die noch nicht in Produktion sind:
+```bash
+npx supabase db push --db-url "$SUPABASE_DB_URL"
+```
+
+Falls `SUPABASE_DB_URL` nicht gesetzt:
+1. Login prüfen: `npx supabase projects list` — wenn Fehler → `npx supabase login`
+2. Nach Login: `npx supabase link --project-ref tcqdyzmhwyfamzyeyskj`
+3. Dann pushen: `npx supabase db push`
+
+Falls CLI nicht verfügbar: SQL aus der Migrations-Datei manuell im [Supabase SQL Editor](https://supabase.com/dashboard/project/tcqdyzmhwyfamzyeyskj/sql) ausführen.
+
+### 4. Deploy
 - Push to main branch → Vercel auto-deploys
 - Or manual: `npx vercel --prod`
 

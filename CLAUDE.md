@@ -129,6 +129,44 @@ Spec-Pfade: `features/<tab>/<slug>.md` — z.B. `features/repricer/dashboard.md`
 - **shadcn/ui first:** NIEMALS eigene Versionen von shadcn-Komponenten bauen
 - **Sprache:** Alle Antworten an den Benutzer auf Deutsch
 
+## Credentials & Tokens
+
+**Regel: Keine Secrets in diese Datei oder andere Git-Dateien schreiben.**
+
+### Wo die Werte zu finden sind
+
+| Token / Secret | Wo hinterlegt | Wie abrufen |
+|----------------|--------------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` | Supabase Dashboard → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` | Supabase Dashboard → Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | `.env.local` | Supabase Dashboard → Project Settings → API |
+| `N8N_API_KEY` | `.env.local` | N8N → Settings → API Keys |
+| `N8N_BASE_URL` | `.env.local` | `https://n8n.primehubgbr.com` |
+| `N8N_WEBHOOK_BASE_URL` | `.env.local` | `https://n8n.primehubgbr.com/webhook` |
+| `N8N_WHATSAPP_WEBHOOK_URL` | `.env.local` + Vercel Env | N8N → Workflow → Webhook-URL kopieren (nach WhatsApp-Einrichtung) |
+| `GOOGLE_CLIENT_ID/SECRET` | `.env.local` | Google Cloud Console → APIs & Services → Credentials |
+| `GOOGLE_REFRESH_TOKEN` | `.env.local` | OAuth-Flow einmalig ausgeführt (liegt in `.env.local`) |
+| `CRON_SECRET` | `.env.local` | Selbst generiert (zufälliger String) |
+| `KIOSK_DEVICE_SECRET` | `.env.local` | Selbst generiert |
+| `REBUY_FLASK_API_KEY` | `.env.local` | LXC-Container-Setup |
+| `REBUY_HMAC_SECRET` | `.env.local` | Selbst generiert |
+| Vercel-Env-Vars | Vercel Dashboard → Settings → Environment Variables | Spiegeln von `.env.local` |
+
+### Supabase Personal Access Token (für CLI / Migrationen)
+
+Wird **nicht** in `.env.local` gespeichert — einmalig für CLI-Operationen:
+
+1. [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) → "Generate new token"
+2. Einmalig verwenden: `SUPABASE_ACCESS_TOKEN=xxx npx supabase db push`
+3. Oder dauerhaft in Shell-Profil setzen (nicht in Projekt-Dateien)
+
+Nach Login: `npx supabase link --project-ref tcqdyzmhwyfamzyeyskj`
+
+### MCP Server (N8N)
+
+Konfiguriert in `~/.claude/settings.json` (lokal, nicht in GitHub).
+Verbindet sich mit `https://n8n.primehubgbr.com` — API-Key liegt ebenfalls dort.
+
 ## Build & Test Commands
 
 ```bash
