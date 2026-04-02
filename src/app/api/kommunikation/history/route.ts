@@ -20,26 +20,47 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status')
   const from = searchParams.get('from')
   const to = searchParams.get('to')
+  const date_range = searchParams.get('date_range')
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)))
 
   const service = createSupabaseServiceClient()
 
-  // 90 Tage Limit
+  // 90 Tage Limit (Basis-Cutoff)
   const ninetyDaysAgo = new Date()
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
   const cutoff = ninetyDaysAgo.toISOString()
+
+  // date_range → dynamischer From-Filter (überschreibt Basis-Cutoff nach oben)
+  let rangeFrom: string | null = null
+  if (date_range === 'today') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    rangeFrom = today.toISOString()
+  } else if (date_range === 'week') {
+    const weekStart = new Date()
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + (weekStart.getDay() === 0 ? -6 : 1))
+    weekStart.setHours(0, 0, 0, 0)
+    rangeFrom = weekStart.toISOString()
+  } else if (date_range === 'month') {
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+    rangeFrom = monthStart.toISOString()
+  }
+
+  // Effektiver From-Wert: date_range > from-param > 90-Tage-Cutoff
+  const effectiveFrom = rangeFrom ?? (from ?? cutoff)
 
   // Gesamtanzahl-Query für Pagination
   let countQuery = service
     .from('message_logs')
     .select('id', { count: 'exact', head: true })
-    .gte('created_at', cutoff)
+    .gte('created_at', effectiveFrom)
 
   if (recipient_id) countQuery = countQuery.eq('recipient_id', recipient_id)
   if (context) countQuery = countQuery.eq('context', context)
   if (status) countQuery = countQuery.eq('status', status)
-  if (from) countQuery = countQuery.gte('created_at', from)
   if (to) {
     // "to"-Datum inklusiv: bis Ende des Tages
     const toEnd = new Date(to)
@@ -69,14 +90,13 @@ export async function GET(req: NextRequest) {
         name
       )
     `)
-    .gte('created_at', cutoff)
+    .gte('created_at', effectiveFrom)
     .order('created_at', { ascending: false })
     .range((page - 1) * limit, page * limit - 1)
 
   if (recipient_id) dataQuery = dataQuery.eq('recipient_id', recipient_id)
   if (context) dataQuery = dataQuery.eq('context', context)
   if (status) dataQuery = dataQuery.eq('status', status)
-  if (from) dataQuery = dataQuery.gte('created_at', from)
   if (to) {
     const toEnd = new Date(to)
     toEnd.setHours(23, 59, 59, 999)
