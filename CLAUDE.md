@@ -162,7 +162,7 @@ Wird **nicht** in `.env.local` gespeichert — einmalig für CLI-Operationen:
 
 Nach Login: `npx supabase link --project-ref tcqdyzmhwyfamzyeyskj`
 
-**Hinweis:** Ein Supabase MCP OAuth-Client ist in `~/.claude/.credentials.json` hinterlegt (`mcpOAuth → supabase|bcbe8046d2c9a4fd`), aber der Access Token war noch nicht eingeloggt. Login über Claude Code MCP: `/mcp` → Supabase → Authorize.
+**Supabase MCP eingeloggt** — Migrationen können direkt über MCP ausgeführt werden (kein PAT nötig). OAuth-Client in `~/.claude/.credentials.json` (`mcpOAuth → supabase|bcbe8046d2c9a4fd`).
 
 ### MCP Server (N8N + Supabase)
 
