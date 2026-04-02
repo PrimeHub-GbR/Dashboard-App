@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Plus, List, LayoutGrid, GitBranch, Network, RefreshCw } from 'lucide-react'
@@ -25,6 +25,26 @@ export function AufgabenClient() {
     useAufgaben(filters)
 
   const { employees } = useEmployees({ includeGF: true })
+  const [phoneMap, setPhoneMap] = useState<Record<string, string | null>>({})
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/organisation/members')
+        if (!res.ok) return
+        const data = await res.json() as { members: Array<{ id: string; phone?: string | null }> }
+        const map: Record<string, string | null> = {}
+        data.members.forEach((m) => { map[m.id] = m.phone ?? null })
+        setPhoneMap(map)
+      } catch { /* ignore */ }
+    }
+    void load()
+  }, [])
+
+  const employeesWithPhone = (employees ?? []).map((e) => ({
+    ...e,
+    phone: phoneMap[e.id] ?? null,
+  }))
 
   const kpis = computeKPIs(tasks)
 
@@ -144,7 +164,7 @@ export function AufgabenClient() {
       <AufgabenDialog
         open={dialogOpen}
         task={selectedTask}
-        employees={employees ?? []}
+        employees={employeesWithPhone}
         defaultOrgNodeId={defaultOrgNodeId}
         onClose={() => { setDialogOpen(false); setSelectedTask(null); setDefaultOrgNodeId(null) }}
         onSave={handleSave}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMonthStats } from '@/hooks/useMonthStats'
 import { MonatsSelector } from './MonatsSelector'
 import { MitarbeiterBadge } from './MitarbeiterBadge'
@@ -9,12 +9,48 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { WhatsAppSendenButton } from '@/components/kommunikation/WhatsAppSendenButton'
+
+interface EmployeePhone {
+  id: string
+  phone?: string | null
+}
 
 export function StundenUebersicht() {
   const now = currentBerlinYearMonth()
   const [year, setYear] = useState(now.year)
   const [month, setMonth] = useState(now.month)
   const { stats, loading } = useMonthStats(year, month)
+  const [employeePhones, setEmployeePhones] = useState<EmployeePhone[]>([])
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/organisation/members')
+        if (!res.ok) return
+        const data = await res.json() as { members: EmployeePhone[] }
+        setEmployeePhones(data.members)
+      } catch { /* ignore */ }
+    }
+    void load()
+  }, [])
+
+  const getPhone = (employeeId: string) =>
+    employeePhones.find((e) => e.id === employeeId)?.phone ?? null
+
+  // Stunden-Report-Text für einen Mitarbeiter generieren
+  const buildStundenReport = (s: {
+    employee_name: string
+    net_work_minutes: number
+    target_minutes: number
+    target_hours_per_month: number
+  }) => {
+    const netH = Math.floor(s.net_work_minutes / 60)
+    const netMin = s.net_work_minutes % 60
+    const targetH = Math.floor(s.target_hours_per_month)
+    const today = new Date().toLocaleDateString('de-DE')
+    return `Hallo ${s.employee_name}, hier deine aktuellen Stunden: Dieser Monat ${netH}h${netMin > 0 ? ` ${netMin}min` : ''} von ${targetH}h Ziel. Stand: ${today}`
+  }
 
   return (
     <div className="space-y-4">
@@ -34,20 +70,21 @@ export function StundenUebersicht() {
               <TableHead className="text-right">Soll</TableHead>
               <TableHead className="text-right">Differenz</TableHead>
               <TableHead className="text-right">Buchungen</TableHead>
+              <TableHead className="w-[120px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 7 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : stats.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Keine Daten für diesen Monat.
                 </TableCell>
               </TableRow>
@@ -84,6 +121,16 @@ export function StundenUebersicht() {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {s.entry_count}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <WhatsAppSendenButton
+                        recipientId={s.employee_id}
+                        recipientName={s.employee_name}
+                        phone={getPhone(s.employee_id)}
+                        prefillText={buildStundenReport(s)}
+                        context="zeiterfassung"
+                        className="h-7 text-xs px-2"
+                      />
                     </TableCell>
                   </TableRow>
                 )

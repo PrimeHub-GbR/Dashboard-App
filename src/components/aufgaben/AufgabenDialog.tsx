@@ -19,6 +19,7 @@ import { AssigneeSelector } from './AssigneeSelector'
 import { Task, TaskPriority, TaskStatus, CreateTaskPayload } from '@/hooks/useAufgaben'
 import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
 import { AlertTriangle, Trash2 } from 'lucide-react'
+import { WhatsAppSendenButton } from '@/components/kommunikation/WhatsAppSendenButton'
 
 const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'todo',        label: 'Offen',          color: 'text-gray-600' },
@@ -33,6 +34,7 @@ interface Employee {
   name: string
   color: string
   position?: string | null
+  phone?: string | null
 }
 
 interface Props {
@@ -136,6 +138,15 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
   const isDone = task?.status === 'done'
 
   const currentStatusOption = STATUS_OPTIONS.find((s) => s.value === form.status)
+
+  // WhatsApp: ersten zugewiesenen Mitarbeiter mit Telefon ermitteln
+  const firstAssigneeWithPhone = task
+    ? employees.find((e) => task.assignees.some((a) => a.id === e.id) && !!e.phone)
+    : null
+
+  const whatsappPrefill = task && firstAssigneeWithPhone
+    ? `Hallo ${firstAssigneeWithPhone.name}, eine kurze Erinnerung: Die Aufgabe "${task.title}" ist fällig am ${task.due_date ? new Date(task.due_date).toLocaleDateString('de-DE') : '(kein Datum)'}. Bitte melde dich falls du Fragen hast.`
+    : ''
 
   return (
     <>
@@ -255,8 +266,9 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
         </div>
 
         {/* Footer: Löschen links — Status-Dropdown + Abbrechen + Speichern rechts */}
-        <div className="shrink-0 border-t pt-4 mt-2 flex items-center justify-between gap-2">
-          {/* Links: Löschen (oder Platzhalter) */}
+        <div className="shrink-0 border-t pt-4 mt-2 flex flex-wrap items-center justify-between gap-2">
+          {/* Links: Löschen + WhatsApp */}
+          <div className="flex items-center gap-2">
           {isEdit && onDelete ? (
             <Button
               type="button"
@@ -271,6 +283,19 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
           ) : (
             <span />
           )}
+          {/* WhatsApp-Erinnerung senden */}
+          {isEdit && (
+            <WhatsAppSendenButton
+              recipientId={firstAssigneeWithPhone?.id ?? null}
+              recipientName={firstAssigneeWithPhone?.name ?? null}
+              phone={firstAssigneeWithPhone?.phone ?? null}
+              prefillText={whatsappPrefill}
+              context="aufgabe"
+              contextRefId={task?.id ?? null}
+              className="shrink-0 text-xs h-8 px-2.5"
+            />
+          )}
+          </div>
 
           {/* Rechts: Status-Dropdown + Abbrechen + Speichern */}
           <div className="flex items-center gap-2">
