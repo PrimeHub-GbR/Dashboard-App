@@ -158,14 +158,17 @@ Wird **nicht** in `.env.local` gespeichert — einmalig für CLI-Operationen:
 
 1. [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) → "Generate new token"
 2. Einmalig verwenden: `SUPABASE_ACCESS_TOKEN=xxx npx supabase db push`
-3. Oder dauerhaft in Shell-Profil setzen (nicht in Projekt-Dateien)
+3. Oder dauerhaft in Shell-Profil setzen: `~/.bashrc` oder `~/.bash_profile`
 
 Nach Login: `npx supabase link --project-ref tcqdyzmhwyfamzyeyskj`
 
-### MCP Server (N8N)
+**Hinweis:** Ein Supabase MCP OAuth-Client ist in `~/.claude/.credentials.json` hinterlegt (`mcpOAuth → supabase|bcbe8046d2c9a4fd`), aber der Access Token war noch nicht eingeloggt. Login über Claude Code MCP: `/mcp` → Supabase → Authorize.
 
-Konfiguriert in `~/.claude/settings.json` (lokal, nicht in GitHub).
-Verbindet sich mit `https://n8n.primehubgbr.com` — API-Key liegt ebenfalls dort.
+### MCP Server (N8N + Supabase)
+
+- **N8N MCP:** Konfiguriert in `~/.claude/settings.json` — API-Key dort hinterlegt
+- **Supabase MCP:** OAuth-Client in `~/.claude/.credentials.json` — Login über Claude Code `/mcp`
+- Beide Dateien sind lokal, nicht in GitHub
 
 ## Build & Test Commands
 
