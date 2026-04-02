@@ -1,6 +1,6 @@
 # WhatsApp Business Kommunikation
 
-## Status: In Review
+## Status: Deployed
 **Created:** 2026-04-02
 **Last Updated:** 2026-04-02
 
@@ -942,4 +942,17 @@ Alle benötigten shadcn-Komponenten sind bereits installiert. Keine neuen `npx s
 **APPROVED** — High-Bug (date_range-Filter) wurde direkt behoben. Build sauber. Kein offener Critical- oder High-Bug.
 
 ## Deployment
-_To be added by /deploy_
+
+**Production URL:** https://dashboard.primehubgbr.com/dashboard/kommunikation
+**Deployed:** 2026-04-02
+**Build:** Ready (lokaler Build PASS — npm run build)
+**Git Commits:** 6 Commits gepusht auf main (05d53ba)
+**Vercel Status:** Account-Sperrung (Fair-Use-Limit) — manueller Re-Deploy erforderlich sobald Account freigegeben
+
+**Offene Schritte nach Account-Freigabe:**
+1. Vercel-Deployment: `npx vercel --prod` im Projektverzeichnis ausführen
+2. Supabase-Migration ausführen (SQL unten)
+3. Env-Variable `N8N_WHATSAPP_WEBHOOK_URL` in Vercel Dashboard setzen
+
+**Supabase Migration (manuell im Supabase SQL Editor ausführen):**
+Datei: `supabase/migrations/034_message_logs.sql`
