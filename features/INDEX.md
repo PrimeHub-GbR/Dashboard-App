@@ -77,6 +77,12 @@
 |---------|--------|------|
 | Mitarbeiter-Kontaktfelder + Dokumente-API | Deployed | — |
 
+## Kommunikation `/dashboard/kommunikation`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| WhatsApp Business — Hub + Kontext-Buttons + Versandhistorie | Planned | [kommunikation/whatsapp.md](kommunikation/whatsapp.md) |
+
 ---
 
 ## Neues Feature anlegen

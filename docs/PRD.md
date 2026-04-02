@@ -27,6 +27,7 @@ Zentrales Operations-Dashboard für ein E-Commerce-Unternehmen. Das Dashboard er
 | P0 (MVP) | N8N Workflow Hub — Datei-Upload + Verarbeitung + Download | PROJ-1 | Deployed |
 | P0 (MVP) | Bestellungs-Viewer — Google Drive → Supabase → Excel-Ansicht | PROJ-2 | Planned |
 | P1 | Preisdatenbank — Sellerboard SKU/ASIN + Repricer Status | PROJ-3 | Planned |
+| P1 | WhatsApp Business Kommunikation — Hub + Kontext-Buttons + Versandhistorie | PROJ-6 | Planned |
 
 ## Success Metrics
 
