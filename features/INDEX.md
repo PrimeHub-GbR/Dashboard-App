@@ -81,7 +81,7 @@
 
 | Feature | Status | Spec |
 |---------|--------|------|
-| WhatsApp Business — Hub + Kontext-Buttons + Versandhistorie | Planned | [kommunikation/whatsapp.md](kommunikation/whatsapp.md) |
+| WhatsApp Business — Hub + Kontext-Buttons + Versandhistorie | In Progress | [kommunikation/whatsapp.md](kommunikation/whatsapp.md) |
 
 ---
 
