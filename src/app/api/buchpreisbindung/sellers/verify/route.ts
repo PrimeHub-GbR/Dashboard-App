@@ -26,13 +26,17 @@ export async function POST(request: NextRequest) {
     }
 
     const { seller_id } = parsed.data
-    const url = `https://www.amazon.de/s?me=${encodeURIComponent(seller_id)}&i=stripbooks`
+    // Seller profile page works for ALL valid sellers, even those with no active listings.
+    // The old search URL (/s?me=...&i=stripbooks) returned "no results" when the seller
+    // had no books listed at that moment, causing false negatives.
+    const profileUrl = `https://www.amazon.de/sp?seller=${encodeURIComponent(seller_id)}`
 
     let exists = false
     let seller_name: string | null = null
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(profileUrl, {
+        redirect: 'follow',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           'Accept-Language': 'de-DE,de;q=0.9',
@@ -43,21 +47,43 @@ export async function POST(request: NextRequest) {
 
       if (response.ok) {
         const html = await response.text()
-        // Check if results exist (Amazon shows "no results" for invalid/inactive sellers)
-        exists = !html.includes('Keine Ergebnisse für') &&
-                 !html.includes('did not match any products') &&
-                 (html.includes('s-result-item') || html.includes('data-asin'))
 
-        // Try to extract seller name from page
-        const nameMatch = html.match(/class="[^"]*s-breadcrumb[^"]*"[^>]*>[\s\S]*?<span[^>]*>([^<]{3,80})<\/span>/)
-          ?? html.match(/"sellerName"\s*:\s*"([^"]{2,80})"/)
-          ?? html.match(/Verkäufer:\s*([A-Za-z0-9\-\s]{2,60})(?:<|,)/)
-        if (nameMatch?.[1]) {
-          seller_name = nameMatch[1].trim()
+        // CAPTCHA detection
+        const isCaptcha = html.includes('Enter the characters you see below') ||
+                          html.includes('Geben Sie die Zeichen ein') ||
+                          html.includes('api-services-support.amazon.com')
+
+        if (isCaptcha) {
+          return NextResponse.json({
+            exists: null,
+            seller_name: null,
+            message: 'Amazon-Verifikation nicht möglich (CAPTCHA). Bitte Seller-ID manuell auf amazon.de prüfen.',
+          })
+        }
+
+        // A valid seller profile page contains these markers.
+        // Invalid IDs get redirected to the homepage (no "seller=" in final URL).
+        const finalUrlHasSeller = response.url.includes('seller=')
+        const hasProfileMarker = html.includes('Verkäuferprofilseite') ||
+                                 html.includes('seller-profile') ||
+                                 html.includes('feedback-summary')
+
+        exists = finalUrlHasSeller && hasProfileMarker
+
+        if (exists) {
+          // Title format: "Buch_Service : Amazon-Verkäuferprofilseite" or "Buch_Service: ..."
+          const titleMatch = html.match(/<title[^>]*>([^<:]{2,80})\s*[:|]/i)
+          if (titleMatch?.[1]) {
+            seller_name = titleMatch[1].trim()
+          } else {
+            // Fallback: JSON-LD or sellerName in page data
+            const jsonMatch = html.match(/"sellerName"\s*:\s*"([^"]{2,80})"/)
+            if (jsonMatch?.[1]) seller_name = jsonMatch[1].trim()
+          }
         }
       }
     } catch {
-      // Network error or timeout — return format-valid but unverified
+      // Network error or timeout
       return NextResponse.json({
         exists: null,
         seller_name: null,
