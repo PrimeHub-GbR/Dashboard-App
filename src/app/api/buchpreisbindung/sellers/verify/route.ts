@@ -71,14 +71,37 @@ export async function POST(request: NextRequest) {
         exists = finalUrlHasSeller && hasProfileMarker
 
         if (exists) {
-          // Title format: "Buch_Service : Amazon-Verkäuferprofilseite" or "Buch_Service: ..."
-          const titleMatch = html.match(/<title[^>]*>([^<:]{2,80})\s*[:|]/i)
-          if (titleMatch?.[1]) {
-            seller_name = titleMatch[1].trim()
-          } else {
-            // Fallback: JSON-LD or sellerName in page data
+          // Try multiple patterns — Amazon page structure varies
+          // 1. Page title: "Buch_Service : Amazon-Verkäuferprofilseite"
+          const titleMatch = html.match(/<title[^>]*>\s*([^<]{2,80?}?)\s*[:|]/)
+          if (titleMatch?.[1]) seller_name = titleMatch[1].trim()
+
+          // 2. Seller name in H1 or store heading
+          if (!seller_name) {
+            const h1Match = html.match(/<h1[^>]*>\s*([^<]{2,80})\s*<\/h1>/i)
+            if (h1Match?.[1]) seller_name = h1Match[1].trim()
+          }
+
+          // 3. Embedded JSON: "sellerName":"Buch_Service"
+          if (!seller_name) {
             const jsonMatch = html.match(/"sellerName"\s*:\s*"([^"]{2,80})"/)
+              ?? html.match(/"storeName"\s*:\s*"([^"]{2,80})"/)
             if (jsonMatch?.[1]) seller_name = jsonMatch[1].trim()
+          }
+
+          // 4. span#sellerName or similar element
+          if (!seller_name) {
+            const spanMatch = html.match(/id=["']sellerName["'][^>]*>\s*([^<]{2,80})\s*</)
+              ?? html.match(/class=["'][^"']*store-name[^"']*["'][^>]*>\s*([^<]{2,80})\s*</)
+            if (spanMatch?.[1]) seller_name = spanMatch[1].trim()
+          }
+
+          // 5. Meta description: often "Entdecke das Sortiment von Buch_Service ..."
+          if (!seller_name) {
+            const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']{2,100})/)
+              ?? html.match(/<meta[^>]*content=["']([^"']{2,100})[^>]*name=["']description["']/)
+            const desc = metaMatch?.[1]?.trim()
+            if (desc && !desc.startsWith('Amazon')) seller_name = desc.split(/[:\-–]/)[0].trim() || null
           }
         }
       }
