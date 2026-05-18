@@ -122,17 +122,17 @@ export function useRuns(sellerId: string | null) {
     fetch_()
   }, [sellerId, fetch_])
 
-  // Poll every 4s if any run is in 'running' state
+  // Poll every 2s while running, stop when done
   useEffect(() => {
     const hasRunning = runs.some(r => r.status === 'running')
     if (hasRunning && !pollingRef.current) {
-      pollingRef.current = setInterval(fetch_, 4000)
+      pollingRef.current = setInterval(fetch_, 2000)
     } else if (!hasRunning && pollingRef.current) {
       clearInterval(pollingRef.current)
       pollingRef.current = null
     }
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
     }
   }, [runs, fetch_])
 

@@ -1,12 +1,90 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Loader2, ExternalLink, CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react'
+import { Loader2, ExternalLink, CheckCircle2, XCircle, AlertCircle, Clock, TriangleAlert } from 'lucide-react'
 import type { BuchpreischeckRun, BuchpreischeckItem } from '@/hooks/useBuchpreisbindung'
+
+function useElapsedSeconds(startedAt: string | null, active: boolean) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!active || !startedAt) { setElapsed(0); return }
+    const start = new Date(startedAt).getTime()
+    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [startedAt, active])
+  return elapsed
+}
+
+function formatElapsed(s: number) {
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+function RunningProgress({ run }: { run: BuchpreischeckRun }) {
+  const elapsed = useElapsedSeconds(run.started_at, true)
+  const TIMEOUT_S = 360 // 6 Minuten — danach Crash-Warnung
+
+  const phase = elapsed < 20
+    ? 'Amazon-Schaufenster wird geladen…'
+    : elapsed < 50
+    ? 'Bücher & ISBNs werden extrahiert…'
+    : elapsed < 120
+    ? 'VLB-Preise werden abgefragt…'
+    : elapsed < 240
+    ? 'Preisvergleich läuft…'
+    : 'Ergebnisse werden exportiert…'
+
+  // Indeterminate progress — läuft bis 95 % in ~240 s, bleibt dann stehen
+  const progress = Math.min(95, Math.round((elapsed / 240) * 95))
+  const mayCrashed = elapsed > TIMEOUT_S
+
+  return (
+    <div className="py-6 space-y-4">
+      {mayCrashed ? (
+        <div className="flex items-center gap-2 rounded-lg bg-orange-500/10 border border-orange-500/20 px-4 py-3">
+          <TriangleAlert className="h-4 w-4 text-orange-400 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-orange-300">Möglicherweise abgestürzt</p>
+            <p className="text-xs text-orange-400/70 mt-0.5">
+              Läuft seit {formatElapsed(elapsed)} — normalerweise fertig in &lt; 4 Min.
+              Prüfe den N8N-Workflow auf Fehler.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-center gap-3 text-blue-400">
+          <Loader2 className="h-5 w-5 animate-spin shrink-0" />
+          <div>
+            <p className="text-sm font-medium">{phase}</p>
+            <p className="text-xs text-blue-400/60 mt-0.5">Läuft seit {formatElapsed(elapsed)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <div className="w-full h-1.5 rounded-full bg-white/8 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-1000 ${mayCrashed ? 'bg-orange-500/60' : 'bg-blue-500'}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <div className="flex justify-between text-[11px] text-white/30 px-0.5">
+        <span>Amazon</span>
+        <span>VLB-Abfrage</span>
+        <span>Vergleich</span>
+        <span>Export</span>
+      </div>
+    </div>
+  )
+}
 
 interface Props {
   runs: BuchpreischeckRun[]
@@ -73,6 +151,11 @@ export function LastRunSection({ runs, items, isLoading, selectedSellerId }: Pro
             <div className="flex items-center gap-3 text-xs text-white/40">
               <RunStatusBadge status={displayRun.status} />
               <span>{new Date(displayRun.started_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</span>
+              {displayRun.completed_at && (
+                <span className="text-white/25">
+                  {Math.round((new Date(displayRun.completed_at).getTime() - new Date(displayRun.started_at).getTime()) / 1000)}s
+                </span>
+              )}
               {displayRun.total_items != null && (
                 <span>{displayRun.total_items} Titel</span>
               )}
@@ -98,10 +181,7 @@ export function LastRunSection({ runs, items, isLoading, selectedSellerId }: Pro
         )}
 
         {displayRun?.status === 'running' && (
-          <div className="flex items-center justify-center py-10 gap-2 text-blue-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Prüfung läuft — Amazon und VLB werden abgefragt…</span>
-          </div>
+          <RunningProgress run={displayRun} />
         )}
 
         {displayRun?.status === 'failed' && (

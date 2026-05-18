@@ -25,7 +25,8 @@ export function BuchpreisbindungClient() {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? 'Fehler beim Starten')
-    // Refresh runs to show the new running state
+    // Auto-select seller so progress is immediately visible
+    setSelectedSellerId(sellerDbId)
     await refetchRuns()
   }
 
