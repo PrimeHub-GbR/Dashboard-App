@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
-  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight, CheckSquare, Building2, MessageCircle,
+  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight, CheckSquare, Building2, MessageCircle, BookCheck,
 } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/client'
@@ -78,6 +78,12 @@ const navItems = [
     desc: 'Team · Hierarchie · Stammdaten',
     href: '/dashboard/organisation',
     icon: Building2,
+  },
+  {
+    label: 'Buchpreisbindung',
+    desc: 'Preiskonformität · Amazon · VLB',
+    href: '/dashboard/buchpreisbindung',
+    icon: BookCheck,
   },
 ]
 

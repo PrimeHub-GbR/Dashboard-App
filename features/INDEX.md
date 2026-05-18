@@ -83,6 +83,12 @@
 |---------|--------|------|
 | WhatsApp Business — Hub + Kontext-Buttons + Versandhistorie | Deployed | [kommunikation/whatsapp.md](kommunikation/whatsapp.md) |
 
+## Buchpreisbindung `/dashboard/buchpreisbindung`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Buchpreisbindungs-Prüfung — Amazon-Scraping + VLB-Abgleich + Excel-Archiv | In Progress | [buchpreisbindung/overview.md](buchpreisbindung/overview.md) |
+
 ---
 
 ## Neues Feature anlegen
