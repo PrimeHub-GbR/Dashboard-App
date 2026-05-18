@@ -87,7 +87,7 @@
 
 | Feature | Status | Spec |
 |---------|--------|------|
-| Buchpreisbindungs-Prüfung — Amazon-Scraping + VLB-Abgleich + Excel-Archiv | In Progress | [buchpreisbindung/overview.md](buchpreisbindung/overview.md) |
+| Buchpreisbindungs-Prüfung — Amazon-Scraping + VLB-Abgleich + Excel-Archiv | Deployed | [buchpreisbindung/overview.md](buchpreisbindung/overview.md) |
 
 ---
 

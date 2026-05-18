@@ -1,6 +1,6 @@
 # Buchpreisbindung-Prüfung
 
-**Status:** In Progress  
+**Status:** Deployed  
 **Tab:** `/dashboard/buchpreisbindung`  
 **Erstellt:** 2026-05-18  
 
