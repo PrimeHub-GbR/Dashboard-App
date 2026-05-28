@@ -240,7 +240,9 @@ export function ZeitKorrektur() {
                       {e.note ?? '—'}
                     </TableCell>
                     <TableCell>
-                      {e.corrected_at ? (
+                      {e.needs_review ? (
+                        <Badge variant="destructive" className="text-xs">Kontrolle offen</Badge>
+                      ) : e.corrected_at ? (
                         <Badge variant="outline" className="text-xs">Korrigiert</Badge>
                       ) : grossMinutes !== null && grossMinutes > 0 ? (
                         <span className="text-xs text-muted-foreground">{formatDuration(grossMinutes)}</span>

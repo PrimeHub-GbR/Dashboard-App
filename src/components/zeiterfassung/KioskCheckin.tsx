@@ -1,9 +1,9 @@
 'use client'
 
 import { useKioskCheckin } from '@/hooks/useKioskCheckin'
-import { formatTimeBerlin, formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
+import { formatTimeBerlin, formatDuration, formatDateBerlin, formatDateTimeBerlin, berlinDateTimeToUtcISO, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { Employee, KioskCheckinResult } from '@/lib/zeiterfassung/types'
-import { CheckCircle, LogIn, LogOut, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X } from 'lucide-react'
+import { CheckCircle, LogIn, LogOut, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X, Plus, Minus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
@@ -458,6 +458,136 @@ function PresenceBadge({ checkedIn }: { checkedIn: boolean }) {
   )
 }
 
+function ForgotCheckoutView({
+  employee,
+  forgotEntry,
+  onResolve,
+  onCancel,
+  loading,
+  error,
+}: {
+  employee: Pick<Employee, 'id' | 'name' | 'color'>
+  forgotEntry: { id: string; checked_in_at: string; max_hours: number }
+  onResolve: (actualCheckoutISO: string, startNewShift: boolean) => void
+  onCancel: () => void
+  loading: boolean
+  error: string | null
+}) {
+  const checkinYMD = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
+    new Date(forgotEntry.checked_in_at)
+  )
+  const nowInit = new Date()
+  const [hours, setHours] = useState(nowInit.getHours())
+  const [minutes, setMinutes] = useState(Math.floor(nowInit.getMinutes() / 5) * 5)
+  const [acknowledged, setAcknowledged] = useState(false)
+
+  const candidateISO = berlinDateTimeToUtcISO(checkinYMD, hours, minutes)
+  const candidateMs = new Date(candidateISO).getTime()
+  const checkedInMs = new Date(forgotEntry.checked_in_at).getTime()
+  const isAfterCheckin = candidateMs > checkedInMs
+  const isNotFuture = candidateMs <= Date.now()
+  const timeValid = isAfterCheckin && isNotFuture
+  const canConfirm = timeValid && acknowledged && !loading
+
+  function adjustHour(d: number) { setHours(h => (h + d + 24) % 24) }
+  function adjustMinute(d: number) {
+    setMinutes(m => {
+      const nm = m + d
+      if (nm >= 60) return 0
+      if (nm < 0) return 55
+      return nm
+    })
+  }
+
+  const stepBtn = 'w-14 h-14 rounded-xl bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center active:scale-95 transition-all disabled:opacity-40'
+
+  return (
+    <div className="flex flex-col items-center gap-6 max-w-md mx-auto px-4 w-full text-center">
+      <div className="w-16 h-16 rounded-full flex items-center justify-center bg-yellow-500/20">
+        <AlertTriangle className="w-8 h-8 text-yellow-400" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-white">Vergessene Abmeldung</h2>
+        <p className="text-gray-400 mt-2 text-sm">
+          {employee.name}, du warst seit{' '}
+          <span className="text-white font-medium">{formatDateTimeBerlin(forgotEntry.checked_in_at)}</span>{' '}
+          eingestempelt — das sind über {forgotEntry.max_hours}h.
+        </p>
+        <p className="text-gray-300 mt-3 text-sm font-medium">
+          Hast du vergessen, dich abzumelden? Bis wann hast du am{' '}
+          {formatDateBerlin(forgotEntry.checked_in_at)} gearbeitet?
+        </p>
+      </div>
+
+      {/* Zeit-Stepper (HH:MM) */}
+      <div className="flex items-center gap-4 bg-gray-900 rounded-2xl px-6 py-5">
+        <div className="flex flex-col items-center gap-3">
+          <button onClick={() => adjustHour(1)} disabled={loading} className={stepBtn}><Plus className="w-6 h-6" /></button>
+          <span className="text-5xl font-bold text-white tabular-nums w-20 text-center">{String(hours).padStart(2, '0')}</span>
+          <button onClick={() => adjustHour(-1)} disabled={loading} className={stepBtn}><Minus className="w-6 h-6" /></button>
+        </div>
+        <span className="text-5xl font-bold text-gray-600 pb-1">:</span>
+        <div className="flex flex-col items-center gap-3">
+          <button onClick={() => adjustMinute(5)} disabled={loading} className={stepBtn}><Plus className="w-6 h-6" /></button>
+          <span className="text-5xl font-bold text-white tabular-nums w-20 text-center">{String(minutes).padStart(2, '0')}</span>
+          <button onClick={() => adjustMinute(-5)} disabled={loading} className={stepBtn}><Minus className="w-6 h-6" /></button>
+        </div>
+      </div>
+
+      {!timeValid && (
+        <p className="text-red-400 text-sm">
+          {!isAfterCheckin ? 'Endzeit muss nach dem Check-in liegen.' : 'Endzeit darf nicht in der Zukunft liegen.'}
+        </p>
+      )}
+
+      {/* Kenntnisnahme */}
+      <button
+        onClick={() => setAcknowledged(a => !a)}
+        disabled={loading}
+        className="flex items-start gap-3 text-left w-full bg-gray-900 rounded-xl px-4 py-3 active:scale-[0.99] transition-transform disabled:opacity-40"
+      >
+        <div className={`w-7 h-7 rounded-md border-2 shrink-0 flex items-center justify-center mt-0.5 ${acknowledged ? 'bg-green-500 border-green-500' : 'border-gray-600'}`}>
+          {acknowledged && <CheckCircle className="w-5 h-5 text-white" strokeWidth={2.5} />}
+        </div>
+        <span className="text-sm text-gray-300">
+          Mir ist bewusst, dass ich mich künftig korrekt abmelden muss. Die Zeit wird zur Kontrolle an die Verwaltung gemeldet.
+        </span>
+      </button>
+
+      {error && (
+        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 px-4 py-2 rounded-lg w-full justify-center">
+          <AlertTriangle className="w-4 h-4 shrink-0" />{error}
+        </div>
+      )}
+
+      <div className="w-full flex flex-col gap-3">
+        <button
+          onClick={() => onResolve(candidateISO, true)}
+          disabled={!canConfirm}
+          className="w-full rounded-2xl py-4 text-white font-semibold text-lg active:scale-95 transition-all disabled:opacity-40"
+          style={{ backgroundColor: employee.color }}
+        >
+          Bestätigen & jetzt einstempeln
+        </button>
+        <button
+          onClick={() => onResolve(candidateISO, false)}
+          disabled={!canConfirm}
+          className="text-gray-400 text-sm hover:text-gray-200 disabled:opacity-40"
+        >
+          Nur korrigieren, nicht einstempeln
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={loading}
+          className="text-gray-600 text-sm hover:text-gray-400 disabled:opacity-40"
+        >
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface Props {
   employees: (Pick<Employee, 'id' | 'name' | 'color'> & { pin_is_set: boolean; position: string; is_checked_in: boolean })[]
 }
@@ -472,12 +602,14 @@ export function KioskCheckin({ employees }: Props) {
     error,
     loading,
     personalViewSeconds,
+    forgotEntry,
     selectEmployee,
     appendDigit,
     deleteDigit,
     backToSetPin,
     startChangePin,
     backToChangeNew,
+    submitResolve,
     reset,
   } = useKioskCheckin({ onReset: () => router.refresh() })
 
@@ -500,6 +632,19 @@ export function KioskCheckin({ employees }: Props) {
         result={result}
         onExit={reset}
         personalViewSeconds={personalViewSeconds}
+      />
+    )
+  }
+
+  if (step === 'forgot_checkout' && selectedEmployee && forgotEntry) {
+    return (
+      <ForgotCheckoutView
+        employee={selectedEmployee}
+        forgotEntry={forgotEntry}
+        onResolve={submitResolve}
+        onCancel={reset}
+        loading={loading}
+        error={error}
       />
     )
   }

@@ -40,6 +40,7 @@ export interface TimeEntry {
   note: string | null
   corrected_by: string | null
   corrected_at: string | null
+  needs_review: boolean
   created_at: string
   updated_at: string
   // Joined
@@ -63,6 +64,7 @@ export interface TimeTrackingSettings {
   id: string
   overtime_threshold_hours: number
   break_trigger_hours: number
+  max_shift_hours: number
   n8n_webhook_url: string | null
   notification_enabled: boolean
   kiosk_pin_length: number
@@ -104,4 +106,16 @@ export interface KioskCheckinResult {
   break_minutes?: number
   net_minutes?: number
   auth_method?: 'pin' | 'fingerprint'
+}
+
+/**
+ * Antwort der Toggle-Route, wenn eine offene Buchung als "vergessene Abmeldung" erkannt wird.
+ * Der Kiosk zeigt dann den Korrektur-Dialog statt regulär auszustempeln.
+ */
+export interface ForgotCheckoutResponse {
+  type: 'forgot_checkout'
+  open_entry: { id: string; checked_in_at: string }
+  max_hours: number
+  employee_name: string
+  employee_color: string
 }

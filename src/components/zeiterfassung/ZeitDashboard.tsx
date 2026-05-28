@@ -1,17 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useZeitDashboard } from '@/hooks/useZeitDashboard'
+import { useZeitDashboard, type ReviewCase } from '@/hooks/useZeitDashboard'
 import { useEmployees } from '@/hooks/useEmployees'
 import { MonatsSelector } from './MonatsSelector'
 import { MitarbeiterChart } from './MitarbeiterChart'
-import { formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
+import { formatDuration, formatDateTimeBerlin, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Clock, Users, TrendingUp, TrendingDown, Minus, AlertTriangle, LogOut, Calendar, Package } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { MitarbeiterBadge } from './MitarbeiterBadge'
+import { toast } from 'sonner'
 import { useMonthStats } from '@/hooks/useMonthStats'
 import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -211,8 +214,29 @@ export function ZeitDashboard() {
       .catch(() => {})
   }, [])
 
-  const { data, loading } = useZeitDashboard(year, month)
+  const { data, loading, refresh } = useZeitDashboard(year, month)
   const { employees: allEmployees } = useEmployees()
+
+  const reviewCases = (data?.review_cases ?? []) as ReviewCase[]
+  const [markingId, setMarkingId] = useState<string | null>(null)
+
+  async function markReviewed(id: string) {
+    setMarkingId(id)
+    try {
+      const res = await fetch(`/api/zeiterfassung/entries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ needs_review: false }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Als kontrolliert markiert')
+      await refresh()
+    } catch {
+      toast.error('Konnte nicht als kontrolliert markiert werden')
+    } finally {
+      setMarkingId(null)
+    }
+  }
 
   const daily = (data?.daily ?? []) as DailyRow[]
   const monthData = (data?.month ?? []) as MonthRow[]
@@ -254,6 +278,48 @@ export function ZeitDashboard() {
         </div>
         <MonatsSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m) }} />
       </div>
+
+      {/* Kontroll-Banner: vergessene Abmeldungen / 10h-Überschreitungen */}
+      {reviewCases.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{reviewCases.length} Zeiteinträge brauchen Kontrolle</AlertTitle>
+          <AlertDescription>
+            <div className="mt-2 space-y-2 w-full">
+              {reviewCases.slice(0, 5).map(c => (
+                <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {c.employees
+                      ? <MitarbeiterBadge name={c.employees.name} color={c.employees.color} size="sm" />
+                      : <span className="text-muted-foreground">Unbekannt</span>}
+                    <span className="text-muted-foreground truncate">
+                      {c.status === 'open_stale'
+                        ? `Offen seit ${formatDateTimeBerlin(c.checked_in_at)} — keine Abmeldung`
+                        : `Korrigiert (${c.checked_out_at ? formatDateTimeBerlin(c.checked_out_at) : '—'}) — Kontrolle offen`}
+                    </span>
+                  </div>
+                  {c.status === 'needs_review' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={markingId === c.id}
+                      onClick={() => markReviewed(c.id)}
+                    >
+                      Als kontrolliert markieren
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {reviewCases.length > 5 && (
+                <p className="text-xs text-muted-foreground">+{reviewCases.length - 5} weitere — Details im Tab „Stempelzeiten".</p>
+              )}
+              <p className="text-xs text-muted-foreground pt-1">
+                Offene Fälle korrigierst du im Tab „Stempelzeiten" (Eintrag bearbeiten).
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* KPI-Karten */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

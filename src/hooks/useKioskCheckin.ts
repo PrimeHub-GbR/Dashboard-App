@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { KioskCheckinResult, Employee } from '@/lib/zeiterfassung/types'
+import type { KioskCheckinResult, ForgotCheckoutResponse, Employee } from '@/lib/zeiterfassung/types'
 
 export type KioskStep =
   | 'select'
@@ -14,6 +14,13 @@ export type KioskStep =
   | 'change_pin_new'
   | 'change_pin_confirm'
   | 'change_pin_success'
+  | 'forgot_checkout'
+
+interface ForgotEntry {
+  id: string
+  checked_in_at: string
+  max_hours: number
+}
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
 const PERSONAL_VIEW_SECONDS = 30
@@ -29,6 +36,7 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
   const [firstPin, setFirstPin] = useState('') // gespeicherte erste PIN-Eingabe beim Set-PIN-Flow
   const [changeOldPin, setChangeOldPin] = useState('') // alte PIN beim PIN-ändern-Flow
   const [changeNewPin, setChangeNewPin] = useState('') // neue PIN beim PIN-ändern-Flow
+  const [forgotEntry, setForgotEntry] = useState<ForgotEntry | null>(null) // vergessene Abmeldung
   const [result, setResult] = useState<KioskCheckinResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -53,6 +61,11 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
   const changeNewPinRef = useRef(changeNewPin)
   useEffect(() => { changeNewPinRef.current = changeNewPin }, [changeNewPin])
 
+  // Refs für vergessene Abmeldung (forgotEntry + kurzlebige PIN, nie ins DOM)
+  const forgotEntryRef = useRef(forgotEntry)
+  useEffect(() => { forgotEntryRef.current = forgotEntry }, [forgotEntry])
+  const resolvePinRef = useRef('')
+
   // Ref für onReset-Callback (gegen Stale-Closures)
   const onResetRef = useRef(opts?.onReset)
   useEffect(() => { onResetRef.current = opts?.onReset }, [opts?.onReset])
@@ -64,6 +77,8 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
     setFirstPin('')
     setChangeOldPin('')
     setChangeNewPin('')
+    setForgotEntry(null)
+    resolvePinRef.current = ''
     setResult(null)
     setError(null)
     setLoading(false)
@@ -89,7 +104,7 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
         body: JSON.stringify({ employee_id: employee.id, pin: pinValue }),
       })
 
-      const json = await res.json() as KioskCheckinResult & { error?: string }
+      const json = await res.json() as (KioskCheckinResult | ForgotCheckoutResponse) & { error?: string }
 
       if (res.status === 428 && json.error === 'PIN_NOT_SET') {
         // PIN noch nicht gesetzt → in Set-PIN-Flow wechseln
@@ -105,6 +120,21 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
         setError(json.error ?? 'Unbekannter Fehler')
         setPin('')
         submitting.current = false
+        return
+      }
+
+      // Vergessene Abmeldung erkannt → Korrektur-Dialog statt regulärem Checkout
+      if (json.type === 'forgot_checkout') {
+        setForgotEntry({
+          id: json.open_entry.id,
+          checked_in_at: json.open_entry.checked_in_at,
+          max_hours: json.max_hours,
+        })
+        resolvePinRef.current = pinValue
+        setPin('')
+        setStep('forgot_checkout')
+        submitting.current = false
+        setLoading(false)
         return
       }
 
@@ -242,6 +272,55 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
     }
   }, [])
 
+  // Vergessene Abmeldung auflösen: echte Endzeit nachtragen, dann ggf. neu einstempeln
+  const submitResolve = useCallback(async (actualCheckoutISO: string, startNewShift: boolean) => {
+    const employee = employeeRef.current
+    const entry = forgotEntryRef.current
+    if (!employee || !entry || submitting.current) return
+    submitting.current = true
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/zeiterfassung/resolve-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-kiosk-token': KIOSK_TOKEN,
+        },
+        body: JSON.stringify({
+          employee_id: employee.id,
+          pin: resolvePinRef.current,
+          entry_id: entry.id,
+          actual_checkout: actualCheckoutISO,
+          acknowledged: true,
+          start_new_shift: startNewShift,
+        }),
+      })
+
+      const json = await res.json() as KioskCheckinResult & { error?: string }
+
+      if (!res.ok) {
+        setError(json.error ?? 'Korrektur fehlgeschlagen')
+        submitting.current = false
+        setLoading(false)
+        return
+      }
+
+      resolvePinRef.current = ''
+      setForgotEntry(null)
+      setResult(json)
+      setStep('success')
+      submitting.current = false
+      setLoading(false)
+      setTimeout(() => setStep('personal'), 5000)
+    } catch {
+      setError('Verbindungsfehler — bitte erneut versuchen')
+      submitting.current = false
+      setLoading(false)
+    }
+  }, [])
+
   // Refs auf aktuelle Versionen
   const submitRef = useRef(submitWithPin)
   useEffect(() => { submitRef.current = submitWithPin }, [submitWithPin])
@@ -347,6 +426,7 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
     result,
     error,
     loading,
+    forgotEntry,
     personalViewSeconds: PERSONAL_VIEW_SECONDS,
     selectEmployee,
     appendDigit,
@@ -354,6 +434,7 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
     backToSetPin,
     startChangePin,
     backToChangeNew,
+    submitResolve,
     reset: resetFull,
   }
 }

@@ -77,6 +77,21 @@ function berlinToUtc(localDate: Date): Date {
   return new Date(utcMs + offset)
 }
 
+/**
+ * Wandelt ein Datum (Berlin, Format "YYYY-MM-DD") + Stunde/Minute (Berlin-Ortszeit)
+ * in einen UTC-ISO-String um. DST-sicher über denselben Offset-Trick wie berlinToUtc.
+ */
+export function berlinDateTimeToUtcISO(
+  berlinYMD: string,
+  hours: number,
+  minutes: number
+): string {
+  const [y, m, d] = berlinYMD.split('-').map(Number)
+  // localDate als Berlin-Ortszeit interpretieren
+  const localDate = new Date(y, m - 1, d, hours, minutes, 0)
+  return berlinToUtc(localDate).toISOString()
+}
+
 /** Aktuelles Jahr und Monat in Berlin-Zeit */
 export function currentBerlinYearMonth(): { year: number; month: number } {
   const now = nowInBerlin()

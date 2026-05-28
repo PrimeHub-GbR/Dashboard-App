@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   let query = service
     .from('time_entries')
     .select(
-      `id, employee_id, checked_in_at, checked_out_at, break_minutes, note, corrected_by, corrected_at, created_at,
+      `id, employee_id, checked_in_at, checked_out_at, break_minutes, note, corrected_by, corrected_at, needs_review, created_at,
        employees(id, name, color)`,
       { count: 'exact' }
     )

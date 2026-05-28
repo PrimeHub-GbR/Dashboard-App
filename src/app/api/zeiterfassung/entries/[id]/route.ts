@@ -7,7 +7,8 @@ const correctEntrySchema = z.object({
   checked_in_at: z.string().datetime().optional(),
   checked_out_at: z.string().datetime().nullable().optional(),
   break_minutes: z.number().int().min(0).optional(),
-  note: z.string().min(1, 'Notiz ist Pflicht').max(500),
+  note: z.string().min(1, 'Notiz ist Pflicht').max(500).optional(),
+  needs_review: z.boolean().optional(),
 })
 
 async function requireAdmin() {
@@ -46,34 +47,56 @@ export async function PATCH(
   }
 
   const service = createSupabaseServiceClient()
+  const input = parsed.data
+
+  // Echte Zeit-/Notiz-Änderung vs. reine Kontroll-Quittung ({ needs_review: false })
+  const isTimeEdit =
+    input.checked_in_at !== undefined ||
+    input.checked_out_at !== undefined ||
+    input.break_minutes !== undefined ||
+    input.note !== undefined
+  if (isTimeEdit && !input.note) {
+    return NextResponse.json({ error: 'Notiz ist Pflicht' }, { status: 400 })
+  }
+
+  const updateData: Record<string, unknown> = {}
+  if (input.checked_in_at !== undefined) updateData.checked_in_at = input.checked_in_at
+  if (input.checked_out_at !== undefined) updateData.checked_out_at = input.checked_out_at
+  if (input.break_minutes !== undefined) updateData.break_minutes = input.break_minutes
+  if (input.note !== undefined) updateData.note = input.note
+  if (input.needs_review !== undefined) updateData.needs_review = input.needs_review
 
   // Pause automatisch berechnen wenn Zeiten geändert aber break_minutes nicht explizit angegeben
-  const updateData = { ...parsed.data }
   if (updateData.break_minutes === undefined && updateData.checked_out_at) {
-    // Bestehenden Eintrag holen um check-in Zeit zu kennen
     const { data: existing } = await service
       .from('time_entries')
       .select('checked_in_at')
       .eq('id', id)
       .single()
-    const effectiveIn = updateData.checked_in_at ?? existing?.checked_in_at
-    if (effectiveIn && updateData.checked_out_at) {
+    const effectiveIn = (updateData.checked_in_at as string | undefined) ?? existing?.checked_in_at
+    if (effectiveIn) {
       const gross = Math.floor(
-        (new Date(updateData.checked_out_at).getTime() - new Date(effectiveIn).getTime()) / 60_000
+        (new Date(updateData.checked_out_at as string).getTime() - new Date(effectiveIn).getTime()) / 60_000
       )
       updateData.break_minutes = gross > 0 ? calculateBreakMinutes(gross) : 0
     }
   }
 
+  // corrected_by/at nur bei echter Korrektur stempeln, nicht bei reiner Kontroll-Quittung
+  if (isTimeEdit) {
+    updateData.corrected_by = user.id
+    updateData.corrected_at = new Date().toISOString()
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: 'Keine Änderung angegeben' }, { status: 400 })
+  }
+
   const { data, error } = await service
     .from('time_entries')
-    .update({
-      ...updateData,
-      corrected_by: user.id,
-      corrected_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('id', id)
-    .select('id, employee_id, checked_in_at, checked_out_at, break_minutes, note, corrected_at')
+    .select('id, employee_id, checked_in_at, checked_out_at, break_minutes, note, corrected_at, needs_review')
     .single()
 
   if (error) {

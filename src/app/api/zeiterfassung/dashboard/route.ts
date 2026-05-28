@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { getMaxShiftHours, isStaleOpenEntry } from '@/lib/zeiterfassung/shift-limit'
 
 const querySchema = z.object({
   year: z.coerce.number().int().min(2020).max(2100),
@@ -35,11 +36,7 @@ export async function GET(req: NextRequest) {
     p_month: month,
   })
 
-  // 3. Aktuell eingestempelt (für KPI)
-  const { count: liveCount } = await service
-    .from('time_entries')
-    .select('id', { count: 'exact', head: true })
-    .is('checked_out_at', null)
+  const maxShiftHours = await getMaxShiftHours(service)
 
   // 4. Letzte 8 Check-in/Checkout-Ereignisse (für Activity Feed)
   const { data: recentEntries } = await service
@@ -48,11 +45,19 @@ export async function GET(req: NextRequest) {
     .order('updated_at', { ascending: false })
     .limit(8)
 
-  // 5. Aktuell eingestempelt (live)
-  const { data: liveEntries } = await service
+  // 5. Alle offenen Einträge → aufteilen in "wirklich anwesend" und "stale" (vergessene Abmeldung)
+  const { data: openEntries } = await service
     .from('time_entries')
     .select('id, employee_id, checked_in_at, employees(id, name, color)')
     .is('checked_out_at', null)
+
+  const liveEntries = (openEntries ?? []).filter(
+    e => !isStaleOpenEntry(e.checked_in_at, maxShiftHours)
+  )
+  const staleEntries = (openEntries ?? []).filter(
+    e => isStaleOpenEntry(e.checked_in_at, maxShiftHours)
+  )
+  const liveCount = liveEntries.length
 
   // 6. Heutige Schichten (für geplante Ankünfte)
   const todayBerlin = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
@@ -121,6 +126,39 @@ export async function GET(req: NextRequest) {
     }
   })
 
+  // Kontroll-Fälle: korrigierte Einträge, die der Admin noch prüfen soll
+  const { data: reviewEntries } = await service
+    .from('time_entries')
+    .select('id, employee_id, checked_in_at, checked_out_at, note, corrected_at, employees(id, name, color)')
+    .eq('needs_review', true)
+    .order('corrected_at', { ascending: false })
+    .limit(50)
+
+  const review_cases = [
+    // (a) Offene Buchungen über der Schwelle — noch nicht korrigiert
+    ...staleEntries.map(e => ({
+      id: e.id,
+      status: 'open_stale' as const,
+      employee_id: e.employee_id,
+      employees: e.employees,
+      checked_in_at: e.checked_in_at,
+      checked_out_at: null,
+      note: null,
+      corrected_at: null,
+    })),
+    // (b) Korrigiert, Admin-Kontrolle ausstehend
+    ...(reviewEntries ?? []).map(e => ({
+      id: e.id,
+      status: 'needs_review' as const,
+      employee_id: e.employee_id,
+      employees: e.employees,
+      checked_in_at: e.checked_in_at,
+      checked_out_at: e.checked_out_at,
+      note: e.note,
+      corrected_at: e.corrected_at,
+    })),
+  ]
+
   return NextResponse.json({
     daily: dailyData ?? [],
     month: monthData ?? [],
@@ -129,5 +167,6 @@ export async function GET(req: NextRequest) {
     live: liveEntries ?? [],
     today_shifts: todayShifts ?? [],
     hourly: hourlyMap,
+    review_cases,
   })
 }

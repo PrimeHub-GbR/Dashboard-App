@@ -33,6 +33,17 @@ interface RecentEntry {
   employees: { id: string; name: string; color: string } | null
 }
 
+export interface ReviewCase {
+  id: string
+  status: 'open_stale' | 'needs_review'
+  employee_id: string
+  employees: { id: string; name: string; color: string } | null
+  checked_in_at: string
+  checked_out_at: string | null
+  note: string | null
+  corrected_at: string | null
+}
+
 interface DashboardData {
   daily: DailyRow[]
   month: MonthRow[]
@@ -41,6 +52,7 @@ interface DashboardData {
   live: Array<{ id: string; employee_id: string; checked_in_at: string; employees: { id: string; name: string; color: string } | null }>
   today_shifts: Array<{ id: string; employee_id: string; start_time: string; end_time: string; employees: { id: string; name: string; color: string } | null }>
   hourly: Array<{ hour: string; raw_hour: number; count: number; planned: number }>
+  review_cases: ReviewCase[]
 }
 
 export function useZeitDashboard(year?: number, month?: number) {

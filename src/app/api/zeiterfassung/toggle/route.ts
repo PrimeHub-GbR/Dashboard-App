@@ -4,6 +4,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase-server'
 import { calculateNetWorkMinutes } from '@/lib/zeiterfassung/arbzg'
 import { triggerOvertimeNotification } from '@/lib/zeiterfassung/overtime-notify'
 import { formatMonthLabel } from '@/lib/zeiterfassung/timezone'
+import { getMaxShiftHours, isStaleOpenEntry } from '@/lib/zeiterfassung/shift-limit'
 
 const toggleSchema = z.object({
   employee_id: z.string().uuid(),
@@ -86,6 +87,20 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (openEntry) {
+    // === VERGESSENE ABMELDUNG PRÜFEN ===
+    // Offene Buchung von einem früheren Tag oder älter als die Schwelle → nicht blind auf
+    // jetzt ausstempeln. Stattdessen Korrektur-Flow am Kiosk anstoßen (keine Mutation hier).
+    const maxShiftHours = await getMaxShiftHours(service)
+    if (isStaleOpenEntry(openEntry.checked_in_at, maxShiftHours)) {
+      return NextResponse.json({
+        type: 'forgot_checkout',
+        open_entry: { id: openEntry.id, checked_in_at: openEntry.checked_in_at },
+        max_hours: maxShiftHours,
+        employee_name: employee.name,
+        employee_color: employee.color,
+      })
+    }
+
     // === AUSSTEMPELN ===
     const now = new Date()
     const checkedInAt = new Date(openEntry.checked_in_at)
