@@ -9,9 +9,14 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Trash2, Play, Loader2, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BuchpreischeckSeller } from '@/hooks/useBuchpreisbindung'
+import { estimateRunCost, estimateSellerMonthlyCost, DEFAULT_EST_PAGES } from '@/lib/buchpreisbindung-cost'
 
 const INTERVAL_OPTIONS = [
   { value: 10, label: 'Alle 10 Minuten' },
@@ -33,9 +38,19 @@ const WEEKDAYS = [
   { key: 'sun', label: 'So' },
 ]
 
+type ScheduleMode = 'weekly' | 'interval'
+
 interface Props {
   sellers: BuchpreischeckSeller[]
-  onAddSeller: (payload: { amazon_seller_id: string; seller_name?: string; interval_minutes: number; active_weekdays: string[] }) => Promise<BuchpreischeckSeller>
+  onAddSeller: (payload: {
+    amazon_seller_id: string
+    seller_name?: string
+    schedule_mode: ScheduleMode
+    run_time: string
+    interval_minutes: number
+    active_weekdays: string[]
+    max_pages: number | null
+  }) => Promise<BuchpreischeckSeller>
   onUpdateSeller: (id: string, updates: Partial<BuchpreischeckSeller>) => Promise<BuchpreischeckSeller>
   onDeleteSeller: (id: string) => Promise<void>
   onRunSeller: (sellerId: string) => Promise<void>
@@ -43,16 +58,27 @@ interface Props {
   onSelectSeller: (id: string) => void
 }
 
+function fmtMB(bytes: number) {
+  return `${(bytes / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`
+}
+function fmtEUR(eur: number) {
+  return `${eur.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 3 })} €`
+}
+
 export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDeleteSeller, onRunSeller, selectedSellerId, onSelectSeller }: Props) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [sellerId, setSellerId] = useState('')
   const [verifyState, setVerifyState] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'error'>('idle')
   const [verifiedName, setVerifiedName] = useState<string | null>(null)
-  const [interval, setInterval] = useState(60)
-  const [weekdays, setWeekdays] = useState<string[]>(['mon','tue','wed','thu','fri'])
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('weekly')
+  const [runTime, setRunTime] = useState('03:00')
+  const [interval, setInterval] = useState(1440)
+  const [weekdays, setWeekdays] = useState<string[]>(['fri'])
+  const [maxPages, setMaxPages] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [runningId, setRunningId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [runConfirmSeller, setRunConfirmSeller] = useState<BuchpreischeckSeller | null>(null)
 
   async function handleVerify() {
     setVerifyState('loading')
@@ -86,22 +112,33 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
     }
   }
 
+  function resetForm() {
+    setSellerId('')
+    setVerifyState('idle')
+    setVerifiedName(null)
+    setScheduleMode('weekly')
+    setRunTime('03:00')
+    setInterval(1440)
+    setWeekdays(['fri'])
+    setMaxPages('')
+  }
+
   async function handleAdd() {
     if (!sellerId.trim()) return
     setIsSaving(true)
     try {
+      const parsedMax = maxPages.trim() === '' ? null : Math.max(1, Math.min(200, parseInt(maxPages, 10) || 0))
       await onAddSeller({
         amazon_seller_id: sellerId.trim().toUpperCase(),
         seller_name: verifiedName ?? undefined,
+        schedule_mode: scheduleMode,
+        run_time: runTime,
         interval_minutes: interval,
         active_weekdays: weekdays,
+        max_pages: parsedMax,
       })
       toast.success('Händler hinzugefügt')
-      setSellerId('')
-      setVerifyState('idle')
-      setVerifiedName(null)
-      setInterval(60)
-      setWeekdays(['mon','tue','wed','thu','fri'])
+      resetForm()
       setShowAddForm(false)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fehler')
@@ -131,10 +168,13 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
     }
   }
 
-  async function handleRun(sellerId: string) {
-    setRunningId(sellerId)
+  async function handleConfirmRun() {
+    const seller = runConfirmSeller
+    setRunConfirmSeller(null)
+    if (!seller) return
+    setRunningId(seller.id)
     try {
-      await onRunSeller(sellerId)
+      await onRunSeller(seller.id)
       toast.success('Prüfung gestartet')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fehler')
@@ -154,10 +194,15 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
   }
 
   function formatWeekdays(days: string[]) {
-    const all = WEEKDAYS.map(d => d.key)
     if (days.length === 7) return 'täglich'
-    const labels = WEEKDAYS.filter(d => days.includes(d.key)).map(d => d.label)
-    return labels.join(', ')
+    return WEEKDAYS.filter(d => days.includes(d.key)).map(d => d.label).join(', ')
+  }
+
+  function formatSchedule(seller: BuchpreischeckSeller) {
+    if (seller.schedule_mode === 'weekly') {
+      return `${formatWeekdays(seller.active_weekdays)} · ${seller.run_time} Uhr`
+    }
+    return `${formatInterval(seller.interval_minutes)} · ${formatWeekdays(seller.active_weekdays)}`
   }
 
   function formatNextRun(ts: string | null) {
@@ -166,6 +211,7 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
   }
 
   const isSellerIdValid = /^A[A-Z0-9]{13}$/.test(sellerId.trim().toUpperCase())
+  const runEstimate = runConfirmSeller ? estimateRunCost(runConfirmSeller.max_pages ?? DEFAULT_EST_PAGES) : null
 
   return (
     <Card className="bg-[#0f1e14] border-white/10">
@@ -185,7 +231,7 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
           <div className="rounded-xl border border-white/10 bg-white/4 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-white/80">Neuen Händler hinzufügen</p>
-              <button onClick={() => { setShowAddForm(false); setVerifyState('idle'); setSellerId('') }} className="text-white/30 hover:text-white/60">
+              <button onClick={() => { setShowAddForm(false); resetForm() }} className="text-white/30 hover:text-white/60">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -226,20 +272,59 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
               )}
             </div>
 
-            {/* Interval */}
+            {/* Schedule mode */}
             <div className="space-y-2">
-              <Label className="text-white/60 text-xs">Prüfintervall</Label>
-              <Select value={String(interval)} onValueChange={v => setInterval(Number(v))}>
-                <SelectTrigger className="bg-white/5 border-white/15 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {INTERVAL_OPTIONS.map(o => (
-                    <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-white/60 text-xs">Zeitplan</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setScheduleMode('weekly')}
+                  className={scheduleMode === 'weekly'
+                    ? 'flex-1 border-green-500/40 bg-green-500/10 text-green-300'
+                    : 'flex-1 border-white/15 text-white/60 hover:bg-white/8'}
+                >
+                  Wöchentlich
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setScheduleMode('interval')}
+                  className={scheduleMode === 'interval'
+                    ? 'flex-1 border-green-500/40 bg-green-500/10 text-green-300'
+                    : 'flex-1 border-white/15 text-white/60 hover:bg-white/8'}
+                >
+                  Intervall
+                </Button>
+              </div>
             </div>
+
+            {/* Time (weekly) or Interval (interval) */}
+            {scheduleMode === 'weekly' ? (
+              <div className="space-y-2">
+                <Label className="text-white/60 text-xs">Uhrzeit (Europe/Berlin)</Label>
+                <Input
+                  type="time"
+                  value={runTime}
+                  onChange={e => setRunTime(e.target.value)}
+                  className="bg-white/5 border-white/15 text-white w-36"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-white/60 text-xs">Prüfintervall</Label>
+                <Select value={String(interval)} onValueChange={v => setInterval(Number(v))}>
+                  <SelectTrigger className="bg-white/5 border-white/15 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERVAL_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Weekdays */}
             <div className="space-y-2">
@@ -256,6 +341,23 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                   </label>
                 ))}
               </div>
+            </div>
+
+            {/* Max pages */}
+            <div className="space-y-2">
+              <Label className="text-white/60 text-xs">Max. Seiten pro Lauf</Label>
+              <Input
+                type="number"
+                min={1}
+                max={200}
+                value={maxPages}
+                onChange={e => setMaxPages(e.target.value)}
+                placeholder="leer = alle Seiten"
+                className="bg-white/5 border-white/15 text-white placeholder:text-white/25 w-44"
+              />
+              <p className="text-[11px] text-white/35">
+                Mehr Seiten = vollständiger, aber mehr Proxy-Datenvolumen. Leer lassen für alle Seiten.
+              </p>
             </div>
 
             <Button
@@ -276,83 +378,126 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
           </p>
         )}
 
-        {sellers.map(seller => (
-          <div
-            key={seller.id}
-            onClick={() => onSelectSeller(seller.id)}
-            className={`rounded-xl border p-3 cursor-pointer transition-all ${
-              selectedSellerId === seller.id
-                ? 'border-green-500/40 bg-green-500/8'
-                : 'border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-white font-mono">{seller.amazon_seller_id}</span>
-                  {seller.seller_name && (
-                    <span className="text-xs text-white/50">— {seller.seller_name}</span>
-                  )}
-                  <Badge
-                    variant="outline"
-                    className={seller.is_active
-                      ? 'border-green-500/30 text-green-400 text-[10px]'
-                      : 'border-white/15 text-white/35 text-[10px]'}
+        {sellers.map(seller => {
+          const monthly = estimateSellerMonthlyCost(seller)
+          return (
+            <div
+              key={seller.id}
+              onClick={() => onSelectSeller(seller.id)}
+              className={`rounded-xl border p-3 cursor-pointer transition-all ${
+                selectedSellerId === seller.id
+                  ? 'border-green-500/40 bg-green-500/8'
+                  : 'border-white/8 bg-white/3 hover:border-white/15 hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-white font-mono">{seller.amazon_seller_id}</span>
+                    {seller.seller_name && (
+                      <span className="text-xs text-white/50">— {seller.seller_name}</span>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={seller.is_active
+                        ? 'border-green-500/30 text-green-400 text-[10px]'
+                        : 'border-white/15 text-white/35 text-[10px]'}
+                    >
+                      {seller.is_active ? 'Aktiv' : 'Inaktiv'}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span className="text-[11px] text-white/40">{formatSchedule(seller)}</span>
+                    <span className="text-[11px] text-white/40">
+                      {seller.max_pages ? `max. ${seller.max_pages} Seiten` : 'alle Seiten'}
+                    </span>
+                    <span className="text-[11px] text-white/30" title="Geschätztes Proxy-Volumen pro Monat">
+                      ≈ {fmtMB(monthly.gb * 1_000_000_000)}/Monat
+                    </span>
+                    {seller.last_run_at && (
+                      <span className="text-[11px] text-white/30">
+                        Letzter Run: {new Date(seller.last_run_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    )}
+                    {seller.next_run_at && seller.is_active && (
+                      <span className="text-[11px] text-white/30">
+                        Nächster Run: {formatNextRun(seller.next_run_at)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-green-400/70 hover:text-green-400 hover:bg-green-500/10"
+                    title="Jetzt prüfen"
+                    disabled={runningId === seller.id}
+                    onClick={e => { e.stopPropagation(); setRunConfirmSeller(seller) }}
                   >
-                    {seller.is_active ? 'Aktiv' : 'Inaktiv'}
-                  </Badge>
+                    {runningId === seller.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Play className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Switch
+                    checked={seller.is_active}
+                    onCheckedChange={() => handleToggleActive(seller)}
+                    onClick={e => e.stopPropagation()}
+                    className="data-[state=checked]:bg-green-600 scale-75"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-white/30 hover:text-red-400 hover:bg-red-500/10"
+                    title="Händler entfernen"
+                    disabled={deletingId === seller.id}
+                    onClick={e => { e.stopPropagation(); handleDelete(seller.id) }}
+                  >
+                    {deletingId === seller.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                  <span className="text-[11px] text-white/40">{formatInterval(seller.interval_minutes)}</span>
-                  <span className="text-[11px] text-white/40">{formatWeekdays(seller.active_weekdays)}</span>
-                  {seller.last_run_at && (
-                    <span className="text-[11px] text-white/30">
-                      Letzter Run: {new Date(seller.last_run_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}
-                    </span>
-                  )}
-                  {seller.next_run_at && seller.is_active && (
-                    <span className="text-[11px] text-white/30">
-                      Nächster Run: {formatNextRun(seller.next_run_at)}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-green-400/70 hover:text-green-400 hover:bg-green-500/10"
-                  title="Jetzt prüfen"
-                  disabled={runningId === seller.id}
-                  onClick={e => { e.stopPropagation(); handleRun(seller.id) }}
-                >
-                  {runningId === seller.id
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Play className="h-3.5 w-3.5" />}
-                </Button>
-                <Switch
-                  checked={seller.is_active}
-                  onCheckedChange={() => handleToggleActive(seller)}
-                  onClick={e => e.stopPropagation()}
-                  className="data-[state=checked]:bg-green-600 scale-75"
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-white/30 hover:text-red-400 hover:bg-red-500/10"
-                  title="Händler entfernen"
-                  disabled={deletingId === seller.id}
-                  onClick={e => { e.stopPropagation(); handleDelete(seller.id) }}
-                >
-                  {deletingId === seller.id
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Trash2 className="h-3.5 w-3.5" />}
-                </Button>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </CardContent>
+
+      {/* Run-Kostenbestätigung */}
+      <AlertDialog open={runConfirmSeller !== null} onOpenChange={open => { if (!open) setRunConfirmSeller(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Prüfung jetzt starten?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Das Schaufenster von{' '}
+                  <span className="font-mono">{runConfirmSeller?.amazon_seller_id}</span>{' '}
+                  wird über den DataImpulse-Proxy gescrapt.
+                </p>
+                {runEstimate && (
+                  <p className="text-foreground">
+                    Geschätzte Proxy-Kosten dieses Laufs:{' '}
+                    <strong>~{fmtMB(runEstimate.bytes)}</strong> (≈ {fmtEUR(runEstimate.eur)})
+                    {runConfirmSeller && !runConfirmSeller.max_pages && (
+                      <span className="block text-xs text-muted-foreground mt-1">
+                        Schätzung für ~{DEFAULT_EST_PAGES} Seiten — bei „alle Seiten" kann der tatsächliche Wert abweichen.
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRun} className="bg-green-600 hover:bg-green-700">
+              Starten
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

@@ -23,6 +23,8 @@ const callbackSchema = z.object({
   metadata: z.object({
     total_items: z.number().optional(),
     violations_count: z.number().optional(),
+    proxy_bytes: z.number().optional(),
+    pages_scraped: z.number().optional(),
     items: z.array(itemSchema).optional(),
   }).optional(),
 })
@@ -92,6 +94,8 @@ export async function POST(
     const { status, result_file_path, error_message, metadata } = parsed.data
     const total_items = metadata?.total_items ?? null
     const violations_count = metadata?.violations_count ?? null
+    const proxy_bytes = metadata?.proxy_bytes ?? null
+    const pages_scraped = metadata?.pages_scraped ?? null
     const items = metadata?.items ?? []
 
     // Update run record
@@ -103,6 +107,8 @@ export async function POST(
         error_message: error_message ?? null,
         total_items,
         violations_count,
+        proxy_bytes,
+        pages_scraped,
         completed_at: new Date().toISOString(),
       })
       .eq('id', runId)

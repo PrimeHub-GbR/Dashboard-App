@@ -33,14 +33,35 @@ Ruft das Schaufenster eines Händlers ab, vergleicht Verkaufspreise mit offiziel
 
 ### Tabellen
 - `buchpreischeck_sellers` — Händler-Konfiguration + Schedule
+  - Migration 036: `schedule_mode` ('weekly'|'interval'), `run_time` (HH:MM, Europe/Berlin), `max_pages` (NULL = alle Seiten)
 - `buchpreischeck_runs` — Durchlauf-Protokoll
+  - Migration 036: `proxy_bytes` (tatsächliches Proxy-Volumen), `pages_scraped`
 - `buchpreischeck_items` — Einzelne Buchergebnisse pro Durchlauf
 
+### DataImpulse-Proxy (Amazon-Scraping)
+- Amazon blockt direkte Server-IPs → Scraping läuft über DataImpulse-Residential-Proxy (`gw.dataimpulse.com:823`, DE via `__cr.de`).
+- N8N: Proxy am Node „Amazon Pages" (`{{ $env.DATAIMPULSE_PROXY_URL }}`). Fallback bei HTTPS-Tunneling-Fehler: Community-Node `n8n-nodes-httpsoverproxy`.
+- Backend (`sellers/verify`): Proxy via `undici` ProxyAgent (`DATAIMPULSE_PROXY_URL`).
+
+### Scheduling (pro Händler)
+- `weekly`: feste Wochentage + Uhrzeit (z.B. „Fr 03:00"). `interval`: Legacy (10min–24h).
+- Helper: `src/lib/buchpreisbindung-schedule.ts` (`calculateNextRunAt`).
+
+### Kosten (Schätzung + Messung)
+- Helper: `src/lib/buchpreisbindung-cost.ts` (~1 €/GB, ~120 KB/Seite).
+- Vorab-Schätzung pro Lauf (Run-Dialog) + Monatsschätzung; echter Verbrauch aus `proxy_bytes` (CostSection).
+
+### VLB-Token (2-Token-Limit)
+- VLB erlaubt nur 2 parallele Logins; Token MUSS per Logout zurückgegeben werden.
+- N8N: `VLB-Logout` läuft direkt nach den Lookups (Node „Collect VLB" → „VLB-Logout"), unabhängig von Upload/Callback; Zwischen-Nodes `continueOnFail`.
+- Dashboard: scheduler + run starten nie mehr als 2 gleichzeitige Läufe (Guard auf `status='running'`); scheduler triggert max. 1 Händler pro Tick.
+
 ### N8N Workflow
-- Key: `buchpreisbindung-check`
-- Scraping: `amazon.de/s?me={seller_id}&i=stripbooks` (Browser-UA)
-- VLB: Identisches Login/Batch-Pattern wie EAN2BBP-Workflow
-- Callback mit `metadata.items[]` für DB-Speicherung
+- Key: `buchpreisbindung-check` (Datei: `docs/buchpreisbindung-workflow.json`, Anleitung: `docs/n8n-buchpreisbindung-proxy-anleitung.md`)
+- Scraping: `amazon.de/s?me={seller_id}&i=stripbooks&page=N` über Proxy, **alle Seiten** bis Safety-Cap (50) bzw. `max_pages`.
+- **Nur Neuware**: gebrauchte Angebote werden im Parse anhand der Zustands-Labels übersprungen.
+- Verstoß-Logik: `VERSTOSS`, wenn Amazon-Preis **unter** VLB-Festpreis (Unterbieten).
+- VLB: Login → Batch-Lookups → Logout; Callback mit `metadata.items[]` + `proxy_bytes` + `pages_scraped`.
 
 ### API Routes
 - `POST /api/buchpreisbindung/sellers/verify` — Händler-Existenz prüfen

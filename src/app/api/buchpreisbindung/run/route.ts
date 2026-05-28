@@ -3,6 +3,10 @@ import { z } from 'zod'
 import { createHmac } from 'crypto'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 import { rateLimit } from '@/lib/rate-limit'
+import { estimateRunCost, DEFAULT_EST_PAGES } from '@/lib/buchpreisbindung-cost'
+
+// VLB erlaubt nur 2 parallele Login-Tokens.
+const MAX_CONCURRENT_RUNS = 2
 
 const runSchema = z.object({
   seller_id: z.string().uuid('Ungültige Seller-UUID'),
@@ -32,10 +36,25 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseServiceClient()
 
+    // 2-Token-Guard: nicht starten, wenn bereits beide VLB-Token in Benutzung sind
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+    const { count: runningCount } = await supabase
+      .from('buchpreischeck_runs')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'running')
+      .gte('started_at', fifteenMinAgo)
+
+    if ((runningCount ?? 0) >= MAX_CONCURRENT_RUNS) {
+      return NextResponse.json(
+        { error: 'Beide VLB-Tokens sind gerade in Benutzung. Bitte kurz warten und erneut versuchen.' },
+        { status: 409 }
+      )
+    }
+
     // Get seller
     const { data: seller } = await supabase
       .from('buchpreischeck_sellers')
-      .select('id, amazon_seller_id, user_id')
+      .select('id, amazon_seller_id, user_id, max_pages')
       .eq('id', parsed.data.seller_id)
       .single()
 
@@ -74,6 +93,7 @@ export async function POST(request: NextRequest) {
       run_id: run.id,
       seller_id: seller.amazon_seller_id,
       callback_url: callbackUrl,
+      max_pages: seller.max_pages ?? null,
     })
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -106,7 +126,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'N8N nicht erreichbar' }, { status: 502 })
     }
 
-    return NextResponse.json({ run_id: run.id }, { status: 201 })
+    const estimated_cost = estimateRunCost(seller.max_pages ?? DEFAULT_EST_PAGES)
+    return NextResponse.json({ run_id: run.id, estimated_cost }, { status: 201 })
   } catch (err) {
     console.error('POST /api/buchpreisbindung/run error:', err)
     return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })

@@ -1,0 +1,465 @@
+{
+  "name": "Buchpreisbindung-Check",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "buchpreisbindung-check",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bpb-check-wh-001"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true }) }}",
+        "options": {}
+      },
+      "id": "node-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Seitenliste 1..N bauen (alle Seiten bis Safety-Cap). max_pages kommt aus dem Dashboard.\nconst body = $('Webhook').first().json.body;\nconst CAP = 50;\nconst requested = body.max_pages != null ? parseInt(body.max_pages, 10) : null;\nconst maxPages = requested && requested > 0 ? Math.min(requested, CAP) : CAP;\nconst sellerId = body.seller_id;\nconst items = [];\nfor (let p = 1; p <= maxPages; p++) {\n  items.push({ json: { page: p, seller_id: sellerId } });\n}\nreturn items;",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "node-build-pagelist",
+      "name": "Build Page List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.amazon.de/s?me={{ $json.seller_id }}&i=stripbooks&page={{ $json.page }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "de-DE,de;q=0.9"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            }
+          ]
+        },
+        "options": {
+          "proxy": "={{ $env.DATAIMPULSE_PROXY_URL }}",
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "neverError": true
+            }
+          },
+          "retry": {
+            "enabled": true,
+            "maxTries": 2,
+            "waitBetweenTries": 3000
+          }
+        }
+      },
+      "continueOnFail": true,
+      "id": "node-amazon-pages",
+      "name": "Amazon Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "function isbn10ToIsbn13(isbn10) {\n  const clean = isbn10.replace(/[^0-9X]/gi, '').substring(0, 9);\n  const withPrefix = '978' + clean;\n  let sum = 0;\n  for (let i = 0; i < 12; i++) {\n    const digit = parseInt(withPrefix[i]);\n    sum += i % 2 === 0 ? digit : digit * 3;\n  }\n  const check = (10 - (sum % 10)) % 10;\n  return withPrefix + check;\n}\n\n// Heuristik: gebrauchte Angebote anhand expliziter Zustands-Labels erkennen (NICHT die\n// \"Neu & gebraucht ab\"-Cross-Sell-Links). So bleibt Neuware erhalten, Gebrauchtware fliegt raus.\nconst USED_RE = /Gebraucht\\s*[-\\u2013\\u2014]\\s*(Wie neu|Sehr gut|Gut|Akzeptabel)|Zustand:\\s*Gebraucht|gebraucht kaufen|used\\s*[-\\u2013\\u2014]\\s*(like new|very good|good|acceptable)/i;\nconst CAPTCHA_RE = /Enter the characters you see below|Geben Sie die Zeichen ein|api-services-support\\.amazon\\.com/i;\n\nconst pages = $input.all();\nconst products = [];\nconst seen = new Set();\n\nfor (const pageItem of pages) {\n  const raw = pageItem.json.data ?? pageItem.json.body ?? pageItem.json;\n  const htmlStr = typeof raw === 'string' ? raw : JSON.stringify(raw ?? '');\n  if (!htmlStr || CAPTCHA_RE.test(htmlStr)) continue;\n\n  const blockRegex = /data-asin=\"([A-Z0-9]{10})\"([\\s\\S]*?)(?=data-asin=\"|$)/g;\n  let match;\n  while ((match = blockRegex.exec(htmlStr)) !== null) {\n    const asin = match[1];\n    const block = match[2];\n\n    if (!/^\\d{9}[\\dX]$/.test(asin) && !/^\\d{10}$/.test(asin)) continue;\n\n    // Nur Neuware\n    if (USED_RE.test(block)) continue;\n\n    const isbn13 = isbn10ToIsbn13(asin);\n    if (seen.has(isbn13)) continue;\n\n    const titleMatch = block.match(/aria-label=\"([^\"]{3,200})\"/) ?? block.match(/<span[^>]*class=\"[^\"]*a-size-medium[^\"]*\"[^>]*>([^<]{3,200})<\\/span>/);\n    const title = titleMatch ? titleMatch[1].trim() : null;\n\n    const priceMatch = block.match(/(\\d{1,3}[,.]\\d{2})\\s*\\u20ac/) ?? block.match(/\\u20ac\\s*(\\d{1,3}[,.]\\d{2})/) ?? block.match(/\"displayAmount\":\"EUR (\\d{1,3}[,.]\\d{2})\"/i);\n    let amazonPrice = null;\n    if (priceMatch) amazonPrice = parseFloat(priceMatch[1].replace(',', '.'));\n\n    if (isbn13 && amazonPrice != null) {\n      seen.add(isbn13);\n      products.push({ json: { asin, isbn13, title, amazon_price: amazonPrice, amazon_url: 'https://www.amazon.de/dp/' + asin } });\n    }\n  }\n}\n\nreturn products.length > 0 ? products : [{ json: { _noProducts: true } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "node-parse-amazon",
+      "name": "Parse Amazon HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json._noProducts }}",
+              "value2": true,
+              "operation": "notEqual"
+            }
+          ]
+        }
+      },
+      "id": "node-if-products",
+      "name": "Hat Produkte?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { trigger: true } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "node-trigger-vlb",
+      "name": "Trigger VLB Login",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vlb.de/api/v2/login",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "username", "value": "6242208" },
+            { "name": "password", "value": "Semosemo2022" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-vlb-login",
+      "name": "VLB-Login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1660, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $('Parse Amazon HTML').all();",
+        "mode": "runOnceForAllItems"
+      },
+      "continueOnFail": true,
+      "id": "node-get-amazon-items",
+      "name": "Get Amazon Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1860, 160]
+    },
+    {
+      "parameters": {
+        "batchSize": 150,
+        "options": {}
+      },
+      "id": "node-loop",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2060, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = [];\nfor (const item of items) {\n  const isbn = String(item.json.isbn13 ?? '').replace(/[-\\s]/g, '').trim();\n  if (/^\\d{13}$/.test(isbn)) {\n    content.push({ isbn });\n  }\n}\nreturn [{ json: { content } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "continueOnFail": true,
+      "id": "node-build-batch",
+      "name": "Build Batch Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2260, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.vlb.de/api/v2/products?page=1&size=250",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('VLB-Login').first().json.data }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json-short"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "retry": {
+            "enabled": true,
+            "maxTries": 3,
+            "waitBetweenTries": 5000
+          }
+        }
+      },
+      "continueOnFail": true,
+      "id": "node-vlb-products",
+      "name": "VLB Produktdetails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2460, 60]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alle VLB-Antworten aus dem Loop einsammeln, damit sie nach dem Logout noch referenzierbar sind.\nreturn $input.all();",
+        "mode": "runOnceForAllItems"
+      },
+      "continueOnFail": true,
+      "id": "node-collect-vlb",
+      "name": "Collect VLB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2260, 280]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.vlb.de/api/v2/logout?access_token={{ $('VLB-Login').first().json.data }}",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "id": "node-vlb-logout",
+      "name": "VLB-Logout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2460, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "function normEAN(v) { return String(v ?? '').replace(/[^0-9X]/gi, ''); }\nfunction parsePrice(v) {\n  if (v == null) return null;\n  if (typeof v === 'number') return v;\n  const n = Number(String(v).replace(',', '.').trim());\n  return Number.isFinite(n) ? n : null;\n}\nfunction getTypeCode(p) {\n  const raw = p?.priceTypeDE ?? p?.priceTypeDe ?? p?.priceTypede ?? p?.priceType ?? p?.priceTypeD;\n  return String(raw ?? '').trim().padStart(2, '0');\n}\n\nconst vlbProducts = new Map();\nfor (const item of $('Collect VLB').all()) {\n  const content = item.json?.content;\n  if (Array.isArray(content)) {\n    for (const p of content) {\n      const ean = normEAN(p.gtin || p.isbn || p.identifier);\n      const preis = parsePrice(p.priceEurD);\n      const type = getTypeCode(p);\n      const isBBP = ['04','24'].includes(type) || (p.priceFixedEurD === true && p.priceProvisionalEurD === false);\n      if (ean && preis != null && isBBP) {\n        vlbProducts.set(ean, { vlb_price: preis, title_vlb: p.title || p.shortTitle || null });\n      }\n    }\n  }\n}\n\nconst sellerAmazonId = $('Webhook').first().json.body?.seller_id ?? '';\nconst amazonItems = $('Parse Amazon HTML').all();\n\nconst now = new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });\n\nconst results = [];\nfor (const amazonItem of amazonItems) {\n  const { isbn13, asin, title, amazon_price, amazon_url } = amazonItem.json;\n  if (!isbn13 || amazon_price == null) continue;\n  const vlbData = vlbProducts.get(isbn13);\n  const vlb_price = vlbData?.vlb_price ?? null;\n  // Buchpreisbindung: Verstoss = Verkauf UNTER dem VLB-Festpreis. OK = Festpreis oder darueber.\n  const is_compliant = vlb_price != null ? amazon_price >= vlb_price : null;\n  results.push({\n    json: {\n      'Datum': now,\n      'Haendler': sellerAmazonId,\n      'Buchtitel': title ?? vlbData?.title_vlb ?? '-',\n      'Amazon_Preis_EUR': amazon_price,\n      'VLB_BBP_Preis_EUR': vlb_price !== null ? vlb_price : '-',\n      'ISBN13': isbn13,\n      'ASIN': asin ?? '-',\n      'Amazon_URL': amazon_url ?? ('https://www.amazon.de/dp/' + asin),\n      'Status': is_compliant === true ? 'OK' : is_compliant === false ? 'VERSTOSS' : 'Kein VLB-Preis',\n      '_is_compliant': is_compliant,\n    }\n  });\n}\n\nreturn results;",
+        "mode": "runOnceForAllItems"
+      },
+      "continueOnFail": true,
+      "id": "node-preisvergleich",
+      "name": "Preisvergleich",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 280]
+    },
+    {
+      "parameters": {
+        "operation": "toFile",
+        "fileFormat": "xlsx",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "id": "node-convert",
+      "name": "Convert to File",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [2860, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tcqdyzmhwyfamzyeyskj.supabase.co/storage/v1/object/workflow-results/buchpreischeck/{{ $('Webhook').first().json.body.seller_id }}/{{ $('Webhook').first().json.body.run_id }}.xlsx",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+            },
+            {
+              "name": "x-upsert",
+              "value": "true"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "id": "node-upload",
+      "name": "Upload Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3060, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookBody = $('Webhook').first().json.body;\nconst callbackUrl = webhookBody.callback_url;\nconst runId = webhookBody.run_id;\nconst sellerId = webhookBody.seller_id;\n\nconst allResults = $('Preisvergleich').all();\nconst totalItems = allResults.length;\nlet violations = 0;\n\nconst resultItems = allResults.map(r => {\n  const d = r.json;\n  if (d._is_compliant === false) violations++;\n  return {\n    isbn13: d['ISBN13'],\n    asin: d['ASIN'],\n    title: d['Buchtitel'],\n    amazon_price: d['Amazon_Preis_EUR'],\n    vlb_price: d['VLB_BBP_Preis_EUR'] === '-' ? null : d['VLB_BBP_Preis_EUR'],\n    amazon_url: d['Amazon_URL'],\n    status: d['Status'],\n  };\n});\n\n// Proxy-Verbrauch aus den abgerufenen Amazon-Seiten messen (fuer Kostenanzeige im Dashboard)\nlet proxyBytes = 0;\nlet pagesScraped = 0;\nfor (const p of $('Amazon Pages').all()) {\n  const raw = p.json.data ?? p.json.body ?? '';\n  const s = typeof raw === 'string' ? raw : JSON.stringify(raw ?? '');\n  proxyBytes += Buffer.byteLength(s, 'utf8');\n  if (s && s.length > 100) pagesScraped++;\n}\n\nreturn [{\n  json: {\n    callback_url: callbackUrl,\n    body: JSON.stringify({\n      status: 'success',\n      result_file_path: 'buchpreischeck/' + sellerId + '/' + runId + '.xlsx',\n      metadata: { total_items: totalItems, violations_count: violations, proxy_bytes: proxyBytes, pages_scraped: pagesScraped, items: resultItems }\n    })\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "continueOnFail": true,
+      "id": "node-sign-success",
+      "name": "Sign Callback Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3260, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callback_url }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "continueOnFail": true,
+      "id": "node-callback-success",
+      "name": "Callback Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3460, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookBody = $('Webhook').first().json.body;\nreturn [{\n  json: {\n    callback_url: webhookBody.callback_url,\n    body: JSON.stringify({\n      status: 'failed',\n      error_message: 'Keine neuen Buecher auf dem Amazon-Schaufenster gefunden. Pruefe ob die Seller-ID korrekt ist, ob nur Gebrauchtware gelistet ist oder ob Amazon die Anfrage blockiert hat.'\n    })\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "node-sign-error",
+      "name": "Sign Callback Fehler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callback_url }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "node-callback-error",
+      "name": "Callback Fehler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1660, 460]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [{ "node": "Build Page List", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Page List": {
+      "main": [
+        [{ "node": "Amazon Pages", "type": "main", "index": 0 }]
+      ]
+    },
+    "Amazon Pages": {
+      "main": [
+        [{ "node": "Parse Amazon HTML", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Amazon HTML": {
+      "main": [
+        [{ "node": "Hat Produkte?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Hat Produkte?": {
+      "main": [
+        [{ "node": "Trigger VLB Login", "type": "main", "index": 0 }],
+        [{ "node": "Sign Callback Fehler", "type": "main", "index": 0 }]
+      ]
+    },
+    "Trigger VLB Login": {
+      "main": [
+        [{ "node": "VLB-Login", "type": "main", "index": 0 }]
+      ]
+    },
+    "VLB-Login": {
+      "main": [
+        [{ "node": "Get Amazon Items", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Amazon Items": {
+      "main": [
+        [{ "node": "Loop Over Items", "type": "main", "index": 0 }]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [{ "node": "Build Batch Payload", "type": "main", "index": 0 }],
+        [{ "node": "Collect VLB", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Batch Payload": {
+      "main": [
+        [{ "node": "VLB Produktdetails", "type": "main", "index": 0 }]
+      ]
+    },
+    "VLB Produktdetails": {
+      "main": [
+        [{ "node": "Loop Over Items", "type": "main", "index": 0 }]
+      ]
+    },
+    "Collect VLB": {
+      "main": [
+        [{ "node": "VLB-Logout", "type": "main", "index": 0 }]
+      ]
+    },
+    "VLB-Logout": {
+      "main": [
+        [{ "node": "Preisvergleich", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preisvergleich": {
+      "main": [
+        [{ "node": "Convert to File", "type": "main", "index": 0 }]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [{ "node": "Upload Result", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upload Result": {
+      "main": [
+        [{ "node": "Sign Callback Success", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sign Callback Success": {
+      "main": [
+        [{ "node": "Callback Success", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sign Callback Fehler": {
+      "main": [
+        [{ "node": "Callback Fehler", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "buchpreisbindung-v2",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "buchpreisbindung-check",
+  "tags": []
+}

@@ -1,31 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { calculateNextRunAt } from '@/lib/buchpreisbindung-schedule'
 
 const WEEKDAY_VALUES = ['mon','tue','wed','thu','fri','sat','sun'] as const
 
 const patchSchema = z.object({
   seller_name: z.string().max(200).optional(),
   is_active: z.boolean().optional(),
+  schedule_mode: z.enum(['weekly', 'interval']).optional(),
+  run_time: z.string().regex(/^\d{2}:\d{2}$/, 'Ungültige Uhrzeit (Format HH:MM)').optional(),
   interval_minutes: z.number().int().refine(
     v => [10, 30, 60, 120, 360, 720, 1440].includes(v),
     'Ungültiges Intervall'
   ).optional(),
   active_weekdays: z.array(z.enum(WEEKDAY_VALUES)).min(1).optional(),
+  max_pages: z.number().int().min(1).max(200).nullable().optional(),
 })
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function calculateNextRunAt(intervalMinutes: number, weekdays: string[]): Date {
-  let next = new Date(Date.now() + intervalMinutes * 60 * 1000)
-  const dayNames = ['sun','mon','tue','wed','thu','fri','sat']
-  let safety = 0
-  while (!weekdays.includes(dayNames[next.getDay()]) && safety < 8) {
-    next = new Date(next.getTime() + 24 * 60 * 60 * 1000)
-    safety++
-  }
-  return next
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -54,7 +47,7 @@ export async function PATCH(
     // Verify ownership
     const { data: existing } = await supabase
       .from('buchpreischeck_sellers')
-      .select('user_id, interval_minutes, active_weekdays')
+      .select('user_id, schedule_mode, run_time, interval_minutes, active_weekdays')
       .eq('id', id)
       .single()
 
@@ -64,11 +57,20 @@ export async function PATCH(
 
     const updates: Record<string, unknown> = { ...parsed.data }
 
-    // Recalculate next_run_at if scheduling changed
-    const newInterval = parsed.data.interval_minutes ?? existing.interval_minutes
-    const newWeekdays = parsed.data.active_weekdays ?? existing.active_weekdays
-    if (parsed.data.interval_minutes || parsed.data.active_weekdays || parsed.data.is_active) {
-      updates.next_run_at = calculateNextRunAt(newInterval, newWeekdays).toISOString()
+    // Recalculate next_run_at if any scheduling field changed (or seller (re)activated)
+    const scheduleChanged =
+      parsed.data.schedule_mode !== undefined ||
+      parsed.data.run_time !== undefined ||
+      parsed.data.interval_minutes !== undefined ||
+      parsed.data.active_weekdays !== undefined ||
+      parsed.data.is_active !== undefined
+    if (scheduleChanged) {
+      updates.next_run_at = calculateNextRunAt({
+        schedule_mode: parsed.data.schedule_mode ?? existing.schedule_mode,
+        run_time: parsed.data.run_time ?? existing.run_time,
+        interval_minutes: parsed.data.interval_minutes ?? existing.interval_minutes,
+        active_weekdays: parsed.data.active_weekdays ?? existing.active_weekdays,
+      }).toISOString()
     }
 
     const { data, error } = await supabase

@@ -37,6 +37,9 @@ yarn-error.log*
 # mcp config (contains secrets)
 .mcp.json
 
+# vorausgefüllte n8n-Import-Dateien (enthalten Secrets)
+*.local.json
+
 # vercel
 .vercel
 

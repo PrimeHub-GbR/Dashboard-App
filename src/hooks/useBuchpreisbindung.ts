@@ -8,8 +8,11 @@ export interface BuchpreischeckSeller {
   amazon_seller_id: string
   seller_name: string | null
   is_active: boolean
+  schedule_mode: 'weekly' | 'interval'
+  run_time: string
   interval_minutes: number
   active_weekdays: string[]
+  max_pages: number | null
   next_run_at: string | null
   last_run_at: string | null
   created_at: string
@@ -25,6 +28,8 @@ export interface BuchpreischeckRun {
   violations_count: number | null
   excel_file_path: string | null
   error_message: string | null
+  proxy_bytes: number | null
+  pages_scraped: number | null
   started_at: string
   completed_at: string | null
   created_at: string
@@ -65,8 +70,11 @@ export function useSellers() {
   const addSeller = useCallback(async (payload: {
     amazon_seller_id: string
     seller_name?: string
+    schedule_mode: 'weekly' | 'interval'
+    run_time: string
     interval_minutes: number
     active_weekdays: string[]
+    max_pages: number | null
   }) => {
     const res = await fetch('/api/buchpreisbindung/sellers', {
       method: 'POST',

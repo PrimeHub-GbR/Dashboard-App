@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { ProxyAgent } from 'undici'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { rateLimit } from '@/lib/rate-limit'
+
+// undici (ProxyAgent) tunnelt HTTPS zuverlässig über den DataImpulse-HTTP-Proxy.
+export const runtime = 'nodejs'
 
 const verifySchema = z.object({
   seller_id: z.string().regex(/^A[A-Z0-9]{13}$/, 'Ungültige Amazon Seller-ID (Format: A + 13 Zeichen)'),
@@ -34,6 +38,10 @@ export async function POST(request: NextRequest) {
     let exists = false
     let seller_name: string | null = null
 
+    // Über DataImpulse-Residential-Proxy abrufen, damit Amazon die Anfrage nicht blockt.
+    const proxyUrl = process.env.DATAIMPULSE_PROXY_URL
+    const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined
+
     try {
       const response = await fetch(profileUrl, {
         redirect: 'follow',
@@ -43,7 +51,8 @@ export async function POST(request: NextRequest) {
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
         signal: AbortSignal.timeout(8000),
-      })
+        ...(dispatcher ? { dispatcher } : {}),
+      } as RequestInit & { dispatcher?: ProxyAgent })
 
       if (response.ok) {
         const html = await response.text()

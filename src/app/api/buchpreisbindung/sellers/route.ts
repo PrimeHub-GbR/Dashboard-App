@@ -2,30 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 import { rateLimit } from '@/lib/rate-limit'
+import { calculateNextRunAt } from '@/lib/buchpreisbindung-schedule'
 
 const WEEKDAY_VALUES = ['mon','tue','wed','thu','fri','sat','sun'] as const
 
 const createSellerSchema = z.object({
   amazon_seller_id: z.string().regex(/^A[A-Z0-9]{13}$/, 'Ungültige Amazon Seller-ID'),
   seller_name: z.string().max(200).optional(),
+  schedule_mode: z.enum(['weekly', 'interval']).default('weekly'),
+  run_time: z.string().regex(/^\d{2}:\d{2}$/, 'Ungültige Uhrzeit (Format HH:MM)').default('03:00'),
   interval_minutes: z.number().int().refine(
     v => [10, 30, 60, 120, 360, 720, 1440].includes(v),
     'Ungültiges Intervall'
-  ),
+  ).default(1440),
   active_weekdays: z.array(z.enum(WEEKDAY_VALUES)).min(1, 'Mindestens einen Wochentag auswählen'),
+  max_pages: z.number().int().min(1).max(200).nullable().optional(),
 })
-
-function calculateNextRunAt(intervalMinutes: number, weekdays: string[]): Date {
-  const dayMap: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 }
-  let next = new Date(Date.now() + intervalMinutes * 60 * 1000)
-  const dayNames = ['sun','mon','tue','wed','thu','fri','sat']
-  let safety = 0
-  while (!weekdays.includes(dayNames[next.getDay()]) && safety < 8) {
-    next = new Date(next.getTime() + 24 * 60 * 60 * 1000)
-    safety++
-  }
-  return next
-}
 
 export async function GET() {
   try {
@@ -70,8 +62,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
     }
 
-    const { amazon_seller_id, seller_name, interval_minutes, active_weekdays } = parsed.data
-    const next_run_at = calculateNextRunAt(interval_minutes, active_weekdays)
+    const { amazon_seller_id, seller_name, schedule_mode, run_time, interval_minutes, active_weekdays, max_pages } = parsed.data
+    const next_run_at = calculateNextRunAt({ schedule_mode, run_time, active_weekdays, interval_minutes })
 
     const supabase = createSupabaseServiceClient()
     const { data, error } = await supabase
@@ -80,8 +72,11 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         amazon_seller_id,
         seller_name: seller_name ?? null,
+        schedule_mode,
+        run_time,
         interval_minutes,
         active_weekdays,
+        max_pages: max_pages ?? null,
         is_active: false,
         next_run_at: next_run_at.toISOString(),
       })

@@ -6,6 +6,7 @@ import { useSellers, useRuns, useLastRunItems } from '@/hooks/useBuchpreisbindun
 import { SellerConfigSection } from './SellerConfigSection'
 import { LastRunSection } from './LastRunSection'
 import { ArchiveSection } from './ArchiveSection'
+import { CostSection } from './CostSection'
 
 export function BuchpreisbindungClient() {
   const { sellers, isLoading: sellersLoading, addSeller, updateSeller, deleteSeller } = useSellers()
@@ -55,6 +56,8 @@ export function BuchpreisbindungClient() {
         selectedSellerId={selectedSellerId}
         onSelectSeller={handleSelectSeller}
       />
+
+      <CostSection sellers={sellers} />
 
       <LastRunSection
         runs={runs}

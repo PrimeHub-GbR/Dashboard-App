@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
+import { calculateNextRunAt } from '@/lib/buchpreisbindung-schedule'
+
+// VLB erlaubt nur 2 parallele Login-Tokens. Jeder Lauf macht einen VLB-Login.
+// Deshalb darf nie mehr als dieses Limit gleichzeitig laufen.
+const MAX_CONCURRENT_RUNS = 2
 
 function signPayload(body: string, secret: string): string {
   return 'sha256=' + createHmac('sha256', secret).update(body, 'utf8').digest('hex')
-}
-
-function calculateNextRunAt(intervalMinutes: number, weekdays: string[]): Date {
-  let next = new Date(Date.now() + intervalMinutes * 60 * 1000)
-  const dayNames = ['sun','mon','tue','wed','thu','fri','sat']
-  let safety = 0
-  while (!weekdays.includes(dayNames[next.getDay()]) && safety < 8) {
-    next = new Date(next.getTime() + 24 * 60 * 60 * 1000)
-    safety++
-  }
-  return next
 }
 
 export async function GET(request: NextRequest) {
@@ -29,13 +23,28 @@ export async function GET(request: NextRequest) {
   const n8nBaseUrl = process.env.N8N_WEBHOOK_BASE_URL
   const hmacSecret = process.env.N8N_HMAC_SECRET
 
-  // Find all active sellers due for a run
+  // 2-Token-Guard: niemals mehr als MAX_CONCURRENT_RUNS gleichzeitig (sonst VLB-Login-Fehler).
+  // Stuck-Läufe ohne Callback (>15 min) ignorieren, damit der Scheduler nicht dauerhaft blockiert.
+  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  const { count: runningCount } = await supabase
+    .from('buchpreischeck_runs')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'running')
+    .gte('started_at', fifteenMinAgo)
+
+  if ((runningCount ?? 0) >= MAX_CONCURRENT_RUNS) {
+    return NextResponse.json({ triggered: 0, reason: 'VLB-Token ausgelastet' })
+  }
+
+  // Pro Tick maximal 1 Händler triggern → verteilt gleichzeitig fällige Händler über das 10-min-Raster
+  // und hält das 2-Token-Limit zuverlässig ein.
   const { data: sellers, error } = await supabase
     .from('buchpreischeck_sellers')
-    .select('id, amazon_seller_id, interval_minutes, active_weekdays')
+    .select('id, amazon_seller_id, schedule_mode, run_time, interval_minutes, active_weekdays, max_pages')
     .eq('is_active', true)
     .lte('next_run_at', new Date().toISOString())
-    .limit(20)
+    .order('next_run_at', { ascending: true })
+    .limit(1)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -67,7 +76,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Update next_run_at before triggering (prevents double-trigger if N8N is slow)
-    const nextRun = calculateNextRunAt(seller.interval_minutes, seller.active_weekdays)
+    const nextRun = calculateNextRunAt({
+      schedule_mode: seller.schedule_mode,
+      run_time: seller.run_time,
+      interval_minutes: seller.interval_minutes,
+      active_weekdays: seller.active_weekdays,
+    })
     await supabase
       .from('buchpreischeck_sellers')
       .update({ next_run_at: nextRun.toISOString() })
@@ -87,6 +101,7 @@ export async function GET(request: NextRequest) {
       run_id: run.id,
       seller_id: seller.amazon_seller_id,
       callback_url: callbackUrl,
+      max_pages: seller.max_pages ?? null,
     })
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
