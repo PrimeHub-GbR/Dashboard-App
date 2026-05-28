@@ -117,7 +117,7 @@ function RunStatusBadge({ status }: { status: BuchpreischeckRun['status'] }) {
 }
 
 export function LastRunSection({ runs, items, isLoading, selectedSellerId }: Props) {
-  const [filter, setFilter] = useState<'all' | 'violations'>('all')
+  const [filter, setFilter] = useState<'all' | 'violations'>('violations')
 
   if (!selectedSellerId) {
     return (

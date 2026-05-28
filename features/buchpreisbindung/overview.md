@@ -24,9 +24,10 @@ Ruft das Schaufenster eines Händlers ab, vergleicht Verkaufspreise mit offiziel
 - [ ] Intervall-Dropdown: 10min, 30min, 1h, 2h, 6h, 12h, 24h
 - [ ] Wochentage als Checkboxen (Mo–So)
 - [ ] Letzter Durchlauf inline in Tabelle angezeigt (ISBN13, Titel, Preis Verkäufer, Preis VLB, Status)
-- [ ] Filter "Nur Verstöße" verfügbar
+- [ ] Liste zeigt standardmäßig nur Verstöße (Filter "Alle" optional umschaltbar)
 - [ ] Maximal 3 Excel-Dateien pro Händler (älteste wird automatisch gelöscht)
-- [ ] Excel-Spalten: Datum/Uhrzeit, Händler, Buchtitel, Preis Verkäufer, Preis VLB, ISBN13, Amazon-Link, Status
+- [ ] Excel enthält ALLE geprüften Titel (nicht nur Verstöße), markiert mit ✅ (OK) / ❌ (Verstoß) / ⚠️ (kein VLB-Preis)
+- [ ] Excel-Spalten: Markierung, Datum/Uhrzeit, Händler, Buchtitel, Preis Verkäufer, Preis VLB, ISBN13, Amazon-Link, Status
 - [ ] Scheduler (Vercel Cron alle 10min) triggert N8N-Workflow automatisch
 
 ## Tech Design
@@ -56,12 +57,16 @@ Ruft das Schaufenster eines Händlers ab, vergleicht Verkaufspreise mit offiziel
 - N8N: `VLB-Logout` läuft direkt nach den Lookups (Node „Collect VLB" → „VLB-Logout"), unabhängig von Upload/Callback; Zwischen-Nodes `continueOnFail`.
 - Dashboard: scheduler + run starten nie mehr als 2 gleichzeitige Läufe (Guard auf `status='running'`); scheduler triggert max. 1 Händler pro Tick.
 
-### N8N Workflow
+### N8N Workflow (ID `3Kg7lHQhNtzD21aI`)
 - Key: `buchpreisbindung-check` (Datei: `docs/buchpreisbindung-workflow.json`, Anleitung: `docs/n8n-buchpreisbindung-proxy-anleitung.md`)
-- Scraping: `amazon.de/s?me={seller_id}&i=stripbooks&page=N` über Proxy, **alle Seiten** bis Safety-Cap (50) bzw. `max_pages`.
+- Scraping: `amazon.de/s?me={seller_id}&i=stripbooks&page=N&rh=p_36:{low}-{high}` über DataImpulse-Proxy.
+- **Amazon-Pagination-Limit**: Die `/s`-Suche gibt pro Suche nur ~20 Seiten (~320 Treffer) frei, egal wie hoch `totalResultCount` ist. Workaround: Bestand in **Preisbereiche** (`rh=p_36`, ~31 disjunkte 1-€-Schritte 8–35 €, grob außen) zerlegen; je Bereich erst Seite 1 als Probe (liest `totalResultCount`), dann Restseiten 2..N. So sind alle Treffer disjunkt durchblätterbar (~100 % statt ~15 %).
+- **HTTPS-over-Proxy**: Scraping-Nodes (`Probe Bereiche`, `Amazon Pages`) nutzen den Community-Node `n8n-nodes-httpsoverproxy` mit `connectionPool.keepAlive: false` → frische DataImpulse-IP pro Anfrage (der Standard-HTTP-Node tunnelt HTTPS über HTTP-Proxy nicht zuverlässig).
+- **⚠️ Offenes Thema (Stand 2026-05-29)**: Vom n8n-Server aus blockt Amazon einen Großteil der Anfragen mit 503 (Server-IP-Reputation), während dieselben Anfragen per `curl` von extern ~80 % Erfolg haben. Abdeckung daher aktuell niedrig; Optionen: IP-Cooldown abwarten, DataImpulse Premium oder Scraping-Service. Architektur ist fertig, hängt nur an der Server-Block-Rate.
+- **Loop**: `Loop Over Items` → `loop`-Ausgang füttert Batch-VLB-Lookup, `done`-Ausgang sammelt (Reihenfolge der Ausgänge ist kontraintuitiv: 0=done, 1=loop).
 - **Nur Neuware**: gebrauchte Angebote werden im Parse anhand der Zustands-Labels übersprungen.
 - Verstoß-Logik: `VERSTOSS`, wenn Amazon-Preis **unter** VLB-Festpreis (Unterbieten).
-- VLB: Login → Batch-Lookups → Logout; Callback mit `metadata.items[]` + `proxy_bytes` + `pages_scraped`.
+- VLB: Login → Batch-Lookups → Logout; Callback mit `metadata.items[]` (inkl. `is_compliant`) + `proxy_bytes` + `pages_scraped`.
 
 ### API Routes
 - `POST /api/buchpreisbindung/sellers/verify` — Händler-Existenz prüfen
