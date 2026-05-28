@@ -51,12 +51,13 @@ export async function GET(req: NextRequest) {
   const startUtc = new Date(year, month - 1, 1).toISOString()
   const endUtc = new Date(year, month, 1).toISOString()
 
-  // 3. Monats-Stunden via RPC
-  const { data: monthStats } = await service.rpc('get_employee_month_hours', {
+  // 3. Monats-Stunden via RPC (RETURNS TABLE → Supabase liefert ein Array; erste Zeile entnehmen)
+  const { data: monthStatsRows } = await service.rpc('get_employee_month_hours', {
     p_employee_id: employee_id,
     p_year: year,
     p_month: month,
   })
+  const monthStats = Array.isArray(monthStatsRows) ? monthStatsRows[0] : monthStatsRows
 
   // 4. Tägliche Stunden für Chart
   const { data: dailyAll } = await service.rpc('get_daily_hours_per_employee', {
