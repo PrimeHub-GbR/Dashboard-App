@@ -933,6 +933,13 @@ export function KioskCheckin({ employees }: Props) {
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4">
+      {/* Firmen-Logo */}
+      <div className="text-center mb-10">
+        <span className="text-5xl font-extrabold tracking-tight">
+          <span className="text-white">Prime</span>
+          <span style={{ color: '#00A8E1' }}>Hub</span>
+        </span>
+      </div>
       <div className="text-center mb-12">
         <Clock className="w-12 h-12 text-green-400 mx-auto mb-3" />
         <h1 className="text-3xl font-bold text-white">Zeiterfassung</h1>
