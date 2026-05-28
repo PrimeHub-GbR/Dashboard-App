@@ -18,11 +18,17 @@ import {
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
 
+type WeeklySchedule = Partial<Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun', number>>
+
+// JS Date.getDay(): 0 = Sonntag … 6 = Samstag
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+
 interface PersonalStats {
   total_work_minutes: number
   total_break_minutes: number
   entry_count: number
   target_hours_per_month: number
+  weekly_schedule: WeeklySchedule
 }
 
 interface DailyEntry {
@@ -31,17 +37,37 @@ interface DailyEntry {
   break_minutes: number | null
 }
 
+// Kumulatives Soll (in Minuten) vom 1. des Monats bis einschließlich upToDay,
+// abgeleitet aus den geplanten Stunden pro Wochentag (weekly_schedule).
+function sollMinutesUpToDay(
+  schedule: WeeklySchedule,
+  year: number,
+  month: number,
+  upToDay: number
+): number {
+  let total = 0
+  for (let d = 1; d <= upToDay; d++) {
+    const dow = new Date(year, month - 1, d).getDay()
+    total += (schedule[WEEKDAY_KEYS[dow]] ?? 0) * 60
+  }
+  return total
+}
+
+function currentDayOfMonth(year: number, month: number): number {
+  const today = new Date()
+  const daysInMonth = new Date(year, month, 0).getDate()
+  return today.getMonth() + 1 === month && today.getFullYear() === year
+    ? today.getDate()
+    : daysInMonth
+}
+
 function buildChartData(
   entries: DailyEntry[],
-  targetHoursPerMonth: number,
+  schedule: WeeklySchedule,
   year: number,
   month: number
 ) {
-  const today = new Date()
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const currentDay = today.getMonth() + 1 === month && today.getFullYear() === year
-    ? today.getDate()
-    : daysInMonth
+  const currentDay = currentDayOfMonth(year, month)
 
   const dayMap: Record<number, number> = {}
   for (const entry of entries) {
@@ -57,9 +83,11 @@ function buildChartData(
 
   const data: { day: number; ist: number; soll: number }[] = []
   let cumIst = 0
+  let cumSoll = 0
   for (let d = 1; d <= currentDay; d++) {
     cumIst += dayMap[d] ?? 0
-    const cumSoll = (d / daysInMonth) * targetHoursPerMonth * 60
+    const dow = new Date(year, month - 1, d).getDay()
+    cumSoll += (schedule[WEEKDAY_KEYS[dow]] ?? 0) * 60
     data.push({
       day: d,
       ist: Math.round((cumIst / 60) * 10) / 10,
@@ -165,37 +193,47 @@ function PersonalView({
       .then(r => r.json())
       .then((j: {
         monthStats: { total_work_minutes: number; total_break_minutes: number; entry_count: number }
-        employee: { target_hours_per_month: number }
+        employee: { target_hours_per_month: number; weekly_schedule?: WeeklySchedule }
         entries: DailyEntry[]
       }) => {
-        setStats({ ...j.monthStats, target_hours_per_month: j.employee?.target_hours_per_month ?? 0 })
+        setStats({
+          ...j.monthStats,
+          target_hours_per_month: j.employee?.target_hours_per_month ?? 0,
+          weekly_schedule: j.employee?.weekly_schedule ?? {},
+        })
         setEntries(j.entries ?? [])
       })
       .catch(() => { /* ignore */ })
   }, [employee.id, year, month])
 
-  const netMinutes = stats ? Math.max(0, (stats.total_work_minutes ?? 0) - (stats.total_break_minutes ?? 0)) : 0
-  const targetMinutes = stats ? (stats.target_hours_per_month ?? 0) * 60 : 0
-  const diff = netMinutes - targetMinutes
-  const hasData = netMinutes > 0
-  const progressPct = targetMinutes > 0 && hasData ? Math.min(100, Math.round((netMinutes / targetMinutes) * 100)) : 0
+  const schedule = stats?.weekly_schedule ?? {}
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const currentDay = currentDayOfMonth(year, month)
 
-  const today = new Date()
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-  const currentDay = today.getDate()
-  const expectedPct = Math.round((currentDay / daysInMonth) * 100)
-  const pctDiff = progressPct - expectedPct
-  const contextMsg = hasData && targetMinutes > 0
-    ? pctDiff >= 5
-      ? `Gut dabei — ${pctDiff}% vor dem Tagesziel`
-      : pctDiff <= -5
-      ? `${Math.abs(pctDiff)}% hinter dem Tagesziel`
-      : `Genau im Plan`
-    : null
+  const netMinutes = stats ? Math.max(0, (stats.total_work_minutes ?? 0) - (stats.total_break_minutes ?? 0)) : 0
+  // Soll aus dem Wochenplan: kumulativ bis heute (Vergleichsbasis) und für den ganzen Monat (Fortschritt)
+  const sollToDateMinutes = stats ? sollMinutesUpToDay(schedule, year, month, currentDay) : 0
+  const sollMonthMinutes = stats ? sollMinutesUpToDay(schedule, year, month, daysInMonth) : 0
+  // Differenz gegenüber dem, was BIS HEUTE laut Wochenplan erwartet wird (nicht ganzer Monat)
+  const diffToDate = netMinutes - sollToDateMinutes
+  const hasData = netMinutes > 0
+  const progressPct = sollMonthMinutes > 0 ? Math.round((netMinutes / sollMonthMinutes) * 100) : 0
+
+  // Status auf Stundenbasis: ahead / on track / behind — gemessen am Soll bis heute
+  const TOLERANCE_MIN = 15
+  const statusTone: 'ahead' | 'ontrack' | 'behind' =
+    diffToDate >= TOLERANCE_MIN ? 'ahead' : diffToDate <= -TOLERANCE_MIN ? 'behind' : 'ontrack'
+  const contextMsg = !stats || sollToDateMinutes === 0
+    ? null
+    : statusTone === 'behind'
+    ? `Noch ${formatDuration(-diffToDate)} bis zum Soll`
+    : statusTone === 'ahead'
+    ? `${formatDuration(diffToDate)} über dem Soll`
+    : 'Genau im Soll'
 
   const ss = String(countdown % 60).padStart(2, '0')
   const chartData = stats
-    ? buildChartData(entries, stats.target_hours_per_month, year, month)
+    ? buildChartData(entries, schedule, year, month)
     : []
 
   const isCheckin = result?.type === 'checkin'
@@ -231,17 +269,17 @@ function PersonalView({
               </p>
             </div>
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 md:p-8">
-              <p className="text-base text-gray-400 mb-2">Soll</p>
+              <p className="text-base text-gray-400 mb-2">Soll bis heute</p>
               <p className="text-4xl md:text-5xl font-bold text-white">
-                {targetMinutes > 0 ? `${stats.target_hours_per_month}h` : <span className="text-gray-600">—</span>}
+                {sollToDateMinutes > 0 ? formatDuration(sollToDateMinutes) : <span className="text-gray-600">—</span>}
               </p>
             </div>
             <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 md:p-8">
               <p className="text-base text-gray-400 mb-2">Diff</p>
-              {hasData && targetMinutes > 0 ? (
-                <p className={`text-4xl md:text-5xl font-bold flex items-center justify-center gap-1.5 ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {diff >= 0 ? <TrendingUp className="w-7 h-7" /> : <TrendingDown className="w-7 h-7" />}
-                  {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
+              {sollToDateMinutes > 0 ? (
+                <p className={`text-4xl md:text-5xl font-bold flex items-center justify-center gap-1.5 ${diffToDate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {diffToDate >= 0 ? <TrendingUp className="w-7 h-7" /> : <TrendingDown className="w-7 h-7" />}
+                  {diffToDate >= 0 ? '+' : '−'}{formatDuration(Math.abs(diffToDate))}
                 </p>
               ) : (
                 <p className="text-4xl md:text-5xl font-bold text-gray-600">—</p>
@@ -250,16 +288,16 @@ function PersonalView({
           </div>
 
           {/* Fortschrittsbalken */}
-          {targetMinutes > 0 && (
+          {sollMonthMinutes > 0 && (
             <div className="w-full space-y-2">
               <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${progressPct}%`, backgroundColor: employee.color }}
+                  style={{ width: `${Math.min(100, progressPct)}%`, backgroundColor: employee.color }}
                 />
               </div>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>{hasData ? `${progressPct}% des Monatsziels` : 'Noch keine Stunden erfasst'}</span>
+                <span>{hasData ? `${progressPct}% des Monatsziels (${formatDuration(sollMonthMinutes)})` : 'Noch keine Stunden erfasst'}</span>
                 {(stats.entry_count ?? 0) > 0 && <span>{stats.entry_count} Buchungen</span>}
               </div>
             </div>
@@ -268,8 +306,8 @@ function PersonalView({
           {/* Kontext-Hinweis */}
           {contextMsg && (
             <div className={`w-full rounded-2xl px-4 py-3 text-base font-medium ${
-              pctDiff >= 5 ? 'bg-green-500/10 text-green-400' :
-              pctDiff <= -5 ? 'bg-red-500/10 text-red-400' :
+              statusTone === 'ahead' ? 'bg-green-500/10 text-green-400' :
+              statusTone === 'behind' ? 'bg-red-500/10 text-red-400' :
               'bg-gray-800 text-gray-400'
             }`}>
               {contextMsg}
