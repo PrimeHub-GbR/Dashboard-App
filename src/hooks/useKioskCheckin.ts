@@ -3,16 +3,32 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { KioskCheckinResult, Employee } from '@/lib/zeiterfassung/types'
 
-export type KioskStep = 'select' | 'pin' | 'set_pin' | 'set_pin_confirm' | 'success' | 'personal'
+export type KioskStep =
+  | 'select'
+  | 'pin'
+  | 'set_pin'
+  | 'set_pin_confirm'
+  | 'success'
+  | 'personal'
+  | 'change_pin_old'
+  | 'change_pin_new'
+  | 'change_pin_confirm'
+  | 'change_pin_success'
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
 const PERSONAL_VIEW_SECONDS = 30
 
-export function useKioskCheckin() {
+interface UseKioskCheckinOptions {
+  onReset?: () => void
+}
+
+export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
   const [step, setStep] = useState<KioskStep>('select')
   const [selectedEmployee, setSelectedEmployee] = useState<Pick<Employee, 'id' | 'name' | 'color'> | null>(null)
   const [pin, setPin] = useState('')
   const [firstPin, setFirstPin] = useState('') // gespeicherte erste PIN-Eingabe beim Set-PIN-Flow
+  const [changeOldPin, setChangeOldPin] = useState('') // alte PIN beim PIN-ändern-Flow
+  const [changeNewPin, setChangeNewPin] = useState('') // neue PIN beim PIN-ändern-Flow
   const [result, setResult] = useState<KioskCheckinResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,15 +47,28 @@ export function useKioskCheckin() {
   const firstPinRef = useRef(firstPin)
   useEffect(() => { firstPinRef.current = firstPin }, [firstPin])
 
+  // Refs für PIN-ändern-Flow (gegen Stale-Closures in appendDigit)
+  const changeOldPinRef = useRef(changeOldPin)
+  useEffect(() => { changeOldPinRef.current = changeOldPin }, [changeOldPin])
+  const changeNewPinRef = useRef(changeNewPin)
+  useEffect(() => { changeNewPinRef.current = changeNewPin }, [changeNewPin])
+
+  // Ref für onReset-Callback (gegen Stale-Closures)
+  const onResetRef = useRef(opts?.onReset)
+  useEffect(() => { onResetRef.current = opts?.onReset }, [opts?.onReset])
+
   const resetFull = useCallback(() => {
     setStep('select')
     setSelectedEmployee(null)
     setPin('')
     setFirstPin('')
+    setChangeOldPin('')
+    setChangeNewPin('')
     setResult(null)
     setError(null)
     setLoading(false)
     submitting.current = false
+    onResetRef.current?.()
   }, [])
 
   // Normaler Check-in/out via Toggle
@@ -144,12 +173,84 @@ export function useKioskCheckin() {
     }
   }, [submitWithPin])
 
+  // PIN ändern (alte PIN → neue PIN, als Ergänzung zum Admin-Reset)
+  const submitChangePin = useCallback(async (oldPin: string, newPin: string, confirmPin: string) => {
+    const employee = employeeRef.current
+    if (!employee || submitting.current) return
+
+    if (newPin !== confirmPin) {
+      setError('Neue PINs stimmen nicht überein — bitte erneut versuchen')
+      setPin('')
+      setChangeNewPin('')
+      setStep('change_pin_new')
+      return
+    }
+
+    submitting.current = true
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/zeiterfassung/change-pin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-kiosk-token': KIOSK_TOKEN,
+        },
+        body: JSON.stringify({ employee_id: employee.id, old_pin: oldPin, new_pin: newPin }),
+      })
+
+      const json = await res.json() as { success?: boolean; error?: string }
+
+      if (res.status === 401) {
+        // Alte PIN falsch → Flow von vorne beginnen
+        setError('Alte PIN ist falsch')
+        setPin('')
+        setChangeOldPin('')
+        setChangeNewPin('')
+        setStep('change_pin_old')
+        submitting.current = false
+        setLoading(false)
+        return
+      }
+
+      if (!res.ok) {
+        setError(json.error ?? 'PIN konnte nicht geändert werden')
+        setPin('')
+        setChangeNewPin('')
+        setStep('change_pin_new')
+        submitting.current = false
+        setLoading(false)
+        return
+      }
+
+      // Erfolg → kurzer Bestätigungs-Screen, dann zurück zur PIN-Eingabe
+      setPin('')
+      setChangeOldPin('')
+      setChangeNewPin('')
+      setStep('change_pin_success')
+      submitting.current = false
+      setLoading(false)
+      setTimeout(() => setStep('pin'), 2000)
+    } catch {
+      setError('Verbindungsfehler — bitte erneut versuchen')
+      setPin('')
+      setChangeNewPin('')
+      setStep('change_pin_new')
+      submitting.current = false
+      setLoading(false)
+    }
+  }, [])
+
   // Refs auf aktuelle Versionen
   const submitRef = useRef(submitWithPin)
   useEffect(() => { submitRef.current = submitWithPin }, [submitWithPin])
 
   const submitSetPinRef = useRef(submitSetPin)
   useEffect(() => { submitSetPinRef.current = submitSetPin }, [submitSetPin])
+
+  const submitChangePinRef = useRef(submitChangePin)
+  useEffect(() => { submitChangePinRef.current = submitChangePin }, [submitChangePin])
 
   const selectEmployee = useCallback((emp: Pick<Employee, 'id' | 'name' | 'color'>, pinIsSet = true) => {
     setSelectedEmployee(emp)
@@ -183,6 +284,25 @@ export function useKioskCheckin() {
         } else if (currentStep === 'set_pin_confirm') {
           // Bestätigung abgeschlossen → PINs vergleichen und setzen
           setTimeout(() => submitSetPinRef.current(firstPinRef.current, next), 50)
+        } else if (currentStep === 'change_pin_old') {
+          // Alte PIN eingegeben → neue PIN vergeben
+          setTimeout(() => {
+            setChangeOldPin(next)
+            setPin('')
+            setStep('change_pin_new')
+          }, 50)
+          return next
+        } else if (currentStep === 'change_pin_new') {
+          // Neue PIN eingegeben → bestätigen
+          setTimeout(() => {
+            setChangeNewPin(next)
+            setPin('')
+            setStep('change_pin_confirm')
+          }, 50)
+          return next
+        } else if (currentStep === 'change_pin_confirm') {
+          // Bestätigung abgeschlossen → an Server senden
+          setTimeout(() => submitChangePinRef.current(changeOldPinRef.current, changeNewPinRef.current, next), 50)
         }
       }
       return next
@@ -202,6 +322,24 @@ export function useKioskCheckin() {
     setStep('set_pin')
   }, [])
 
+  // PIN-ändern-Flow starten (vom pin-Screen)
+  const startChangePin = useCallback(() => {
+    setPin('')
+    setChangeOldPin('')
+    setChangeNewPin('')
+    setError(null)
+    submitting.current = false
+    setStep('change_pin_old')
+  }, [])
+
+  // Im change_pin_confirm-Step: zurück zur Neueingabe
+  const backToChangeNew = useCallback(() => {
+    setPin('')
+    setChangeNewPin('')
+    setError(null)
+    setStep('change_pin_new')
+  }, [])
+
   return {
     step,
     selectedEmployee,
@@ -214,6 +352,8 @@ export function useKioskCheckin() {
     appendDigit,
     deleteDigit,
     backToSetPin,
+    startChangePin,
+    backToChangeNew,
     reset: resetFull,
   }
 }

@@ -4,6 +4,7 @@ import { useKioskCheckin } from '@/hooks/useKioskCheckin'
 import { formatTimeBerlin, formatDuration, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { Employee, KioskCheckinResult } from '@/lib/zeiterfassung/types'
 import { CheckCircle, LogIn, LogOut, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   Area,
@@ -64,6 +65,12 @@ function buildChartData(
       ist: Math.round((cumIst / 60) * 10) / 10,
       soll: Math.round((cumSoll / 60) * 10) / 10,
     })
+  }
+
+  // Am Monatsanfang gibt es nur einen Datenpunkt → recharts zeichnet keine sichtbare
+  // Linie/Fläche. Einen Null-Startpunkt (Tag 0) voranstellen, damit immer etwas gerendert wird.
+  if (data.length < 2) {
+    data.unshift({ day: 0, ist: 0, soll: 0 })
   }
   return data
 }
@@ -194,64 +201,64 @@ function PersonalView({
   const isCheckin = result?.type === 'checkin'
 
   return (
-    <div className="flex flex-col items-center gap-5 max-w-sm mx-auto px-4 w-full text-center">
+    <div className="flex flex-col items-center gap-8 max-w-4xl mx-auto px-6 w-full text-center">
       {/* Avatar + Begrüßung */}
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-3">
         <div
-          className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg"
+          className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg"
           style={{ backgroundColor: employee.color }}
         >
           {employee.name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="text-3xl font-bold text-white">
             {isCheckin ? `Hallo, ${employee.name}!` : `Bis bald, ${employee.name}!`}
           </h1>
-          <p className="text-gray-500 text-xs mt-0.5">Monatsübersicht · {month}/{year}</p>
+          <p className="text-gray-500 text-sm mt-1">Monatsübersicht · {month}/{year}</p>
         </div>
       </div>
 
       {/* Stats */}
       {stats === null ? (
-        <div className="w-full h-20 bg-gray-900 rounded-xl animate-pulse" />
+        <div className="w-full h-40 bg-gray-900 rounded-2xl animate-pulse" />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-2 w-full">
-            <div className="bg-gray-900 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Ist</p>
-              <p className="text-base font-bold text-white">
+          <div className="grid grid-cols-3 gap-6 w-full">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 md:p-8">
+              <p className="text-base text-gray-400 mb-2">Ist</p>
+              <p className="text-4xl md:text-5xl font-bold text-white">
                 {hasData ? formatDuration(netMinutes) : <span className="text-gray-600">—</span>}
               </p>
             </div>
-            <div className="bg-gray-900 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Soll</p>
-              <p className="text-base font-bold text-white">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 md:p-8">
+              <p className="text-base text-gray-400 mb-2">Soll</p>
+              <p className="text-4xl md:text-5xl font-bold text-white">
                 {targetMinutes > 0 ? `${stats.target_hours_per_month}h` : <span className="text-gray-600">—</span>}
               </p>
             </div>
-            <div className="bg-gray-900 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Diff</p>
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6 md:p-8">
+              <p className="text-base text-gray-400 mb-2">Diff</p>
               {hasData && targetMinutes > 0 ? (
-                <p className={`text-base font-bold flex items-center justify-center gap-0.5 ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {diff >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                <p className={`text-4xl md:text-5xl font-bold flex items-center justify-center gap-1.5 ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {diff >= 0 ? <TrendingUp className="w-7 h-7" /> : <TrendingDown className="w-7 h-7" />}
                   {diff >= 0 ? '+' : ''}{formatDuration(Math.abs(diff))}
                 </p>
               ) : (
-                <p className="text-gray-600">—</p>
+                <p className="text-4xl md:text-5xl font-bold text-gray-600">—</p>
               )}
             </div>
           </div>
 
           {/* Fortschrittsbalken */}
           {targetMinutes > 0 && (
-            <div className="w-full space-y-1">
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+            <div className="w-full space-y-2">
+              <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${progressPct}%`, backgroundColor: employee.color }}
                 />
               </div>
-              <div className="flex justify-between text-xs text-gray-600">
+              <div className="flex justify-between text-sm text-gray-500">
                 <span>{hasData ? `${progressPct}% des Monatsziels` : 'Noch keine Stunden erfasst'}</span>
                 {(stats.entry_count ?? 0) > 0 && <span>{stats.entry_count} Buchungen</span>}
               </div>
@@ -260,7 +267,7 @@ function PersonalView({
 
           {/* Kontext-Hinweis */}
           {contextMsg && (
-            <div className={`w-full rounded-xl px-3 py-2 text-xs font-medium ${
+            <div className={`w-full rounded-2xl px-4 py-3 text-base font-medium ${
               pctDiff >= 5 ? 'bg-green-500/10 text-green-400' :
               pctDiff <= -5 ? 'bg-red-500/10 text-red-400' :
               'bg-gray-800 text-gray-400'
@@ -270,26 +277,26 @@ function PersonalView({
           )}
 
           {/* Ist/Soll Chart */}
-          {chartData.length > 1 && (
+          {chartData.length >= 1 && (
             <div className="w-full">
-              <p className="text-xs text-gray-600 mb-2 text-left">Verlauf dieses Monats</p>
-              <ResponsiveContainer width="100%" height={110}>
-                <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+              <p className="text-sm text-gray-500 mb-3 text-left">Verlauf dieses Monats</p>
+              <ResponsiveContainer width="100%" height={360}>
+                <ComposedChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
                   <XAxis
                     dataKey="day"
-                    tick={{ fill: '#4b5563', fontSize: 10 }}
+                    tick={{ fill: '#6b7280', fontSize: 14 }}
                     tickLine={false}
                     axisLine={false}
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    tick={{ fill: '#4b5563', fontSize: 10 }}
+                    tick={{ fill: '#6b7280', fontSize: 14 }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={v => `${v}h`}
                   />
                   <Tooltip
-                    contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: '#111', border: '1px solid #333', borderRadius: 8, fontSize: 14 }}
                     labelStyle={{ color: '#9ca3af' }}
                     labelFormatter={v => `Tag ${v}`}
                     formatter={(value: number, name: string) => [
@@ -301,8 +308,8 @@ function PersonalView({
                     type="monotone"
                     dataKey="soll"
                     stroke="#6b7280"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 3"
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
                     dot={false}
                   />
                   <Area
@@ -311,7 +318,7 @@ function PersonalView({
                     stroke={employee.color}
                     fill={employee.color}
                     fillOpacity={0.2}
-                    strokeWidth={2}
+                    strokeWidth={3}
                     dot={false}
                   />
                 </ComposedChart>
@@ -322,7 +329,7 @@ function PersonalView({
       )}
 
       {/* Exit-Button + Countdown */}
-      <div className="w-full flex flex-col items-center gap-2">
+      <div className="w-full max-w-sm flex flex-col items-center gap-2">
         <button
           onClick={onExit}
           className="w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-white font-semibold text-lg transition-all active:scale-95"
@@ -337,11 +344,88 @@ function PersonalView({
   )
 }
 
+function PinDots({ count, loading }: { count: number; loading: boolean }) {
+  return (
+    <div className="flex gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
+            loading
+              ? 'bg-gray-500 border-gray-500 animate-pulse'
+              : i < count
+              ? 'bg-green-400 border-green-400 scale-110'
+              : 'border-gray-600'
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function NumPad({
+  onAppend,
+  onDelete,
+  loading,
+  pinLength,
+}: {
+  onAppend: (digit: string) => void
+  onDelete: () => void
+  loading: boolean
+  pinLength: number
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-3 w-full">
+      {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((key, i) => {
+        if (key === '') return <div key={i} />
+        if (key === '⌫') {
+          return (
+            <button
+              key={i}
+              onClick={onDelete}
+              disabled={loading}
+              className="h-16 rounded-2xl bg-gray-800 text-white flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+            >
+              <Delete className="w-6 h-6" />
+            </button>
+          )
+        }
+        return (
+          <button
+            key={i}
+            onClick={() => onAppend(key)}
+            disabled={loading || pinLength >= 4}
+            className="h-16 rounded-2xl bg-gray-800 hover:bg-gray-700 text-white text-2xl font-semibold active:scale-95 transition-all disabled:opacity-40"
+          >
+            {key}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function PresenceBadge({ checkedIn }: { checkedIn: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold ${
+        checkedIn ? 'bg-green-500/15 text-green-300' : 'bg-gray-700/40 text-gray-400'
+      }`}
+    >
+      <span
+        className={`w-2.5 h-2.5 rounded-full ${checkedIn ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}
+      />
+      {checkedIn ? 'Anwesend' : 'Abwesend'}
+    </span>
+  )
+}
+
 interface Props {
   employees: (Pick<Employee, 'id' | 'name' | 'color'> & { pin_is_set: boolean; position: string; is_checked_in: boolean })[]
 }
 
 export function KioskCheckin({ employees }: Props) {
+  const router = useRouter()
   const {
     step,
     selectedEmployee,
@@ -354,8 +438,18 @@ export function KioskCheckin({ employees }: Props) {
     appendDigit,
     deleteDigit,
     backToSetPin,
+    startChangePin,
+    backToChangeNew,
     reset,
-  } = useKioskCheckin()
+  } = useKioskCheckin({ onReset: () => router.refresh() })
+
+  // Geteiltes Terminal: Auswahl periodisch aktualisieren, damit der Anwesenheits-
+  // Status auch frisch bleibt, wenn jemand an einem anderen Gerät ein-/auscheckt.
+  useEffect(() => {
+    if (step !== 'select') return
+    const interval = setInterval(() => router.refresh(), 30000)
+    return () => clearInterval(interval)
+  }, [step, router])
 
   if (step === 'success' && result) {
     return <SuccessScreen result={result} />
@@ -369,6 +463,91 @@ export function KioskCheckin({ employees }: Props) {
         onExit={reset}
         personalViewSeconds={personalViewSeconds}
       />
+    )
+  }
+
+  if (step === 'change_pin_success' && selectedEmployee) {
+    return (
+      <div className="flex flex-col items-center gap-6 text-center max-w-sm mx-auto px-4">
+        <div className="relative flex items-center justify-center w-28 h-28">
+          <div className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping" />
+          <div className="relative w-20 h-20 rounded-full bg-green-500 flex items-center justify-center">
+            <CheckCircle className="w-10 h-10 text-white" strokeWidth={2.5} />
+          </div>
+        </div>
+        <h2 className="text-2xl font-bold text-white">PIN geändert</h2>
+        <p className="text-gray-400">Du kannst dich jetzt mit deiner neuen PIN einstempeln.</p>
+      </div>
+    )
+  }
+
+  if (
+    (step === 'change_pin_old' || step === 'change_pin_new' || step === 'change_pin_confirm') &&
+    selectedEmployee
+  ) {
+    const headerText =
+      step === 'change_pin_old'
+        ? 'Aktuelle PIN eingeben'
+        : step === 'change_pin_new'
+        ? 'Neue PIN vergeben (4 Ziffern)'
+        : 'Neue PIN bestätigen'
+    const stepIndex = step === 'change_pin_old' ? 0 : step === 'change_pin_new' ? 1 : 2
+
+    return (
+      <div className="flex flex-col items-center gap-8 max-w-xs mx-auto px-4 w-full">
+        {/* Header */}
+        <div className="text-center">
+          <div
+            className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-white"
+            style={{ backgroundColor: selectedEmployee.color }}
+          >
+            {selectedEmployee.name.charAt(0).toUpperCase()}
+          </div>
+          <h2 className="text-2xl font-bold text-white">{selectedEmployee.name}</h2>
+          <p className="text-gray-400 mt-1 text-sm">{loading ? 'Bitte warten…' : headerText}</p>
+          {/* Schritt-Indikator (3 Schritte) */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className={`w-2 h-2 rounded-full ${stepIndex >= 0 ? 'bg-green-400' : 'bg-gray-600'}`} />
+            <div className={`w-6 h-0.5 ${stepIndex >= 1 ? 'bg-green-400' : 'bg-gray-700'}`} />
+            <div className={`w-2 h-2 rounded-full ${stepIndex >= 1 ? 'bg-green-400' : 'bg-gray-600'}`} />
+            <div className={`w-6 h-0.5 ${stepIndex >= 2 ? 'bg-green-400' : 'bg-gray-700'}`} />
+            <div className={`w-2 h-2 rounded-full ${stepIndex >= 2 ? 'bg-green-400' : 'bg-gray-600'}`} />
+          </div>
+        </div>
+
+        {/* PIN-Punkte */}
+        <PinDots count={pin.length} loading={loading} />
+
+        {/* Fehler */}
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 px-4 py-2 rounded-lg w-full justify-center">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Numpad */}
+        <NumPad onAppend={appendDigit} onDelete={deleteDigit} loading={loading} pinLength={pin.length} />
+
+        <div className="flex gap-4">
+          {step === 'change_pin_confirm' && (
+            <button
+              onClick={backToChangeNew}
+              disabled={loading}
+              className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
+            >
+              ← Zurück
+            </button>
+          )}
+          <button
+            onClick={reset}
+            disabled={loading}
+            className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
     )
   }
 
@@ -401,20 +580,7 @@ export function KioskCheckin({ employees }: Props) {
         </div>
 
         {/* PIN-Punkte */}
-        <div className="flex gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
-                loading
-                  ? 'bg-gray-500 border-gray-500 animate-pulse'
-                  : i < pin.length
-                  ? 'bg-green-400 border-green-400 scale-110'
-                  : 'border-gray-600'
-              }`}
-            />
-          ))}
-        </div>
+        <PinDots count={pin.length} loading={loading} />
 
         {/* Hinweis-Box */}
         {!error && !loading && (
@@ -437,33 +603,7 @@ export function KioskCheckin({ employees }: Props) {
         )}
 
         {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3 w-full">
-          {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((key, i) => {
-            if (key === '') return <div key={i} />
-            if (key === '⌫') {
-              return (
-                <button
-                  key={i}
-                  onClick={deleteDigit}
-                  disabled={loading}
-                  className="h-16 rounded-2xl bg-gray-800 text-white flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
-                >
-                  <Delete className="w-6 h-6" />
-                </button>
-              )
-            }
-            return (
-              <button
-                key={i}
-                onClick={() => appendDigit(key)}
-                disabled={loading || pin.length >= 4}
-                className="h-16 rounded-2xl bg-gray-800 hover:bg-gray-700 text-white text-2xl font-semibold active:scale-95 transition-all disabled:opacity-40"
-              >
-                {key}
-              </button>
-            )
-          })}
-        </div>
+        <NumPad onAppend={appendDigit} onDelete={deleteDigit} loading={loading} pinLength={pin.length} />
 
         <div className="flex gap-4">
           {isConfirm && (
@@ -503,20 +643,7 @@ export function KioskCheckin({ employees }: Props) {
         </div>
 
         {/* PIN-Punkte */}
-        <div className="flex gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
-                loading
-                  ? 'bg-gray-500 border-gray-500 animate-pulse'
-                  : i < pin.length
-                  ? 'bg-green-400 border-green-400 scale-110'
-                  : 'border-gray-600'
-              }`}
-            />
-          ))}
-        </div>
+        <PinDots count={pin.length} loading={loading} />
 
         {/* Fehler */}
         {error && (
@@ -527,41 +654,24 @@ export function KioskCheckin({ employees }: Props) {
         )}
 
         {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3 w-full">
-          {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((key, i) => {
-            if (key === '') return <div key={i} />
-            if (key === '⌫') {
-              return (
-                <button
-                  key={i}
-                  onClick={deleteDigit}
-                  disabled={loading}
-                  className="h-16 rounded-2xl bg-gray-800 text-white flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
-                >
-                  <Delete className="w-6 h-6" />
-                </button>
-              )
-            }
-            return (
-              <button
-                key={i}
-                onClick={() => appendDigit(key)}
-                disabled={loading || pin.length >= 4}
-                className="h-16 rounded-2xl bg-gray-800 hover:bg-gray-700 text-white text-2xl font-semibold active:scale-95 transition-all disabled:opacity-40"
-              >
-                {key}
-              </button>
-            )
-          })}
-        </div>
+        <NumPad onAppend={appendDigit} onDelete={deleteDigit} loading={loading} pinLength={pin.length} />
 
-        <button
-          onClick={reset}
-          disabled={loading}
-          className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
-        >
-          Zurück zur Auswahl
-        </button>
+        <div className="flex gap-6">
+          <button
+            onClick={reset}
+            disabled={loading}
+            className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
+          >
+            Zurück zur Auswahl
+          </button>
+          <button
+            onClick={startChangePin}
+            disabled={loading}
+            className="text-gray-500 text-sm hover:text-gray-300 disabled:opacity-40"
+          >
+            PIN ändern
+          </button>
+        </div>
       </div>
     )
   }
@@ -584,12 +694,8 @@ export function KioskCheckin({ employees }: Props) {
         }}
       >
         {/* Anwesenheits-Indikator */}
-        <div className={`absolute top-3.5 right-3.5 flex items-center gap-1.5 ${emp.is_checked_in ? 'opacity-100' : 'opacity-40'}`}>
-          <div className={`w-2 h-2 rounded-full ${emp.is_checked_in ? 'animate-pulse' : ''}`}
-            style={{ backgroundColor: emp.is_checked_in ? '#4ade80' : '#374151' }} />
-          <span className="text-xs font-medium" style={{ color: emp.is_checked_in ? '#4ade80' : '#4b5563' }}>
-            {emp.is_checked_in ? 'anwesend' : 'abwesend'}
-          </span>
+        <div className="absolute top-3.5 right-3.5">
+          <PresenceBadge checkedIn={emp.is_checked_in} />
         </div>
 
         {/* Avatar mit Glow-Ring wenn anwesend */}
@@ -622,20 +728,13 @@ export function KioskCheckin({ employees }: Props) {
     return (
       <button
         onClick={() => selectEmployee(emp, emp.pin_is_set)}
-        className="relative flex flex-col items-center gap-3 p-5 rounded-2xl active:scale-95 transition-all duration-200 w-[140px]"
+        className="relative flex flex-col items-center gap-3 p-5 rounded-2xl active:scale-95 transition-all duration-200 min-w-[150px]"
         style={{
           background: 'rgba(255,255,255,0.03)',
           border: emp.is_checked_in ? `1px solid ${emp.color}44` : '1px solid rgba(255,255,255,0.06)',
           boxShadow: emp.is_checked_in ? `0 0 16px ${emp.color}18` : 'none',
         }}
       >
-        {/* Punkt oben rechts */}
-        <div
-          className={`absolute top-2.5 right-2.5 w-2 h-2 rounded-full ${emp.is_checked_in ? 'animate-pulse' : ''}`}
-          style={{ backgroundColor: emp.is_checked_in ? '#4ade80' : '#1f2937',
-            boxShadow: emp.is_checked_in ? '0 0 6px #4ade8088' : 'none' }}
-        />
-
         <div
           className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold text-white"
           style={{ backgroundColor: emp.color,
@@ -644,6 +743,7 @@ export function KioskCheckin({ employees }: Props) {
           {emp.name.charAt(0).toUpperCase()}
         </div>
         <span className="text-white font-medium text-sm text-center leading-tight">{emp.name}</span>
+        <PresenceBadge checkedIn={emp.is_checked_in} />
       </button>
     )
   }
