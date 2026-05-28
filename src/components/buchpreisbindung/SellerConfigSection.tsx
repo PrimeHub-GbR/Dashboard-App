@@ -250,8 +250,8 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                 <Button
                   onClick={handleVerify}
                   disabled={!isSellerIdValid || verifyState === 'loading'}
-                  variant="outline"
-                  className="shrink-0 border-white/15 text-white/70 hover:bg-white/8"
+                  variant="ghost"
+                  className="shrink-0 border border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
                 >
                   {verifyState === 'loading' ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -278,21 +278,21 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setScheduleMode('weekly')}
                   className={scheduleMode === 'weekly'
-                    ? 'flex-1 border-green-500/40 bg-green-500/10 text-green-300'
-                    : 'flex-1 border-white/15 text-white/60 hover:bg-white/8'}
+                    ? 'flex-1 border border-green-500/40 bg-green-500/15 text-green-300 hover:bg-green-500/20'
+                    : 'flex-1 border border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}
                 >
                   Wöchentlich
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setScheduleMode('interval')}
                   className={scheduleMode === 'interval'
-                    ? 'flex-1 border-green-500/40 bg-green-500/10 text-green-300'
-                    : 'flex-1 border-white/15 text-white/60 hover:bg-white/8'}
+                    ? 'flex-1 border border-green-500/40 bg-green-500/15 text-green-300 hover:bg-green-500/20'
+                    : 'flex-1 border border-white/15 bg-white/5 text-white/70 hover:bg-white/10'}
                 >
                   Intervall
                 </Button>

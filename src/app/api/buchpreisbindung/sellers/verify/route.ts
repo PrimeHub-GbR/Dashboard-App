@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { ProxyAgent } from 'undici'
+import { fetch as undiciFetch, ProxyAgent } from 'undici'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { rateLimit } from '@/lib/rate-limit'
 
@@ -39,20 +39,22 @@ export async function POST(request: NextRequest) {
     let seller_name: string | null = null
 
     // Über DataImpulse-Residential-Proxy abrufen, damit Amazon die Anfrage nicht blockt.
+    // WICHTIG: undici's eigenes fetch verwenden — das globale fetch wird von Next.js gepatcht
+    // und ignoriert dabei die dispatcher-Option (Proxy würde sonst nicht greifen).
     const proxyUrl = process.env.DATAIMPULSE_PROXY_URL
     const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined
 
     try {
-      const response = await fetch(profileUrl, {
+      const response = await undiciFetch(profileUrl, {
         redirect: 'follow',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           'Accept-Language': 'de-DE,de;q=0.9',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
-        signal: AbortSignal.timeout(8000),
-        ...(dispatcher ? { dispatcher } : {}),
-      } as RequestInit & { dispatcher?: ProxyAgent })
+        signal: AbortSignal.timeout(15000),
+        dispatcher,
+      })
 
       if (response.ok) {
         const html = await response.text()
