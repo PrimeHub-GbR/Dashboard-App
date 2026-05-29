@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const MAX_ARCHIVES_PER_SELLER = 3
+const MAX_ARCHIVES_PER_SELLER = 2
 
 const itemSchema = z.object({
   isbn13: z.string(),
