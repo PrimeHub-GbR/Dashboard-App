@@ -4,7 +4,6 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const MAX_ARCHIVES_PER_SELLER = 2
 
 const itemSchema = z.object({
   isbn13: z.string(),
@@ -141,29 +140,9 @@ export async function POST(
       .update({ last_run_at: new Date().toISOString() })
       .eq('id', run.seller_id)
 
-    // Excel archive management: keep only last MAX_ARCHIVES_PER_SELLER per seller
-    if (status === 'success' && result_file_path) {
-      const { data: archives } = await supabase
-        .from('buchpreischeck_runs')
-        .select('id, excel_file_path, created_at')
-        .eq('seller_id', run.seller_id)
-        .eq('status', 'success')
-        .not('excel_file_path', 'is', null)
-        .order('created_at', { ascending: false })
-
-      if (archives && archives.length > MAX_ARCHIVES_PER_SELLER) {
-        const toDelete = archives.slice(MAX_ARCHIVES_PER_SELLER)
-        for (const old of toDelete) {
-          if (old.excel_file_path) {
-            await supabase.storage.from('workflow-results').remove([old.excel_file_path])
-          }
-          await supabase
-            .from('buchpreischeck_runs')
-            .update({ excel_file_path: null })
-            .eq('id', old.id)
-        }
-      }
-    }
+    // Hinweis: Excel-Dateien werden nicht mehr in Supabase Storage archiviert.
+    // Der Download generiert die Datei bei Bedarf live aus den gespeicherten Items
+    // (siehe /api/buchpreisbindung/runs/[id]/download).
 
     return NextResponse.json({ ok: true })
   } catch (err) {

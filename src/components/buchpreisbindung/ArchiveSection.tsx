@@ -15,18 +15,26 @@ interface Props {
 export function ArchiveSection({ runs, selectedSellerId }: Props) {
   const [downloading, setDownloading] = useState<string | null>(null)
 
-  const archives = runs.filter(r => r.status === 'success' && r.excel_file_path).slice(0, 3)
+  const archives = runs.filter(r => r.status === 'success' && (r.total_items ?? 0) > 0).slice(0, 3)
 
   async function handleDownload(run: BuchpreischeckRun) {
     setDownloading(run.id)
     try {
       const res = await fetch(`/api/buchpreisbindung/runs/${run.id}/download`)
-      const data = await res.json()
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         toast.error(data.error ?? 'Download fehlgeschlagen')
         return
       }
-      window.open(data.url, '_blank')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = getFilename(run)
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
     } catch {
       toast.error('Netzwerkfehler beim Download')
     } finally {
@@ -54,7 +62,7 @@ export function ArchiveSection({ runs, selectedSellerId }: Props) {
     <Card className="bg-[#0f1e14] border-white/10">
       <CardHeader className="pb-3">
         <CardTitle className="text-white text-base">Excel-Archiv</CardTitle>
-        <p className="text-xs text-white/40 mt-0.5">Die letzten 3 Prüfläufe (ältere werden automatisch gelöscht)</p>
+        <p className="text-xs text-white/40 mt-0.5">Die letzten 3 Prüfläufe — Excel wird beim Klick aus den gespeicherten Ergebnissen erzeugt</p>
       </CardHeader>
       <CardContent>
         {archives.length === 0 && (
