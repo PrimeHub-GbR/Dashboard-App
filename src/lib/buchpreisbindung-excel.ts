@@ -173,9 +173,6 @@ export async function buildBuchpreischeckExcel(
   kv('A7', 'B7', 'Prüfdatum:', datumStr)
   kv('A8', 'B8', 'Prüfdauer:', fmtDuration(run.started_at, run.completed_at))
   kv('A9', 'B9', 'Ausgelöst durch:', triggerLabel(run.triggered_by))
-  if (run.scrapeops_credits != null) {
-    kv('A10', 'B10', 'ScrapeOps-Credits:', `${run.scrapeops_credits}`)
-  }
 
   // Kennzahlen
   kv('D5', 'E5', 'Gesamt geprüfte Titel:', total, { bold: true })
@@ -205,10 +202,15 @@ export async function buildBuchpreischeckExcel(
       }
     }
   }
-  box('A4:B10')
+  box('A4:B9')
   box('D4:E9')
 
-  // Donut-Chart (QuickChart PNG)
+  // Donut-Chart (QuickChart PNG) — horizontal mittig in A:F
+  // Spaltenbreiten: A=24, B=22, C=4, D=26, E=22, F=4 → in Pixel (~ width*7 + 5 Padding)
+  // → gesamt ~744 px Inhaltsbereich; Chart 520 px → Links-Abstand (744-520)/2 ~ 112 px.
+  // ExcelJS interpretiert fractional `col` mit nur 240k EMU/Einheit (~25 px max), daher
+  // setzen wir nativeCol/nativeColOff direkt (1 px = 9525 EMU → 112 px ~ 1.067.000 EMU).
+  const CHART_LEFT_OFFSET_EMU = 112 * 9525
   const donutBuf = await fetchDonutPng(okCount, violationsCount, noVlbCount)
   if (donutBuf) {
     const imgId = wb.addImage({
@@ -216,7 +218,12 @@ export async function buildBuchpreischeckExcel(
       extension: 'png',
     })
     ws.addImage(imgId, {
-      tl: { col: 0, row: 11 },
+      tl: {
+        nativeCol: 0,
+        nativeColOff: CHART_LEFT_OFFSET_EMU,
+        nativeRow: 11,
+        nativeRowOff: 0,
+      } as unknown as ExcelJS.Anchor,
       ext: { width: 520, height: 340 },
     })
     // Platz reservieren (Zeilen-Höhe für Chart-Bereich)
@@ -229,13 +236,20 @@ export async function buildBuchpreischeckExcel(
     fb.alignment = { horizontal: 'center', vertical: 'middle' }
   }
 
-  // Footer
-  const footerRow = 30
-  ws.mergeCells(`A${footerRow}:F${footerRow}`)
-  const footer = ws.getCell(`A${footerRow}`)
-  footer.value = `Erstellt am ${fmtDateTimeBerlin(new Date().toISOString())} · PrimeHub Dashboard`
-  footer.font = { size: 9, color: { argb: 'FF9CA3AF' }, italic: true }
-  footer.alignment = { horizontal: 'center' }
+  // Hinweis (statt Footer): Repricer + Datenqualität
+  const noteFromRow = 30
+  const noteToRow = 32
+  ws.mergeCells(`A${noteFromRow}:F${noteToRow}`)
+  const note = ws.getCell(`A${noteFromRow}`)
+  note.value =
+    'Die Preise des Händlers können sich jederzeit ändern, da intelligente Repricer eingesetzt werden. ' +
+    'Das Ergebnis sollte zeitnah ausgewertet werden. ' +
+    'Es ist nicht auszuschließen, dass die Daten Fehler enthalten.'
+  note.font = { size: 10, color: { argb: 'FF6B7280' }, italic: true }
+  note.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  ws.getRow(noteFromRow).height = 22
+  ws.getRow(noteFromRow + 1).height = 22
+  ws.getRow(noteToRow).height = 22
 
   // =====================================================
   // Blatt 2: Details
