@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Trash2, Play, Loader2, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react'
+import { Trash2, Play, Loader2, CheckCircle2, AlertCircle, Plus, X, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BuchpreischeckSeller } from '@/hooks/useBuchpreisbindung'
 import { estimateRunCost, estimateSellerMonthlyCost } from '@/lib/buchpreisbindung-cost'
@@ -67,6 +67,7 @@ function fmtUSD(usd: number) {
 
 export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDeleteSeller, onRunSeller, selectedSellerId, onSelectSeller }: Props) {
   const [showAddForm, setShowAddForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [sellerId, setSellerId] = useState('')
   const [verifyState, setVerifyState] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'error'>('idle')
   const [verifiedName, setVerifiedName] = useState<string | null>(null)
@@ -113,6 +114,7 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
   }
 
   function resetForm() {
+    setEditingId(null)
     setSellerId('')
     setVerifyState('idle')
     setVerifiedName(null)
@@ -123,21 +125,45 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
     setMaxPages('')
   }
 
-  async function handleAdd() {
+  function startEdit(seller: BuchpreischeckSeller) {
+    setEditingId(seller.id)
+    setSellerId(seller.amazon_seller_id)
+    setVerifiedName(seller.seller_name)
+    setVerifyState('found') // bestehender Händler ist bereits verifiziert
+    setScheduleMode(seller.schedule_mode)
+    setRunTime(seller.run_time)
+    setInterval(seller.interval_minutes)
+    setWeekdays(seller.active_weekdays)
+    setMaxPages(seller.max_pages != null ? String(seller.max_pages) : '')
+    setShowAddForm(true)
+  }
+
+  async function handleSave() {
     if (!sellerId.trim()) return
     setIsSaving(true)
     try {
       const parsedMax = maxPages.trim() === '' ? null : Math.max(1, Math.min(200, parseInt(maxPages, 10) || 0))
-      await onAddSeller({
-        amazon_seller_id: sellerId.trim().toUpperCase(),
-        seller_name: verifiedName ?? undefined,
-        schedule_mode: scheduleMode,
-        run_time: runTime,
-        interval_minutes: interval,
-        active_weekdays: weekdays,
-        max_pages: parsedMax,
-      })
-      toast.success('Händler hinzugefügt')
+      if (editingId) {
+        await onUpdateSeller(editingId, {
+          schedule_mode: scheduleMode,
+          run_time: runTime,
+          interval_minutes: interval,
+          active_weekdays: weekdays,
+          max_pages: parsedMax,
+        })
+        toast.success('Händler aktualisiert')
+      } else {
+        await onAddSeller({
+          amazon_seller_id: sellerId.trim().toUpperCase(),
+          seller_name: verifiedName ?? undefined,
+          schedule_mode: scheduleMode,
+          run_time: runTime,
+          interval_minutes: interval,
+          active_weekdays: weekdays,
+          max_pages: parsedMax,
+        })
+        toast.success('Händler hinzugefügt')
+      }
       resetForm()
       setShowAddForm(false)
     } catch (e) {
@@ -230,7 +256,7 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
         {showAddForm && (
           <div className="rounded-xl border border-white/10 bg-white/4 p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-white/80">Neuen Händler hinzufügen</p>
+              <p className="text-sm font-medium text-white/80">{editingId ? 'Händler bearbeiten' : 'Neuen Händler hinzufügen'}</p>
               <button onClick={() => { setShowAddForm(false); resetForm() }} className="text-white/30 hover:text-white/60">
                 <X className="h-4 w-4" />
               </button>
@@ -244,20 +270,32 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                   value={sellerId}
                   onChange={e => { setSellerId(e.target.value.toUpperCase()); setVerifyState('idle') }}
                   placeholder="z.B. A1EXAMPLE23456"
-                  className="bg-white/5 border-white/15 text-white placeholder:text-white/25 font-mono"
+                  className="bg-white/5 border-white/15 text-white placeholder:text-white/25 font-mono disabled:opacity-60"
                   maxLength={14}
+                  disabled={!!editingId}
                 />
-                <Button
-                  onClick={handleVerify}
-                  disabled={!isSellerIdValid || verifyState === 'loading'}
-                  variant="ghost"
-                  className="shrink-0 border border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
-                >
-                  {verifyState === 'loading' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : 'Prüfen'}
-                </Button>
+                {!editingId && (
+                  <Button
+                    onClick={handleVerify}
+                    disabled={!isSellerIdValid || verifyState === 'loading'}
+                    variant="ghost"
+                    className="shrink-0 border border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
+                  >
+                    {verifyState === 'loading' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : 'Prüfen'}
+                  </Button>
+                )}
               </div>
+              {editingId && (
+                <p className="text-[11px] text-white/35">Die Seller-ID kann nicht geändert werden — nur Zeitplan & Seitenzahl.</p>
+              )}
+              {!editingId && verifyState === 'idle' && (
+                <p className="text-xs text-white/40 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Bitte zuerst „Prüfen" — Verifizierung ist vor dem Hinzufügen erforderlich.
+                </p>
+              )}
               {verifyState === 'found' && (
                 <p className="text-xs text-green-400 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
@@ -361,12 +399,12 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
             </div>
 
             <Button
-              onClick={handleAdd}
-              disabled={!isSellerIdValid || weekdays.length === 0 || isSaving}
+              onClick={handleSave}
+              disabled={isSaving || weekdays.length === 0 || (!editingId && verifyState !== 'found')}
               className="w-full bg-green-600 hover:bg-green-700 text-white"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Händler speichern
+              {editingId ? 'Änderungen speichern' : 'Händler speichern'}
             </Button>
           </div>
         )}
@@ -427,6 +465,15 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-white/40 hover:text-white hover:bg-white/10"
+                    title="Bearbeiten (Zeitplan & Seitenzahl)"
+                    onClick={e => { e.stopPropagation(); startEdit(seller) }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     size="icon"
                     variant="ghost"
