@@ -53,8 +53,8 @@ function RunningProgress({ run }: { run: BuchpreischeckRun }) {
           <div>
             <p className="text-sm font-medium text-orange-300">Möglicherweise abgestürzt</p>
             <p className="text-xs text-orange-400/70 mt-0.5">
-              Läuft seit {formatElapsed(elapsed)} — normalerweise fertig in &lt; 4 Min.
-              Prüfe den N8N-Workflow auf Fehler.
+              Läuft seit {formatElapsed(elapsed)} — normalerweise fertig in &lt; 8 Min.
+              Wird nach 15 Min automatisch als Timeout markiert.
             </p>
           </div>
         </div>
@@ -184,10 +184,16 @@ export function LastRunSection({ runs, items, isLoading, selectedSellerId }: Pro
           <RunningProgress run={displayRun} />
         )}
 
-        {displayRun?.status === 'failed' && (
-          <div className="flex items-center gap-2 py-4 px-3 rounded-lg bg-red-500/10 border border-red-500/20">
-            <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-            <p className="text-sm text-red-300">{displayRun.error_message ?? 'Unbekannter Fehler'}</p>
+        {(displayRun?.status === 'failed' || displayRun?.status === 'timeout') && (
+          <div className={`flex items-center gap-2 py-4 px-3 rounded-lg border ${
+            displayRun.status === 'timeout'
+              ? 'bg-yellow-500/10 border-yellow-500/20'
+              : 'bg-red-500/10 border-red-500/20'
+          }`}>
+            <AlertCircle className={`h-4 w-4 shrink-0 ${displayRun.status === 'timeout' ? 'text-yellow-400' : 'text-red-400'}`} />
+            <p className={`text-sm ${displayRun.status === 'timeout' ? 'text-yellow-300' : 'text-red-300'}`}>
+              {displayRun.error_message ?? 'Unbekannter Fehler'}
+            </p>
           </div>
         )}
 

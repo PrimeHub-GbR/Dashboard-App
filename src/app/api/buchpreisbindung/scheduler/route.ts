@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 import { calculateNextRunAt } from '@/lib/buchpreisbindung-schedule'
+import { sweepStaleRuns } from '@/lib/buchpreisbindung-runs'
 
 // VLB erlaubt nur 2 parallele Login-Tokens. Jeder Lauf macht einen VLB-Login.
 // Deshalb darf nie mehr als dieses Limit gleichzeitig laufen.
@@ -22,6 +23,10 @@ export async function GET(request: NextRequest) {
   const supabase = createSupabaseServiceClient()
   const n8nBaseUrl = process.env.N8N_WEBHOOK_BASE_URL
   const hmacSecret = process.env.N8N_HMAC_SECRET
+
+  // Hängende Läufe (Workflow abgestürzt → kein Callback) zuerst aufräumen, damit sie
+  // weder den Concurrency-Guard blockieren noch endlos auf 'running' stehen bleiben.
+  await sweepStaleRuns(supabase)
 
   // 2-Token-Guard: niemals mehr als MAX_CONCURRENT_RUNS gleichzeitig (sonst VLB-Login-Fehler).
   // Stuck-Läufe ohne Callback (>15 min) ignorieren, damit der Scheduler nicht dauerhaft blockiert.

@@ -3,6 +3,10 @@
     {
       "path": "/api/buchpreisbindung/scheduler",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/buchpreisbindung/timeout",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
