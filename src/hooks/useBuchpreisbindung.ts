@@ -30,6 +30,7 @@ export interface BuchpreischeckRun {
   error_message: string | null
   proxy_bytes: number | null
   pages_scraped: number | null
+  scrapeops_credits: number | null
   started_at: string
   completed_at: string | null
   created_at: string

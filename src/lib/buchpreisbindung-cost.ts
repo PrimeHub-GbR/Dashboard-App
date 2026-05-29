@@ -1,21 +1,23 @@
-// Kostenmodell für DataImpulse-Residential-Proxy beim Amazon-Scraping.
+// Kostenmodell für das Amazon-Scraping über die ScrapeOps Proxy-API.
 //
-// DataImpulse rechnet pro GB verbrauchtem Datenvolumen ab (~1 $/GB, Bulk günstiger).
-// Eine Amazon-Schaufenster-Seite ist ~120 KB HTML. Pro Lauf werden mehrere Seiten
-// pro Händler abgerufen. Die echten Kosten werden zusätzlich aus den vom N8N-Workflow
-// gemeldeten proxy_bytes gemessen (siehe actualCostFromBytes).
+// ScrapeOps rechnet pro erfolgreichem Request in Credits ab. Amazon ist bei ScrapeOps
+// eine Standard-Domain → 1 Credit pro Request. Pro Lauf fallen an:
+//   - PROBE_REGIONS Probe-Requests (Seite 1 je Preisbereich)
+//   - + Restseiten-Requests (abhängig von der Trefferzahl des Händlers)
+// Die echten verbrauchten Credits meldet der N8N-Workflow zurück (scrapeops_credits),
+// siehe actualCostFromCredits. Free-Plan: 1.000 Credits/Monat, Starter: 25.000 für 9 $.
 
-export const EUR_PER_GB = 1.0
-export const AVG_PAGE_KB = 120
-export const DEFAULT_EST_PAGES = 10 // Annahme pro Händler, wenn max_pages = "alle" (NULL)
-export const WORKFLOW_MAX_PAGES_CAP = 50 // harter Safety-Cap im Workflow
+export const CREDITS_PER_REQUEST = 1 // Amazon = Standard-Domain bei ScrapeOps
+export const USD_PER_1000_CREDITS = 0.36 // Starter-Plan: 9 $ / 25.000 Credits
+export const PROBE_REGIONS = 31 // feste Preisbereiche → Probe-Requests pro Lauf
+export const DEFAULT_EST_REQUESTS = 130 // grobe Schätzung Requests/Lauf (großer Händler)
+export const WORKFLOW_MAX_PAGES_CAP = 20 // Amazon gibt je Suche nur ~20 Seiten frei
 
-const BYTES_PER_GB = 1_000_000_000
 const WEEKS_PER_MONTH = 365.25 / 12 / 7 // ~4.348
 
 export interface CostBreakdown {
-  gb: number
-  eur: number
+  credits: number
+  usd: number
 }
 
 export interface SellerScheduleLike {
@@ -26,15 +28,17 @@ export interface SellerScheduleLike {
   max_pages: number | null
 }
 
-export function actualCostFromBytes(bytes: number): CostBreakdown {
-  const gb = bytes / BYTES_PER_GB
-  return { gb, eur: gb * EUR_PER_GB }
+function usdFromCredits(credits: number): number {
+  return (credits / 1000) * USD_PER_1000_CREDITS
 }
 
-export function estimateRunCost(pages: number): CostBreakdown & { bytes: number } {
-  const bytes = pages * AVG_PAGE_KB * 1000
-  const gb = bytes / BYTES_PER_GB
-  return { bytes, gb, eur: gb * EUR_PER_GB }
+export function actualCostFromCredits(credits: number): CostBreakdown {
+  return { credits, usd: usdFromCredits(credits) }
+}
+
+export function estimateRunCost(requests: number = DEFAULT_EST_REQUESTS): CostBreakdown & { requests: number } {
+  const credits = requests * CREDITS_PER_REQUEST
+  return { requests, credits, usd: usdFromCredits(credits) }
 }
 
 export function runsPerMonth(s: SellerScheduleLike): number {
@@ -47,17 +51,15 @@ export function runsPerMonth(s: SellerScheduleLike): number {
 }
 
 export function estimateSellerMonthlyCost(s: SellerScheduleLike): CostBreakdown {
-  const pages = s.max_pages ?? DEFAULT_EST_PAGES
-  const perRunGb = (pages * AVG_PAGE_KB * 1000) / BYTES_PER_GB
-  const gb = perRunGb * runsPerMonth(s)
-  return { gb, eur: gb * EUR_PER_GB }
+  const credits = DEFAULT_EST_REQUESTS * CREDITS_PER_REQUEST * runsPerMonth(s)
+  return { credits, usd: usdFromCredits(credits) }
 }
 
 export function estimateMonthlyCost(sellers: SellerScheduleLike[]): CostBreakdown {
-  let gb = 0
+  let credits = 0
   for (const s of sellers) {
     if (!s.is_active) continue
-    gb += estimateSellerMonthlyCost(s).gb
+    credits += estimateSellerMonthlyCost(s).credits
   }
-  return { gb, eur: gb * EUR_PER_GB }
+  return { credits, usd: usdFromCredits(credits) }
 }

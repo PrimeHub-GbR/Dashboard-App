@@ -25,6 +25,7 @@ const callbackSchema = z.object({
     violations_count: z.number().optional(),
     proxy_bytes: z.number().optional(),
     pages_scraped: z.number().optional(),
+    scrapeops_credits: z.number().optional(),
     items: z.array(itemSchema).optional(),
   }).optional(),
 })
@@ -96,6 +97,7 @@ export async function POST(
     const violations_count = metadata?.violations_count ?? null
     const proxy_bytes = metadata?.proxy_bytes ?? null
     const pages_scraped = metadata?.pages_scraped ?? null
+    const scrapeops_credits = metadata?.scrapeops_credits ?? null
     const items = metadata?.items ?? []
 
     // Update run record
@@ -109,6 +111,7 @@ export async function POST(
         violations_count,
         proxy_bytes,
         pages_scraped,
+        scrapeops_credits,
         completed_at: new Date().toISOString(),
       })
       .eq('id', runId)

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const supabase = createSupabaseServiceClient()
     let query = supabase
       .from('buchpreischeck_runs')
-      .select('id, seller_id, amazon_seller_id, status, triggered_by, total_items, violations_count, excel_file_path, error_message, proxy_bytes, pages_scraped, started_at, completed_at, created_at')
+      .select('id, seller_id, amazon_seller_id, status, triggered_by, total_items, violations_count, excel_file_path, error_message, proxy_bytes, pages_scraped, scrapeops_credits, started_at, completed_at, created_at')
       .order('created_at', { ascending: false })
       .limit(50)
 

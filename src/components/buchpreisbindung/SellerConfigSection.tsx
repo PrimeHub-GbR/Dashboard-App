@@ -16,7 +16,7 @@ import {
 import { Trash2, Play, Loader2, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BuchpreischeckSeller } from '@/hooks/useBuchpreisbindung'
-import { estimateRunCost, estimateSellerMonthlyCost, DEFAULT_EST_PAGES } from '@/lib/buchpreisbindung-cost'
+import { estimateRunCost, estimateSellerMonthlyCost } from '@/lib/buchpreisbindung-cost'
 
 const INTERVAL_OPTIONS = [
   { value: 10, label: 'Alle 10 Minuten' },
@@ -58,11 +58,11 @@ interface Props {
   onSelectSeller: (id: string) => void
 }
 
-function fmtMB(bytes: number) {
-  return `${(bytes / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB`
+function fmtCredits(c: number) {
+  return `${Math.round(c).toLocaleString('de-DE')} Credits`
 }
-function fmtEUR(eur: number) {
-  return `${eur.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 3 })} €`
+function fmtUSD(usd: number) {
+  return `$${usd.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`
 }
 
 export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDeleteSeller, onRunSeller, selectedSellerId, onSelectSeller }: Props) {
@@ -211,7 +211,7 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
   }
 
   const isSellerIdValid = /^A[A-Z0-9]{13}$/.test(sellerId.trim().toUpperCase())
-  const runEstimate = runConfirmSeller ? estimateRunCost(runConfirmSeller.max_pages ?? DEFAULT_EST_PAGES) : null
+  const runEstimate = runConfirmSeller ? estimateRunCost() : null
 
   return (
     <Card className="bg-[#0f1e14] border-white/10">
@@ -411,8 +411,8 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                     <span className="text-[11px] text-white/40">
                       {seller.max_pages ? `max. ${seller.max_pages} Seiten` : 'alle Seiten'}
                     </span>
-                    <span className="text-[11px] text-white/30" title="Geschätztes Proxy-Volumen pro Monat">
-                      ≈ {fmtMB(monthly.gb * 1_000_000_000)}/Monat
+                    <span className="text-[11px] text-white/30" title="Geschätzte ScrapeOps-Credits pro Monat">
+                      ≈ {fmtCredits(monthly.credits)}/Monat
                     </span>
                     {seller.last_run_at && (
                       <span className="text-[11px] text-white/30">
@@ -474,17 +474,15 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                 <p>
                   Das Schaufenster von{' '}
                   <span className="font-mono">{runConfirmSeller?.amazon_seller_id}</span>{' '}
-                  wird über den DataImpulse-Proxy gescrapt.
+                  wird über die ScrapeOps Proxy-API gescrapt.
                 </p>
                 {runEstimate && (
                   <p className="text-foreground">
-                    Geschätzte Proxy-Kosten dieses Laufs:{' '}
-                    <strong>~{fmtMB(runEstimate.bytes)}</strong> (≈ {fmtEUR(runEstimate.eur)})
-                    {runConfirmSeller && !runConfirmSeller.max_pages && (
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        Schätzung für ~{DEFAULT_EST_PAGES} Seiten — bei „alle Seiten" kann der tatsächliche Wert abweichen.
-                      </span>
-                    )}
+                    Geschätzte ScrapeOps-Kosten dieses Laufs:{' '}
+                    <strong>~{fmtCredits(runEstimate.credits)}</strong> (≈ {fmtUSD(runEstimate.usd)})
+                    <span className="block text-xs text-muted-foreground mt-1">
+                      Grobe Schätzung für einen großen Händler — der tatsächliche Wert hängt von der Trefferzahl ab.
+                    </span>
                   </p>
                 )}
               </div>

@@ -38,21 +38,26 @@ export async function POST(request: NextRequest) {
     let exists = false
     let seller_name: string | null = null
 
-    // Über DataImpulse-Residential-Proxy abrufen, damit Amazon die Anfrage nicht blockt.
+    // Primär über die ScrapeOps Proxy-API abrufen (Anti-Bot, zuverlässig). Fallback:
+    // DataImpulse-Residential-Proxy (nur wenn kein ScrapeOps-Key gesetzt ist).
     // WICHTIG: undici's eigenes fetch verwenden — das globale fetch wird von Next.js gepatcht
     // und ignoriert dabei die dispatcher-Option (Proxy würde sonst nicht greifen).
+    const scrapeopsKey = process.env.SCRAPEOPS_API_KEY
     const proxyUrl = process.env.DATAIMPULSE_PROXY_URL
-    const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined
+    const fetchUrl = scrapeopsKey
+      ? `https://proxy.scrapeops.io/v1/?api_key=${scrapeopsKey}&url=${encodeURIComponent(profileUrl)}&country=de`
+      : profileUrl
+    const dispatcher = !scrapeopsKey && proxyUrl ? new ProxyAgent(proxyUrl) : undefined
 
     try {
-      const response = await undiciFetch(profileUrl, {
+      const response = await undiciFetch(fetchUrl, {
         redirect: 'follow',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           'Accept-Language': 'de-DE,de;q=0.9',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(30000),
         dispatcher,
       })
 
@@ -73,11 +78,13 @@ export async function POST(request: NextRequest) {
         }
 
         // A valid seller profile page contains these markers.
-        // Invalid IDs get redirected to the homepage (no "seller=" in final URL).
-        const finalUrlHasSeller = response.url.includes('seller=')
         const hasProfileMarker = html.includes('Verkäuferprofilseite') ||
                                  html.includes('seller-profile') ||
                                  html.includes('feedback-summary')
+        // Bei ScrapeOps ist response.url die Proxy-URL (folgt Redirects serverseitig) →
+        // Existenz allein über die Profil-Marker im HTML bestimmen. Beim Direkt-/DataImpulse-
+        // Abruf zusätzlich prüfen, dass nicht auf die Startseite umgeleitet wurde.
+        const finalUrlHasSeller = scrapeopsKey ? true : response.url.includes('seller=')
 
         exists = finalUrlHasSeller && hasProfileMarker
 

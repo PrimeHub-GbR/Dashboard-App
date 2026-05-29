@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { createHmac } from 'crypto'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 import { rateLimit } from '@/lib/rate-limit'
-import { estimateRunCost, DEFAULT_EST_PAGES } from '@/lib/buchpreisbindung-cost'
+import { estimateRunCost } from '@/lib/buchpreisbindung-cost'
 
 // VLB erlaubt nur 2 parallele Login-Tokens.
 const MAX_CONCURRENT_RUNS = 2
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'N8N nicht erreichbar' }, { status: 502 })
     }
 
-    const estimated_cost = estimateRunCost(seller.max_pages ?? DEFAULT_EST_PAGES)
+    const estimated_cost = estimateRunCost()
     return NextResponse.json({ run_id: run.id, estimated_cost }, { status: 201 })
   } catch (err) {
     console.error('POST /api/buchpreisbindung/run error:', err)
