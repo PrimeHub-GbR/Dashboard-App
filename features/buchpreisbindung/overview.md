@@ -39,18 +39,19 @@ Ruft das Schaufenster eines Händlers ab, vergleicht Verkaufspreise mit offiziel
   - Migration 036: `proxy_bytes` (tatsächliches Proxy-Volumen), `pages_scraped`
 - `buchpreischeck_items` — Einzelne Buchergebnisse pro Durchlauf
 
-### DataImpulse-Proxy (Amazon-Scraping)
-- Amazon blockt direkte Server-IPs → Scraping läuft über DataImpulse-Residential-Proxy (`gw.dataimpulse.com:823`, DE via `__cr.de`).
-- N8N: Proxy am Node „Amazon Pages" (`{{ $env.DATAIMPULSE_PROXY_URL }}`). Fallback bei HTTPS-Tunneling-Fehler: Community-Node `n8n-nodes-httpsoverproxy`.
-- Backend (`sellers/verify`): Proxy via `undici` ProxyAgent (`DATAIMPULSE_PROXY_URL`).
+### ScrapeOps Proxy-API (Amazon-Scraping)
+- Amazon blockt die n8n-Server-IP dauerhaft (503), auch über DataImpulse-Proxy (~3 % Abdeckung). Lösung: **ScrapeOps** Proxy-API-Aggregator (Anti-Bot eingebaut, ~97 %).
+- N8N: Nodes `Probe Bereiche`/`Amazon Pages` rufen `https://proxy.scrapeops.io/v1/?api_key=…&url=<amazon-url>&country=de` per Standard-HTTP-Node auf (kein eigener Proxy/Tunnel mehr). **Batching (1 Request, 1.5 s Intervall)** wegen Free-Plan-Limit (1 gleichzeitige Verbindung → sonst 429).
+- Backend (`sellers/verify`): ScrapeOps via `SCRAPEOPS_API_KEY` (DataImpulse als Fallback, wenn Key fehlt).
+- Free-Plan: 1.000 Credits/Monat; 1 Credit/Request (Amazon = Standard-Domain). Voller sahitek-Lauf ≈ 130 Credits.
 
 ### Scheduling (pro Händler)
 - `weekly`: feste Wochentage + Uhrzeit (z.B. „Fr 03:00"). `interval`: Legacy (10min–24h).
 - Helper: `src/lib/buchpreisbindung-schedule.ts` (`calculateNextRunAt`).
 
 ### Kosten (Schätzung + Messung)
-- Helper: `src/lib/buchpreisbindung-cost.ts` (~1 €/GB, ~120 KB/Seite).
-- Vorab-Schätzung pro Lauf (Run-Dialog) + Monatsschätzung; echter Verbrauch aus `proxy_bytes` (CostSection).
+- Helper: `src/lib/buchpreisbindung-cost.ts` — Credit-Modell (1 Credit/Request, Starter 0,36 $/1.000 Credits).
+- Vorab-Schätzung pro Lauf (Run-Dialog) + Monatsschätzung; echter Verbrauch aus `scrapeops_credits` (CostSection). `proxy_bytes` bleibt als DataImpulse-Legacy.
 
 ### VLB-Token (2-Token-Limit)
 - VLB erlaubt nur 2 parallele Logins; Token MUSS per Logout zurückgegeben werden.
@@ -59,14 +60,13 @@ Ruft das Schaufenster eines Händlers ab, vergleicht Verkaufspreise mit offiziel
 
 ### N8N Workflow (ID `3Kg7lHQhNtzD21aI`)
 - Key: `buchpreisbindung-check` (Datei: `docs/buchpreisbindung-workflow.json`, Anleitung: `docs/n8n-buchpreisbindung-proxy-anleitung.md`)
-- Scraping: `amazon.de/s?me={seller_id}&i=stripbooks&page=N&rh=p_36:{low}-{high}` über DataImpulse-Proxy.
-- **Amazon-Pagination-Limit**: Die `/s`-Suche gibt pro Suche nur ~20 Seiten (~320 Treffer) frei, egal wie hoch `totalResultCount` ist. Workaround: Bestand in **Preisbereiche** (`rh=p_36`, ~31 disjunkte 1-€-Schritte 8–35 €, grob außen) zerlegen; je Bereich erst Seite 1 als Probe (liest `totalResultCount`), dann Restseiten 2..N. So sind alle Treffer disjunkt durchblätterbar (~100 % statt ~15 %).
-- **HTTPS-over-Proxy**: Scraping-Nodes (`Probe Bereiche`, `Amazon Pages`) nutzen den Community-Node `n8n-nodes-httpsoverproxy` mit `connectionPool.keepAlive: false` → frische DataImpulse-IP pro Anfrage (der Standard-HTTP-Node tunnelt HTTPS über HTTP-Proxy nicht zuverlässig).
-- **⚠️ Offenes Thema (Stand 2026-05-29)**: Vom n8n-Server aus blockt Amazon einen Großteil der Anfragen mit 503 (Server-IP-Reputation), während dieselben Anfragen per `curl` von extern ~80 % Erfolg haben. Abdeckung daher aktuell niedrig; Optionen: IP-Cooldown abwarten, DataImpulse Premium oder Scraping-Service. Architektur ist fertig, hängt nur an der Server-Block-Rate.
+- Scraping über **ScrapeOps**: `proxy.scrapeops.io/v1/?api_key=…&url=<amazon.de/s?me=…&i=stripbooks&page=N&rh=p_36:{low}-{high}>&country=de`.
+- **Amazon-Pagination-Limit**: Die `/s`-Suche gibt pro Suche nur ~20 Seiten (~320 Treffer) frei, egal wie hoch `totalResultCount` ist. Workaround: Bestand in **Preisbereiche** (`rh=p_36`, ~31 disjunkte 1-€-Schritte 8–35 €, grob außen) zerlegen; je Bereich erst Seite 1 als Probe (liest `totalResultCount`), dann Restseiten 2..N. So sind alle Treffer disjunkt durchblätterbar — **verifiziert: 1372/1413 ≈ 97 % bei sahitek**.
+- **Batching Pflicht**: Free-Plan = 1 gleichzeitige Verbindung → Nodes mit `batchSize 1, batchInterval 1500` (sonst HTTP 429 „spacing your requests"). Voller Lauf dauert dadurch ~8 Min (sequenziell); bei ScrapeOps Professional (5 Threads) entsprechend schneller.
 - **Loop**: `Loop Over Items` → `loop`-Ausgang füttert Batch-VLB-Lookup, `done`-Ausgang sammelt (Reihenfolge der Ausgänge ist kontraintuitiv: 0=done, 1=loop).
 - **Nur Neuware**: gebrauchte Angebote werden im Parse anhand der Zustands-Labels übersprungen.
 - Verstoß-Logik: `VERSTOSS`, wenn Amazon-Preis **unter** VLB-Festpreis (Unterbieten).
-- VLB: Login → Batch-Lookups → Logout; Callback mit `metadata.items[]` (inkl. `is_compliant`) + `proxy_bytes` + `pages_scraped`.
+- VLB: Login → Batch-Lookups → Logout; Callback mit `metadata.items[]` (inkl. `is_compliant`) + `scrapeops_credits` + `pages_scraped`.
 
 ### API Routes
 - `POST /api/buchpreisbindung/sellers/verify` — Händler-Existenz prüfen
