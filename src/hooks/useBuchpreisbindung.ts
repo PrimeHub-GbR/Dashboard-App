@@ -107,7 +107,15 @@ export function useSellers() {
     setSellers(prev => prev.filter(s => s.id !== id))
   }, [])
 
-  return { sellers, isLoading, error, addSeller, updateSeller, deleteSeller, refetch: fetch_ }
+  const clearSellerRuns = useCallback(async (id: string) => {
+    const res = await fetch(`/api/buchpreisbindung/sellers/${id}/runs`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error ?? 'Fehler')
+    setSellers(prev => prev.map(s => s.id === id ? { ...s, last_run_at: null } : s))
+    return data as { ok: boolean; deletedRuns: number }
+  }, [])
+
+  return { sellers, isLoading, error, addSeller, updateSeller, deleteSeller, clearSellerRuns, refetch: fetch_ }
 }
 
 export function useRuns(sellerId: string | null) {

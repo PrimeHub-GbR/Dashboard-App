@@ -9,10 +9,10 @@ import { ArchiveSection } from './ArchiveSection'
 import { CostSection } from './CostSection'
 
 export function BuchpreisbindungClient() {
-  const { sellers, isLoading: sellersLoading, addSeller, updateSeller, deleteSeller } = useSellers()
+  const { sellers, isLoading: sellersLoading, addSeller, updateSeller, deleteSeller, clearSellerRuns } = useSellers()
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
 
-  const { runs, isLoading: runsLoading, refetch: refetchRuns } = useRuns(selectedSellerId)
+  const { runs, isLoading: runsLoading, refetch: refetchRuns, setRuns } = useRuns(selectedSellerId)
 
   // Last successful run for items display
   const lastSuccessfulRun = runs.find(r => r.status === 'success') ?? null
@@ -35,6 +35,13 @@ export function BuchpreisbindungClient() {
     setSelectedSellerId(prev => prev === id ? null : id)
   }
 
+  async function handleClearSellerRuns(sellerDbId: string) {
+    const res = await clearSellerRuns(sellerDbId)
+    // wenn der betroffene Haendler gerade ausgewaehlt ist: lokale Run-Liste sofort leeren
+    if (selectedSellerId === sellerDbId) setRuns([])
+    return res
+  }
+
   if (sellersLoading) {
     return (
       <div className="space-y-4">
@@ -52,6 +59,7 @@ export function BuchpreisbindungClient() {
         onAddSeller={addSeller}
         onUpdateSeller={updateSeller}
         onDeleteSeller={deleteSeller}
+        onClearSellerRuns={handleClearSellerRuns}
         onRunSeller={handleRunSeller}
         selectedSellerId={selectedSellerId}
         onSelectSeller={handleSelectSeller}

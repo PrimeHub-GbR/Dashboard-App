@@ -13,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Trash2, Play, Loader2, CheckCircle2, AlertCircle, Plus, X, Pencil } from 'lucide-react'
+import { Trash2, Play, Loader2, CheckCircle2, AlertCircle, Plus, X, Pencil, Eraser } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BuchpreischeckSeller } from '@/hooks/useBuchpreisbindung'
 import { estimateRunCost, estimateSellerMonthlyCost } from '@/lib/buchpreisbindung-cost'
@@ -53,6 +53,7 @@ interface Props {
   }) => Promise<BuchpreischeckSeller>
   onUpdateSeller: (id: string, updates: Partial<BuchpreischeckSeller>) => Promise<BuchpreischeckSeller>
   onDeleteSeller: (id: string) => Promise<void>
+  onClearSellerRuns: (id: string) => Promise<{ ok: boolean; deletedRuns: number }>
   onRunSeller: (sellerId: string) => Promise<void>
   selectedSellerId: string | null
   onSelectSeller: (id: string) => void
@@ -65,7 +66,7 @@ function fmtUSD(usd: number) {
   return `$${usd.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`
 }
 
-export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDeleteSeller, onRunSeller, selectedSellerId, onSelectSeller }: Props) {
+export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDeleteSeller, onClearSellerRuns, onRunSeller, selectedSellerId, onSelectSeller }: Props) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [sellerId, setSellerId] = useState('')
@@ -79,7 +80,9 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
   const [isSaving, setIsSaving] = useState(false)
   const [runningId, setRunningId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [clearingId, setClearingId] = useState<string | null>(null)
   const [runConfirmSeller, setRunConfirmSeller] = useState<BuchpreischeckSeller | null>(null)
+  const [clearConfirmSeller, setClearConfirmSeller] = useState<BuchpreischeckSeller | null>(null)
 
   async function handleVerify() {
     setVerifyState('loading')
@@ -191,6 +194,23 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
       toast.error(e instanceof Error ? e.message : 'Fehler')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleConfirmClear() {
+    const seller = clearConfirmSeller
+    setClearConfirmSeller(null)
+    if (!seller) return
+    setClearingId(seller.id)
+    try {
+      const res = await onClearSellerRuns(seller.id)
+      toast.success(res.deletedRuns > 0
+        ? `${res.deletedRuns} ${res.deletedRuns === 1 ? 'Lauf' : 'Läufe'} gelöscht`
+        : 'Keine Daten vorhanden')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Fehler')
+    } finally {
+      setClearingId(null)
     }
   }
 
@@ -495,6 +515,18 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
                   <Button
                     size="icon"
                     variant="ghost"
+                    className="h-7 w-7 text-white/30 hover:text-amber-400 hover:bg-amber-500/10"
+                    title="Gescrapte Daten löschen (alle Läufe & Items)"
+                    disabled={clearingId === seller.id}
+                    onClick={e => { e.stopPropagation(); setClearConfirmSeller(seller) }}
+                  >
+                    {clearingId === seller.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Eraser className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     className="h-7 w-7 text-white/30 hover:text-red-400 hover:bg-red-500/10"
                     title="Händler entfernen"
                     disabled={deletingId === seller.id}
@@ -510,6 +542,33 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
           )
         })}
       </CardContent>
+
+      {/* Daten-Löschen-Bestätigung */}
+      <AlertDialog open={clearConfirmSeller !== null} onOpenChange={open => { if (!open) setClearConfirmSeller(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gescrapte Daten löschen?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Alle Läufe und geprüften Titel von{' '}
+                  <span className="font-semibold">{clearConfirmSeller?.seller_name ?? clearConfirmSeller?.amazon_seller_id}</span>{' '}
+                  werden unwiderruflich gelöscht.
+                </p>
+                <p className="text-foreground text-sm">
+                  Der Händler bleibt erhalten (inkl. Zeitplan und Konfiguration) — nur die Ergebnis-Historie wird zurückgesetzt.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClear} className="bg-amber-600 hover:bg-amber-700">
+              Daten löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Run-Kostenbestätigung */}
       <AlertDialog open={runConfirmSeller !== null} onOpenChange={open => { if (!open) setRunConfirmSeller(null) }}>
