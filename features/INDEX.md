@@ -54,7 +54,6 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | Check-in, Stundenauswertung, Schichtplanung, ArbZG | Deployed | [zeiterfassung/overview.md](zeiterfassung/overview.md) |
-| Mitarbeiter-Portal als PWA + Wochenplanungs-Abgabe | In Progress | [zeiterfassung/portal-pwa.md](zeiterfassung/portal-pwa.md) |
 
 ## Aufgaben `/dashboard/aufgaben`
 

@@ -9,7 +9,8 @@ import type { WeeklySchedule } from '@/lib/zeiterfassung/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, CalendarDays, TrendingUp, TrendingDown } from 'lucide-react'
+import { LogOut, Clock, CalendarDays, TrendingUp, TrendingDown } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 interface PortalSession {
@@ -111,6 +112,11 @@ export function PortalDashboard() {
     if (session) loadData(session, year, month)
   }, [session, year, month, loadData])
 
+  function logout() {
+    sessionStorage.removeItem('portal_session')
+    router.replace('/portal')
+  }
+
   if (!session) return null
 
   // Berechnungen
@@ -126,7 +132,26 @@ export function PortalDashboard() {
   const todayShifts = shifts.filter(s => s.shift_date === todayStr)
 
   return (
-    <div className="pb-8">
+    <div className="min-h-screen bg-background pb-8">
+
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-background border-b px-4 py-3 flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+          style={{ backgroundColor: session.color }}
+        >
+          {session.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm truncate">{session.name}</p>
+          <p className="text-xs text-muted-foreground">Mitarbeiter-Portal</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-muted-foreground">
+          <LogOut className="w-4 h-4" />
+          Abmelden
+        </Button>
+      </div>
+
       <div className="px-4 pt-4 space-y-4 max-w-lg mx-auto">
 
         {/* Monat-Selector */}

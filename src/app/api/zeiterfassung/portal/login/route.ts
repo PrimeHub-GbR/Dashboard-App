@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const { data: employee, error } = await service
     .from('employees')
-    .select('id, name, color, pin, is_active, target_hours_per_month, weekly_schedule, privacy_accepted_at')
+    .select('id, name, color, pin, is_active, target_hours_per_month, weekly_schedule')
     .eq('id', employee_id)
     .eq('is_active', true)
     .single()
@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
       color: employee.color,
       target_hours_per_month: employee.target_hours_per_month,
       weekly_schedule: employee.weekly_schedule,
-      privacy_accepted_at: employee.privacy_accepted_at,
     },
   })
 }
