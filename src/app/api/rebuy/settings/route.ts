@@ -6,6 +6,7 @@ const settingsUpdateSchema = z.object({
   schedule: z.string().min(1).optional(),
   container_url: z.string().url().optional().or(z.literal('')),
   backup_proxy_url: z.string().optional(),
+  default_mode: z.enum(['bestseller', 'komplett']).optional(),
 })
 
 // GET /api/rebuy/settings — Aktuelle Einstellungen laden
@@ -70,6 +71,7 @@ export async function PUT(request: NextRequest) {
     if (result.data.schedule !== undefined) updateData.schedule = result.data.schedule
     if (result.data.container_url !== undefined) updateData.container_url = result.data.container_url
     if (result.data.backup_proxy_url !== undefined) updateData.backup_proxy_url = result.data.backup_proxy_url
+    if (result.data.default_mode !== undefined) updateData.default_mode = result.data.default_mode
 
     const { data: updated, error: updateError } = await supabase
       .from('rebuy_settings')
@@ -107,6 +109,16 @@ export async function PUT(request: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
         body: JSON.stringify({ backup_proxy_url: result.data.backup_proxy_url }),
+      }).catch(() => {})
+    }
+
+    // Container über neuen Default-Modus informieren (fire-and-forget)
+    // → Container nutzt diesen Modus bei systemd-/Cron-getriggerten Selbst-Läufen
+    if (result.data.default_mode !== undefined && containerUrl) {
+      fetch(`${containerUrl}/mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+        body: JSON.stringify({ default_mode: result.data.default_mode }),
       }).catch(() => {})
     }
 

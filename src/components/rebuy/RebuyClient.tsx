@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   BookOpen, Wifi, WifiOff, Play, RefreshCw, Download,
   Clock, CheckCircle2, XCircle, Loader2, Settings2, AlertCircle,
-  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, Shield, ShieldOff, FileDown,
+  Square, Info, Trash2, Terminal, ChevronDown, ChevronUp, FileDown, Zap, Coins,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,16 +17,21 @@ import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
 } from '@/components/ui/table'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
+import { estimateModeCost, type RebuyMode } from '@/lib/rebuy-cost'
 
 interface RebuySettings {
   id: string
   schedule: string
   container_url: string | null
   backup_proxy_url: string | null
+  default_mode: RebuyMode
 }
 
 interface RebuyScrape {
@@ -34,14 +39,29 @@ interface RebuyScrape {
   scrape_date: string | null
   file_path: string | null
   status: 'pending' | 'running' | 'paused' | 'success' | 'failed'
+  mode: RebuyMode | null
   row_count: number | null
   progress_pages: number | null
   total_pages: number | null
   eta_seconds: number | null
+  scrapeops_credits: number | null
   started_at: string | null
   finished_at: string | null
   error_message: string | null
   created_at: string
+}
+
+interface ScrapeOpsUsage {
+  planCredits: number
+  usedCredits: number
+  remainingCredits: number
+  concurrency: number
+  renewalDate: string | null
+}
+
+const MODE_LABEL: Record<RebuyMode, string> = {
+  bestseller: 'Bestseller',
+  komplett: 'Komplett',
 }
 
 // ─── Schedule helpers ─────────────────────────────────────────────────────────
@@ -151,22 +171,21 @@ function StatusBadge({ status }: { status: RebuyScrape['status'] }) {
 export default function RebuyClient() {
   const [scrapes, setScrapes] = useState<RebuyScrape[]>([])
   const [settings, setSettings] = useState<RebuySettings | null>(null)
+  const [scrapeopsUsage, setScrapeopsUsage] = useState<ScrapeOpsUsage | null>(null)
   const [containerOnline, setContainerOnline] = useState<boolean | null>(null)
   const [containerReason, setContainerReason] = useState<string>('')
-  const [backupProxyConfigured, setBackupProxyConfigured] = useState<boolean | null>(null)
-  const [usingProxy, setUsingProxy] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isTriggeringNow, setIsTriggeringNow] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [isFinalizing, setIsFinalizing] = useState(false)
   const [isResuming, setIsResuming] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
-  const [boostLevel, setBoostLevel] = useState(0)
   const [isCheckingContainer, setIsCheckingContainer] = useState(false)
   const [editDays, setEditDays] = useState<string[]>(['Sun'])
   const [editTime, setEditTime] = useState('02:00')
   const [editContainerUrl, setEditContainerUrl] = useState('')
   const [editBackupProxyUrl, setEditBackupProxyUrl] = useState('')
+  const [editDefaultMode, setEditDefaultMode] = useState<RebuyMode>('bestseller')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -200,6 +219,21 @@ export default function RebuyClient() {
       setEditTime(parsed.time)
       setEditContainerUrl(data.container_url ?? '')
       setEditBackupProxyUrl(data.backup_proxy_url ?? '')
+      setEditDefaultMode(data.default_mode ?? 'bestseller')
+    }
+  }, [])
+
+  const loadScrapeopsUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rebuy/scrapeops-usage', { cache: 'no-store' })
+      if (res.ok) {
+        const data: ScrapeOpsUsage = await res.json()
+        setScrapeopsUsage(data)
+      } else {
+        setScrapeopsUsage(null)
+      }
+    } catch {
+      setScrapeopsUsage(null)
     }
   }, [])
 
@@ -211,8 +245,6 @@ export default function RebuyClient() {
         const data = await res.json()
         setContainerOnline(data.online ?? false)
         setContainerReason(data.reason ?? '')
-        if (data.backup_proxy_configured !== undefined) setBackupProxyConfigured(data.backup_proxy_configured)
-        if (data.using_proxy !== undefined) setUsingProxy(data.using_proxy)
         if (showFeedback) {
           if (data.online) toast.success('Container ist online und erreichbar')
           else toast.error(`Container offline: ${data.reason ?? 'Nicht erreichbar'}`)
@@ -228,10 +260,10 @@ export default function RebuyClient() {
   }, [])
 
   useEffect(() => {
-    Promise.all([loadScrapes(), loadSettings(), checkContainer()]).finally(() =>
+    Promise.all([loadScrapes(), loadSettings(), loadScrapeopsUsage(), checkContainer()]).finally(() =>
       setIsLoading(false)
     )
-  }, [loadScrapes, loadSettings, checkContainer])
+  }, [loadScrapes, loadSettings, loadScrapeopsUsage, checkContainer])
 
   // Live-Polling wenn Scrape läuft
   useEffect(() => {
@@ -309,20 +341,21 @@ export default function RebuyClient() {
     }
   }
 
-  const handleTrigger = async () => {
+  const handleTrigger = async (mode?: RebuyMode) => {
     setIsTriggeringNow(true)
     try {
       const res = await fetch('/api/rebuy/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ boostLevel }),
+        body: JSON.stringify(mode ? { mode } : {}),
       })
       const data = await res.json()
       if (!res.ok) {
         toast.error(data.error ?? 'Fehler beim Starten')
         return
       }
-      toast.success('Scrape gestartet!')
+      const startedMode: RebuyMode = data.mode ?? mode ?? editDefaultMode
+      toast.success(`Scrape gestartet (${MODE_LABEL[startedMode]})`)
       await loadScrapes()
     } catch {
       toast.error('Netzwerkfehler')
@@ -400,7 +433,12 @@ export default function RebuyClient() {
       const res = await fetch('/api/rebuy/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schedule, container_url: editContainerUrl || '', backup_proxy_url: editBackupProxyUrl }),
+        body: JSON.stringify({
+          schedule,
+          container_url: editContainerUrl || '',
+          backup_proxy_url: editBackupProxyUrl,
+          default_mode: editDefaultMode,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -480,10 +518,11 @@ export default function RebuyClient() {
         <h1 className="text-2xl font-bold">Rebuy Buch-Scraper</h1>
       </div>
 
-      {/* Stale-Warnung */}
+      {/* Stale-Warnung — Threshold abhängig vom Default-Modus */}
       {latestSuccess && latestSuccess.scrape_date && (() => {
         const daysSince = Math.floor((Date.now() - new Date(latestSuccess.scrape_date).getTime()) / 86400000)
-        return daysSince > 8 ? (
+        const staleThreshold = (settings?.default_mode ?? 'bestseller') === 'bestseller' ? 2 : 8
+        return daysSince > staleThreshold ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -493,14 +532,14 @@ export default function RebuyClient() {
         ) : null
       })()}
 
-      {/* Pausierter Scrape — Proxy-Guthaben aufgebraucht */}
+      {/* Pausierter Scrape — Credits/Guthaben aufgebraucht */}
       {activeScrape?.status === 'paused' && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
               <span className="flex items-center gap-2 text-amber-700">
                 <AlertCircle className="h-4 w-4" />
-                Scraping pausiert — Proxy-Guthaben aufgebraucht
+                Scraping pausiert — Proxy-Guthaben/Credits aufgebraucht
               </span>
               <Button
                 size="sm"
@@ -517,7 +556,7 @@ export default function RebuyClient() {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-xs text-amber-700">
-              {activeScrape.error_message ?? 'DataImpulse-Guthaben aufgebraucht.'}
+              {activeScrape.error_message ?? 'ScrapeOps-Credits aufgebraucht.'}
             </p>
             {activeScrape.progress_pages != null && activeScrape.total_pages != null && activeScrape.total_pages > 0 && (
               <div className="space-y-1.5">
@@ -529,7 +568,7 @@ export default function RebuyClient() {
               </div>
             )}
             <p className="text-[11px] text-muted-foreground">
-              Lade Guthaben auf <strong>app.dataimpulse.com</strong> auf und klicke dann auf &quot;Fortsetzen&quot; — der Scraper macht genau dort weiter wo er aufgehört hat.
+              Lade ScrapeOps-Credits nach (oder DataImpulse-Guthaben falls als Fallback konfiguriert) und klicke dann auf &quot;Fortsetzen&quot; — der Scraper macht genau dort weiter wo er aufgehört hat.
             </p>
           </CardContent>
         </Card>
@@ -658,38 +697,49 @@ export default function RebuyClient() {
                 )
             }
 
-            {/* Proxy-Status */}
-            {containerOnline === true && (
-              <div className={[
-                'flex items-start gap-1.5 rounded-md px-2 py-1.5 text-[11px]',
-                usingProxy ? 'bg-amber-50 text-amber-700' : 'bg-muted/50 text-muted-foreground',
-              ].join(' ')}>
-                {usingProxy
-                  ? <Shield className="h-3 w-3 mt-0.5 shrink-0" />
-                  : <ShieldOff className="h-3 w-3 mt-0.5 shrink-0" />
-                }
+            {/* ScrapeOps-Credits */}
+            {scrapeopsUsage ? (
+              <div className="flex items-start gap-1.5 rounded-md px-2 py-1.5 text-[11px] bg-emerald-50 text-emerald-700">
+                <Coins className="h-3 w-3 mt-0.5 shrink-0" />
                 <span>
-                  {usingProxy
-                    ? <><strong>DataImpulse Proxy aktiv</strong> — alle Anfragen laufen über per-Request IP-Rotation</>
-                    : 'Kein Proxy konfiguriert — direkte Home-IP'
-                  }
+                  <strong>ScrapeOps:</strong>{' '}
+                  {scrapeopsUsage.remainingCredits.toLocaleString('de-DE')} / {scrapeopsUsage.planCredits.toLocaleString('de-DE')} Credits
+                  {scrapeopsUsage.renewalDate && (
+                    <> · Reset {scrapeopsUsage.renewalDate}</>
+                  )}
                 </span>
+              </div>
+            ) : (
+              <div className="flex items-start gap-1.5 rounded-md px-2 py-1.5 text-[11px] bg-muted/50 text-muted-foreground">
+                <Coins className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>ScrapeOps-Status nicht verfügbar — <strong>SCRAPEOPS_API_KEY</strong> in Vercel setzen.</span>
               </div>
             )}
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs w-fit"
-              onClick={() => checkContainer(true)}
-              disabled={isCheckingContainer}
-            >
-              {isCheckingContainer
-                ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                : <RefreshCw className="h-3 w-3 mr-1" />
-              }
-              Prüfen
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs w-fit"
+                onClick={() => checkContainer(true)}
+                disabled={isCheckingContainer}
+              >
+                {isCheckingContainer
+                  ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  : <RefreshCw className="h-3 w-3 mr-1" />
+                }
+                Prüfen
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs w-fit"
+                onClick={() => loadScrapeopsUsage()}
+              >
+                <Coins className="h-3 w-3 mr-1" />
+                Credits
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -709,6 +759,20 @@ export default function RebuyClient() {
                 <p className="text-xs text-muted-foreground">
                   {formatDate(latestSuccess.scrape_date)} · Preise: Brutto (inkl. MwSt.)
                 </p>
+                <div className="flex flex-wrap gap-1.5 text-[10px]">
+                  {latestSuccess.mode && (
+                    <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                      <Zap className="h-2.5 w-2.5" />
+                      {MODE_LABEL[latestSuccess.mode]}
+                    </span>
+                  )}
+                  {latestSuccess.scrapeops_credits != null && (
+                    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
+                      <Coins className="h-2.5 w-2.5" />
+                      {latestSuccess.scrapeops_credits.toLocaleString('de-DE')} Credits
+                    </span>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   className="h-7 bg-green-600 hover:bg-green-700 text-white text-xs"
@@ -775,11 +839,54 @@ export default function RebuyClient() {
               </div>
             )}
 
+            {/* Standard-Modus */}
+            <div className="space-y-1.5 pt-1 border-t border-border/50">
+              <Label className="text-xs flex items-center gap-1">
+                <Zap className="h-3 w-3 text-amber-500" /> Standard-Modus
+              </Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setEditDefaultMode('bestseller')}
+                  className={editDefaultMode === 'bestseller'
+                    ? 'flex-1 h-7 text-xs border border-emerald-500/40 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20'
+                    : 'flex-1 h-7 text-xs border border-white/15 bg-muted text-muted-foreground hover:bg-muted/80'}
+                >
+                  Bestseller
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setEditDefaultMode('komplett')}
+                  className={editDefaultMode === 'komplett'
+                    ? 'flex-1 h-7 text-xs border border-emerald-500/40 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20'
+                    : 'flex-1 h-7 text-xs border border-white/15 bg-muted text-muted-foreground hover:bg-muted/80'}
+                >
+                  Komplett
+                </Button>
+              </div>
+              {(() => {
+                const est = estimateModeCost(editDefaultMode)
+                return (
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground bg-muted/40 rounded px-2 py-1">
+                    <span>~{est.requests.toLocaleString('de-DE')} Pages</span>
+                    <span className="text-emerald-600 font-medium">~{est.credits.toLocaleString('de-DE')} Credits · ~${est.usd.toFixed(2)}</span>
+                    <span>{editDefaultMode === 'bestseller' ? '~5 Min' : '~2 h'}</span>
+                  </div>
+                )
+              })()}
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                <strong>Bestseller</strong>: nur Rebuy-Bestseller-Subkategorie (exzellent), schnell & günstig.{' '}
+                <strong>Komplett</strong>: alle Bücher-Subkategorien (exzellent) für volle Marktabdeckung.
+              </p>
+            </div>
+
             {/* Dauer-Hinweis */}
             <div className="flex items-start gap-1.5 rounded-md bg-muted/50 px-2 py-1.5">
               <Info className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Ein vollständiger Scrape dauert <strong>2–3 Tage</strong> (mit DataImpulse-Proxy). Für wöchentliche Nutzung empfehlen wir <strong>Freitag</strong>, damit die Datei am Montag bereitsteht.
+                Alle Anfragen laufen über <strong>ScrapeOps</strong> (IP-Rotation + Anti-Bot). Free-Plan = 1 Verbindung gleichzeitig.
               </p>
             </div>
 
@@ -806,7 +913,7 @@ export default function RebuyClient() {
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Backup-Proxy-URL <span className="text-muted-foreground">(optional)</span></Label>
+                  <Label className="text-xs">Backup-Proxy-URL <span className="text-muted-foreground">(optional Fallback)</span></Label>
                   <Input
                     className="h-8 text-xs"
                     placeholder="http://user:pass@gw.dataimpulse.com:823"
@@ -814,65 +921,11 @@ export default function RebuyClient() {
                     onChange={(e) => setEditBackupProxyUrl(e.target.value)}
                   />
                   <p className="text-[10px] text-muted-foreground leading-snug">
-                    Alle Anfragen laufen direkt über diesen Proxy (per-Request IP-Rotation). Empfehlung: DataImpulse.com (~$2/GB, kein Ablaufdatum).
+                    DataImpulse als Fallback wenn ScrapeOps-Credits aufgebraucht sind. Optional.
                   </p>
                 </div>
               </div>
             )}
-
-            {/* Boost Selector */}
-            {(() => {
-              const hasProxy = !!settings?.backup_proxy_url
-              const TOTAL_URLS = 2_476_851
-              const PAGE_KB    = 75
-              const EUR_PER_GB = 0.92
-              const PRESETS = [
-                { level: 0, label: 'Kostenlos', rps: 6,  fraction: 0,    days: 4.8 },
-                { level: 1, label: 'Boost S',   rps: 9,  fraction: 0.25, days: 3.2 },
-                { level: 2, label: 'Boost M',   rps: 12, fraction: 0.40, days: 2.4 },
-                { level: 3, label: 'Boost L',   rps: 15, fraction: 0.50, days: 1.9 },
-              ]
-              const sel = PRESETS[boostLevel]
-              const gbUsed = (TOTAL_URLS * sel.fraction * PAGE_KB) / 1_000_000
-              const cost   = gbUsed * EUR_PER_GB
-              return (
-                <div className="space-y-2 pt-1 pb-1 border-t border-border/50">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                    <span className="text-amber-500">⚡</span> Boost
-                    {!hasProxy && <span className="text-[10px] text-muted-foreground/60 ml-1">(DataImpulse-Proxy erforderlich)</span>}
-                  </p>
-                  <div className="flex gap-1">
-                    {PRESETS.map(p => (
-                      <button
-                        key={p.level}
-                        onClick={() => setBoostLevel(p.level)}
-                        disabled={p.level > 0 && !hasProxy}
-                        className={[
-                          'flex-1 rounded text-[10px] py-1 font-medium transition-colors',
-                          p.level > 0 && !hasProxy
-                            ? 'opacity-30 cursor-not-allowed bg-muted text-muted-foreground'
-                            : boostLevel === p.level
-                            ? p.level === 0
-                              ? 'bg-slate-700 text-white'
-                              : 'bg-amber-500 text-white'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80',
-                        ].join(' ')}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground bg-muted/40 rounded px-2 py-1">
-                    <span>⏱ ~{sel.days} Tage</span>
-                    {boostLevel === 0
-                      ? <span className="text-green-500 font-medium">0 € · 0 GB</span>
-                      : <span className="text-amber-500 font-medium">~{gbUsed.toFixed(0)} GB · ~{cost.toFixed(0)} €</span>
-                    }
-                    <span>{sel.rps} req/s</span>
-                  </div>
-                </div>
-              )
-            })()}
 
             <div className="flex gap-2">
               <Button
@@ -884,18 +937,47 @@ export default function RebuyClient() {
               >
                 {isSavingSettings ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Speichern'}
               </Button>
-              <Button
-                size="sm"
-                className="h-7 text-xs flex-1"
-                onClick={handleTrigger}
-                disabled={isTriggeringNow || !!activeScrape || !containerOnline || isResuming}
-              >
-                {isTriggeringNow
-                  ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  : <Play className="h-3 w-3 mr-1" />
-                }
-                {boostLevel === 0 ? 'Jetzt starten' : `Jetzt starten (Boost ${['','S','M','L'][boostLevel]})`}
-              </Button>
+              {(() => {
+                const triggerDisabled = isTriggeringNow || !!activeScrape || !containerOnline || isResuming
+                return (
+                  <div className="flex flex-1">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs flex-1 rounded-r-none"
+                      onClick={() => handleTrigger()}
+                      disabled={triggerDisabled}
+                    >
+                      {isTriggeringNow
+                        ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        : <Play className="h-3 w-3 mr-1" />
+                      }
+                      Start ({MODE_LABEL[editDefaultMode]})
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          className="h-7 px-1.5 rounded-l-none border-l border-white/20"
+                          disabled={triggerDisabled}
+                          aria-label="Modus für diesen Lauf wählen"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => handleTrigger('bestseller')}>
+                          <Zap className="h-3 w-3 mr-2 text-amber-500" />
+                          Bestseller starten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleTrigger('komplett')}>
+                          <Zap className="h-3 w-3 mr-2 text-emerald-500" />
+                          Komplett starten
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -1045,7 +1127,9 @@ export default function RebuyClient() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Datum</TableHead>
+                  <TableHead>Modus</TableHead>
                   <TableHead>Einträge</TableHead>
+                  <TableHead>Credits</TableHead>
                   <TableHead>Dauer</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Download</TableHead>
@@ -1057,9 +1141,18 @@ export default function RebuyClient() {
                     <TableCell className="text-sm">
                       {formatDate(scrape.scrape_date ?? scrape.created_at)}
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {scrape.mode ? MODE_LABEL[scrape.mode] : '—'}
+                    </TableCell>
                     <TableCell className="text-sm">
                       {scrape.row_count != null
                         ? scrape.row_count.toLocaleString('de-DE')
+                        : '—'
+                      }
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {scrape.scrapeops_credits != null
+                        ? scrape.scrapeops_credits.toLocaleString('de-DE')
                         : '—'
                       }
                     </TableCell>

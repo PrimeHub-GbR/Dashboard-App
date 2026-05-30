@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
+import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import type { RebuyMode } from '@/lib/rebuy-cost'
+
+const triggerSchema = z.object({
+  mode: z.enum(['bestseller', 'komplett']).optional(),
+})
 
 // POST /api/rebuy/trigger — Manuellen Scrape-Start vom Dashboard triggern
 export async function POST(request: NextRequest) {
@@ -12,8 +18,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
     }
 
-    const reqBody = await request.json().catch(() => ({}))
-    const boostLevel = Math.max(0, Math.min(3, Number(reqBody.boostLevel ?? 0)))
+    const rawBody = await request.json().catch(() => ({}))
+    const parsed = triggerSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
 
     const supabase = createSupabaseServiceClient()
 
@@ -28,10 +37,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Es läuft bereits ein Scrape-Vorgang' }, { status: 409 })
     }
 
-    // Container-URL laden
+    // Container-URL + Default-Modus laden
     const { data: settings } = await supabase
       .from('rebuy_settings')
-      .select('container_url')
+      .select('container_url, default_mode')
       .limit(1)
       .single()
 
@@ -39,11 +48,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Container-URL nicht konfiguriert' }, { status: 503 })
     }
 
+    const mode: RebuyMode = parsed.data.mode ?? (settings.default_mode as RebuyMode) ?? 'bestseller'
+
     // Neuen Scrape-Eintrag anlegen
     const { data: scrape, error: insertError } = await supabase
       .from('rebuy_scrapes')
       .insert({
         status: 'pending',
+        mode,
         started_at: new Date().toISOString(),
       })
       .select('id')
@@ -58,7 +70,12 @@ export async function POST(request: NextRequest) {
     const notifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dashboard.primehubgbr.com'}/api/rebuy/notify`
     const statusUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dashboard.primehubgbr.com'}/api/rebuy/status`
 
-    const body = JSON.stringify({ scrape_id: scrapeId, notify_url: notifyUrl, status_url: statusUrl, boost_level: boostLevel })
+    const body = JSON.stringify({
+      scrape_id: scrapeId,
+      notify_url: notifyUrl,
+      status_url: statusUrl,
+      mode,
+    })
 
     // HMAC-Signatur generieren
     const hmacSecret = process.env.REBUY_HMAC_SECRET
@@ -96,7 +113,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 502 })
     }
 
-    return NextResponse.json({ ok: true, scrape_id: scrapeId })
+    return NextResponse.json({ ok: true, scrape_id: scrapeId, mode })
   } catch (err) {
     console.error('[POST /api/rebuy/trigger]', err)
     return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })

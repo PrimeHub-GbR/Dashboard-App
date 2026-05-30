@@ -4,14 +4,15 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
 const notifySchema = z.object({
-  scrape_id:      z.string().uuid(),
-  scrape_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  file_path:      z.string().optional(),
-  row_count:      z.number().int().min(0).optional(),
-  status:         z.enum(['success', 'failed', 'paused']),
-  error_message:  z.string().optional(),
-  progress_pages: z.number().int().min(0).optional(),
-  total_pages:    z.number().int().min(0).optional(),
+  scrape_id:         z.string().uuid(),
+  scrape_date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  file_path:         z.string().optional(),
+  row_count:         z.number().int().min(0).optional(),
+  status:            z.enum(['success', 'failed', 'paused']),
+  error_message:     z.string().optional(),
+  progress_pages:    z.number().int().min(0).optional(),
+  total_pages:       z.number().int().min(0).optional(),
+  scrapeops_credits: z.number().int().min(0).optional(),
 })
 
 function verifyHmac(rawBody: string, signature: string | null, secret: string): boolean {
@@ -51,12 +52,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 })
     }
 
-    const { scrape_id, scrape_date, file_path, row_count, status, error_message, progress_pages, total_pages } = result.data
+    const { scrape_id, scrape_date, file_path, row_count, status, error_message, progress_pages, total_pages, scrapeops_credits } = result.data
 
     const supabase = createSupabaseServiceClient()
 
     // paused: keep progress visible, no finished_at, no file
-    const updatePayload = status === 'paused'
+    const updatePayload: Record<string, unknown> = status === 'paused'
       ? {
           status,
           scrape_date,
@@ -79,6 +80,10 @@ export async function POST(request: NextRequest) {
           total_pages: null,
           eta_seconds: null,
         }
+
+    if (scrapeops_credits !== undefined) {
+      updatePayload.scrapeops_credits = scrapeops_credits
+    }
 
     const { error } = await supabase
       .from('rebuy_scrapes')

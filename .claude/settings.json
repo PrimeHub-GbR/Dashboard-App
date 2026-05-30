@@ -70,7 +70,8 @@
       "Skill(ui-ux-pro-max)",
       "Skill(ui-ux-pro-max:*)",
       "Skill(help)",
-      "Skill(help:*)"
+      "Skill(help:*)",
+      "WebFetch(domain:www.rebuy.de)"
     ],
     "additionalDirectories": [
       "c:\\Users\\cetin\\Dashboard v2\\supabase"
