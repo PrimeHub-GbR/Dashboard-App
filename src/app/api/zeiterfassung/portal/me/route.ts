@@ -87,11 +87,27 @@ export async function GET(req: NextRequest) {
     .order('checked_in_at', { ascending: false })
     .limit(20)
 
+  // 7. Wochenplanungs-Abgaben ab aktueller Woche (Anzeige im Portal)
+  const today = new Date()
+  const dayIdx = today.getDay() === 0 ? 7 : today.getDay()
+  const mondayThisWeek = new Date(today)
+  mondayThisWeek.setDate(today.getDate() - (dayIdx - 1))
+  const fromMonday = mondayThisWeek.toISOString().slice(0, 10)
+
+  const { data: submissions } = await service
+    .from('employee_schedule_requests')
+    .select('id, week_start, availability, note, status, created_at, updated_at')
+    .eq('employee_id', employee_id)
+    .gte('week_start', fromMonday)
+    .order('week_start', { ascending: true })
+    .limit(8)
+
   return NextResponse.json({
     employee,
     monthStats: monthStats ?? { total_work_minutes: 0, total_break_minutes: 0, entry_count: 0 },
     daily: daily ?? [],
     shifts: shifts ?? [],
     entries: entries ?? [],
+    submissions: submissions ?? [],
   })
 }

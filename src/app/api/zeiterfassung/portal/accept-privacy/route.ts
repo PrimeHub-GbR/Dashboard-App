@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
 
-const schema = z.object({
+const bodySchema = z.object({
   employee_id: z.string().uuid(),
-  pin: z.string().regex(/^\d{4,8}$/),
 })
 
 function verifyKioskToken(req: NextRequest): boolean {
@@ -30,44 +29,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Ungültiger Body' }, { status: 400 })
   }
 
-  const parsed = schema.safeParse(body)
+  const parsed = bodySchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { employee_id, pin } = parsed.data
-
-  // PIN hashen
-  const encoder = new TextEncoder()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(pin))
-  const pinHash = Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0')).join('')
-
   const service = createSupabaseServiceClient()
 
-  const { data: employee, error } = await service
+  const { data, error } = await service
     .from('employees')
-    .select('id, name, color, pin, is_active, target_hours_per_month, weekly_schedule, privacy_accepted_at')
-    .eq('id', employee_id)
+    .update({ privacy_accepted_at: new Date().toISOString() })
+    .eq('id', parsed.data.employee_id)
     .eq('is_active', true)
+    .select('id, privacy_accepted_at')
     .single()
 
-  if (error || !employee) {
+  if (error || !data) {
     return NextResponse.json({ error: 'Mitarbeiter nicht gefunden' }, { status: 404 })
   }
 
-  if (employee.pin !== pinHash) {
-    return NextResponse.json({ error: 'Falsche PIN' }, { status: 401 })
-  }
-
-  return NextResponse.json({
-    employee: {
-      id: employee.id,
-      name: employee.name,
-      color: employee.color,
-      target_hours_per_month: employee.target_hours_per_month,
-      weekly_schedule: employee.weekly_schedule,
-      privacy_accepted_at: employee.privacy_accepted_at,
-    },
-  })
+  return NextResponse.json({ privacy_accepted_at: data.privacy_accepted_at })
 }

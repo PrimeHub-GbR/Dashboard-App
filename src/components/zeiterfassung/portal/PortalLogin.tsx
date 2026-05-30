@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Delete, AlertTriangle, Clock } from 'lucide-react'
+import Link from 'next/link'
+import { Delete, AlertTriangle, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 
 interface EmployeeOption {
@@ -11,6 +13,15 @@ interface EmployeeOption {
   name: string
   color: string
   is_active?: boolean
+}
+
+interface LoggedInEmployee {
+  id: string
+  name: string
+  color: string
+  target_hours_per_month: number
+  weekly_schedule: Record<string, number>
+  privacy_accepted_at: string | null
 }
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
@@ -22,6 +33,9 @@ export function PortalLogin() {
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingPrivacy, setPendingPrivacy] = useState<LoggedInEmployee | null>(null)
+  const [privacyChecked, setPrivacyChecked] = useState(false)
+  const [acceptingPrivacy, setAcceptingPrivacy] = useState(false)
 
   useEffect(() => {
     // Bestehende Session prüfen
@@ -72,10 +86,15 @@ export function PortalLogin() {
         headers: { 'Content-Type': 'application/json', 'x-kiosk-token': KIOSK_TOKEN },
         body: JSON.stringify({ employee_id: selected.id, pin }),
       })
-      const json = await res.json() as { employee?: { id: string; name: string; color: string; target_hours_per_month: number; weekly_schedule: Record<string, number> }; error?: string }
-      if (!res.ok) {
+      const json = await res.json() as { employee?: LoggedInEmployee; error?: string }
+      if (!res.ok || !json.employee) {
         setError(json.error ?? 'Falsche PIN')
         setPin('')
+        return
+      }
+      // DSGVO-Check: noch nicht zugestimmt → Privacy-Dialog statt direkter Weiterleitung
+      if (!json.employee.privacy_accepted_at) {
+        setPendingPrivacy(json.employee)
         return
       }
       // Session in sessionStorage speichern
@@ -90,6 +109,77 @@ export function PortalLogin() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function confirmPrivacy() {
+    if (!pendingPrivacy || !privacyChecked) return
+    setAcceptingPrivacy(true)
+    try {
+      const res = await fetch('/api/zeiterfassung/portal/accept-privacy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-kiosk-token': KIOSK_TOKEN },
+        body: JSON.stringify({ employee_id: pendingPrivacy.id }),
+      })
+      if (!res.ok) throw new Error()
+      sessionStorage.setItem('portal_session', JSON.stringify({
+        ...pendingPrivacy,
+        privacy_accepted_at: new Date().toISOString(),
+        loginAt: Date.now(),
+      }))
+      router.push('/portal/dashboard')
+    } catch {
+      toast.error('Bestätigung konnte nicht gespeichert werden')
+    } finally {
+      setAcceptingPrivacy(false)
+    }
+  }
+
+  // Datenschutz-Dialog (Schritt 3, nur bei Erstanmeldung)
+  if (pendingPrivacy) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 gap-6 max-w-sm mx-auto">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-primary/10 flex items-center justify-center">
+            <Shield className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-xl font-bold">Datenschutz bestätigen</h1>
+          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+            Bitte bestätige die Verarbeitung deiner Arbeitszeit- und Planungsdaten,
+            bevor du das Portal nutzt.
+          </p>
+        </div>
+
+        <div className="w-full bg-card border rounded-2xl p-4 flex gap-3 items-start">
+          <Checkbox
+            id="privacy-accept"
+            checked={privacyChecked}
+            onCheckedChange={(v) => setPrivacyChecked(v === true)}
+            className="mt-0.5"
+          />
+          <label htmlFor="privacy-accept" className="text-sm leading-relaxed cursor-pointer select-none">
+            Ich habe die <Link href="/portal/datenschutz" target="_blank" className="text-primary underline font-medium">Datenschutzerklärung</Link> gelesen
+            und stimme der Verarbeitung meiner Daten zur Arbeitszeiterfassung und Wochenplanung zu.
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-2 w-full">
+          <Button
+            onClick={confirmPrivacy}
+            disabled={!privacyChecked || acceptingPrivacy}
+            className="h-14 text-base font-semibold"
+          >
+            {acceptingPrivacy ? 'Speichert…' : 'Bestätigen und fortfahren'}
+          </Button>
+          <button
+            onClick={() => { setPendingPrivacy(null); setPrivacyChecked(false); setSelected(null); setPin('') }}
+            className="text-muted-foreground text-sm hover:text-foreground py-2"
+            disabled={acceptingPrivacy}
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // PIN-Ansicht (Schritt 2)
@@ -171,9 +261,11 @@ export function PortalLogin() {
   return (
     <div className="min-h-screen flex flex-col px-4 py-8 max-w-lg mx-auto">
       <div className="text-center mb-8">
-        <Clock className="w-10 h-10 mx-auto mb-3 text-primary" />
-        <h1 className="text-2xl font-bold">Mitarbeiter-Portal</h1>
-        <p className="text-muted-foreground text-sm mt-1">Wer bist du?</p>
+        <div className="inline-flex items-baseline font-extrabold tracking-tight text-3xl select-none mb-1">
+          <span className="text-foreground">Prime</span>
+          <span style={{ color: '#1ad06a' }}>Hub</span>
+        </div>
+        <p className="text-muted-foreground text-sm">Wer bist du?</p>
       </div>
 
       {employees.length === 0 ? (
