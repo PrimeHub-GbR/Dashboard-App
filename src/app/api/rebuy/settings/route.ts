@@ -7,6 +7,7 @@ const settingsUpdateSchema = z.object({
   container_url: z.string().url().optional().or(z.literal('')),
   backup_proxy_url: z.string().optional(),
   default_mode: z.enum(['bestseller', 'komplett']).optional(),
+  auto_scrape_enabled: z.boolean().optional(),
 })
 
 // GET /api/rebuy/settings — Aktuelle Einstellungen laden
@@ -67,11 +68,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Settings nicht gefunden' }, { status: 404 })
     }
 
-    const updateData: Record<string, string> = {}
+    const updateData: Record<string, string | boolean> = {}
     if (result.data.schedule !== undefined) updateData.schedule = result.data.schedule
     if (result.data.container_url !== undefined) updateData.container_url = result.data.container_url
     if (result.data.backup_proxy_url !== undefined) updateData.backup_proxy_url = result.data.backup_proxy_url
     if (result.data.default_mode !== undefined) updateData.default_mode = result.data.default_mode
+    if (result.data.auto_scrape_enabled !== undefined) updateData.auto_scrape_enabled = result.data.auto_scrape_enabled
 
     const { data: updated, error: updateError } = await supabase
       .from('rebuy_settings')
@@ -88,9 +90,14 @@ export async function PUT(request: NextRequest) {
     const apiKey = process.env.REBUY_FLASK_API_KEY ?? ''
 
     // Container über neuen Schedule informieren (fire-and-forget)
-    if (result.data.schedule && containerUrl) {
+    // Bei auto_scrape_enabled=false IMMER 'manual' senden (deaktiviert systemd-Timer),
+    // unabhängig vom gespeicherten Schedule (Wochentage/Zeit bleiben aber in DB erhalten).
+    const effectiveScheduleChange = result.data.schedule !== undefined || result.data.auto_scrape_enabled !== undefined
+    if (effectiveScheduleChange && containerUrl) {
+      const autoEnabled = updated?.auto_scrape_enabled !== false
+      const scheduleToSend = autoEnabled ? (updated?.schedule ?? 'manual') : 'manual'
       const hmacSecret = process.env.REBUY_HMAC_SECRET
-      const scheduleBody = JSON.stringify({ schedule: result.data.schedule })
+      const scheduleBody = JSON.stringify({ schedule: scheduleToSend })
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'X-Api-Key': apiKey,

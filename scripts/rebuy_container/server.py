@@ -94,11 +94,18 @@ def health():
 @app.route('/trigger', methods=['POST'])
 @require_api_key
 def trigger():
-    data        = request.get_json(force=True, silent=True) or {}
-    scrape_id   = data.get('scrape_id', '')
-    mode        = data.get('mode') or _load_default_mode()
+    data         = request.get_json(force=True, silent=True) or {}
+    scrape_id    = data.get('scrape_id', '')
+    mode         = data.get('mode') or _load_default_mode()
+    credit_limit = data.get('credit_limit')
     if mode not in VALID_MODES:
         return jsonify({'error': 'invalid_mode', 'mode': mode}), 400
+    try:
+        credit_limit_int = int(credit_limit) if credit_limit is not None else 0
+        if credit_limit_int < 0:
+            credit_limit_int = 0
+    except (TypeError, ValueError):
+        return jsonify({'error': 'invalid_credit_limit', 'value': credit_limit}), 400
 
     with _lock:
         if _state['running']:
@@ -108,6 +115,7 @@ def trigger():
         if scrape_id:
             env['SCRAPE_ID'] = scrape_id
         env['MODE'] = mode
+        env['CREDIT_LIMIT'] = str(credit_limit_int)
 
         # Immer komplett neu starten — Checkpoint und alte Daten löschen
         Path('/opt/rebuy-scraper/sitemap_checkpoint.json').unlink(missing_ok=True)
@@ -131,7 +139,7 @@ def trigger():
         _state['pid']       = proc.pid
         _state['scrape_id'] = scrape_id
         _state['mode']      = mode
-        log.info(f'Scraper started PID={proc.pid} scrape_id={scrape_id} mode={mode}')
+        log.info(f'Scraper started PID={proc.pid} scrape_id={scrape_id} mode={mode} credit_limit={credit_limit_int}')
 
     def _wait():
         proc.wait()
@@ -143,7 +151,7 @@ def trigger():
         log.info(f'Scraper finished exit={proc.returncode}')
 
     threading.Thread(target=_wait, daemon=True).start()
-    return jsonify({'ok': True, 'scrape_id': scrape_id, 'mode': mode, 'pid': proc.pid})
+    return jsonify({'ok': True, 'scrape_id': scrape_id, 'mode': mode, 'credit_limit': credit_limit_int, 'pid': proc.pid})
 
 
 @app.route('/mode', methods=['POST'])

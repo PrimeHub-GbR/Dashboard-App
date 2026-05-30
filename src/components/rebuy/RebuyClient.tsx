@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { estimateModeCost, type RebuyMode } from '@/lib/rebuy-cost'
 
 interface RebuySettings {
@@ -32,6 +33,7 @@ interface RebuySettings {
   container_url: string | null
   backup_proxy_url: string | null
   default_mode: RebuyMode
+  auto_scrape_enabled: boolean
 }
 
 interface RebuyScrape {
@@ -45,6 +47,7 @@ interface RebuyScrape {
   total_pages: number | null
   eta_seconds: number | null
   scrapeops_credits: number | null
+  credit_limit: number | null
   started_at: string | null
   finished_at: string | null
   error_message: string | null
@@ -186,6 +189,8 @@ export default function RebuyClient() {
   const [editContainerUrl, setEditContainerUrl] = useState('')
   const [editBackupProxyUrl, setEditBackupProxyUrl] = useState('')
   const [editDefaultMode, setEditDefaultMode] = useState<RebuyMode>('bestseller')
+  const [editAutoScrape, setEditAutoScrape] = useState(true)
+  const [creditLimitInput, setCreditLimitInput] = useState('')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [isClearingHistory, setIsClearingHistory] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -220,6 +225,7 @@ export default function RebuyClient() {
       setEditContainerUrl(data.container_url ?? '')
       setEditBackupProxyUrl(data.backup_proxy_url ?? '')
       setEditDefaultMode(data.default_mode ?? 'bestseller')
+      setEditAutoScrape(data.auto_scrape_enabled ?? true)
     }
   }, [])
 
@@ -344,10 +350,19 @@ export default function RebuyClient() {
   const handleTrigger = async (mode?: RebuyMode) => {
     setIsTriggeringNow(true)
     try {
+      const trimmed = creditLimitInput.trim()
+      const limitNum = trimmed ? Number.parseInt(trimmed, 10) : null
+      if (trimmed && (!Number.isFinite(limitNum) || (limitNum as number) <= 0)) {
+        toast.error('Credit-Limit muss eine positive Zahl sein')
+        return
+      }
+      const payload: Record<string, unknown> = {}
+      if (mode) payload.mode = mode
+      if (limitNum) payload.credit_limit = limitNum
       const res = await fetch('/api/rebuy/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mode ? { mode } : {}),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -355,7 +370,8 @@ export default function RebuyClient() {
         return
       }
       const startedMode: RebuyMode = data.mode ?? mode ?? editDefaultMode
-      toast.success(`Scrape gestartet (${MODE_LABEL[startedMode]})`)
+      const limitNote = limitNum ? ` · Limit ${limitNum.toLocaleString('de-DE')} Credits` : ''
+      toast.success(`Scrape gestartet (${MODE_LABEL[startedMode]})${limitNote}`)
       await loadScrapes()
     } catch {
       toast.error('Netzwerkfehler')
@@ -438,6 +454,7 @@ export default function RebuyClient() {
           container_url: editContainerUrl || '',
           backup_proxy_url: editBackupProxyUrl,
           default_mode: editDefaultMode,
+          auto_scrape_enabled: editAutoScrape,
         }),
       })
       const data = await res.json()
@@ -803,8 +820,23 @@ export default function RebuyClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Wochentage */}
-            <div className="space-y-1.5">
+            {/* Automatisches Scrapen — Switch */}
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-2 py-1.5">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto-scrape-switch" className="text-xs font-medium">Automatisch ausführen</Label>
+                <p className="text-[10px] text-muted-foreground">
+                  {editAutoScrape ? 'Cron-Timer aktiv' : 'Nur manuell startbar'}
+                </p>
+              </div>
+              <Switch
+                id="auto-scrape-switch"
+                checked={editAutoScrape}
+                onCheckedChange={setEditAutoScrape}
+              />
+            </div>
+
+            {/* Wochentage (gedimmt wenn AUS) */}
+            <div className={`space-y-1.5 ${!editAutoScrape ? 'opacity-40 pointer-events-none' : ''}`}>
               <Label className="text-xs">Automatisch scrapen an:</Label>
               <div className="flex flex-wrap gap-1.5">
                 {WEEKDAYS.map((day) => (
@@ -816,25 +848,27 @@ export default function RebuyClient() {
                       checked={editDays.includes(day.value)}
                       onCheckedChange={() => toggleDay(day.value)}
                       className="h-3.5 w-3.5"
+                      disabled={!editAutoScrape}
                     />
                     <span className="text-xs">{day.label}</span>
                   </label>
                 ))}
               </div>
               {editDays.length === 0 && (
-                <p className="text-xs text-muted-foreground">Kein Auto-Run (nur manuell)</p>
+                <p className="text-xs text-muted-foreground">Keine Wochentage gewählt</p>
               )}
             </div>
 
             {/* Uhrzeit */}
             {editDays.length > 0 && (
-              <div className="space-y-1">
+              <div className={`space-y-1 ${!editAutoScrape ? 'opacity-40 pointer-events-none' : ''}`}>
                 <Label className="text-xs">Uhrzeit (Uhr)</Label>
                 <Input
                   type="time"
                   className="h-7 text-xs w-28"
                   value={editTime}
                   onChange={(e) => setEditTime(e.target.value)}
+                  disabled={!editAutoScrape}
                 />
               </div>
             )}
@@ -926,6 +960,28 @@ export default function RebuyClient() {
                 </div>
               </div>
             )}
+
+            {/* Credit-Limit-Input für manuellen Start */}
+            <div className="space-y-1 pt-1 border-t border-border/50">
+              <Label htmlFor="credit-limit-input" className="text-xs flex items-center gap-1">
+                <Coins className="h-3 w-3 text-emerald-500" />
+                Max. Credits (optional)
+              </Label>
+              <Input
+                id="credit-limit-input"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={10}
+                placeholder="leer = kein Limit"
+                className="h-7 text-xs"
+                value={creditLimitInput}
+                onChange={(e) => setCreditLimitInput(e.target.value.replace(/[^0-9]/g, ''))}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Scraper stoppt sauber bei Erreichen — Excel mit Teildaten wird trotzdem erstellt.
+              </p>
+            </div>
 
             <div className="flex gap-2">
               <Button
@@ -1152,7 +1208,16 @@ export default function RebuyClient() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {scrape.scrapeops_credits != null
-                        ? scrape.scrapeops_credits.toLocaleString('de-DE')
+                        ? (
+                          <span>
+                            {scrape.scrapeops_credits.toLocaleString('de-DE')}
+                            {scrape.credit_limit && (
+                              <span className="text-[10px] text-amber-600 ml-1">
+                                / {scrape.credit_limit.toLocaleString('de-DE')} Limit
+                              </span>
+                            )}
+                          </span>
+                        )
                         : '—'
                       }
                     </TableCell>

@@ -6,6 +6,7 @@ import type { RebuyMode } from '@/lib/rebuy-cost'
 
 const triggerSchema = z.object({
   mode: z.enum(['bestseller', 'komplett']).optional(),
+  credit_limit: z.number().int().positive().max(100_000).nullable().optional(),
 })
 
 // POST /api/rebuy/trigger — Manuellen Scrape-Start vom Dashboard triggern
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const mode: RebuyMode = parsed.data.mode ?? (settings.default_mode as RebuyMode) ?? 'bestseller'
+    const creditLimit = parsed.data.credit_limit ?? null
 
     // Neuen Scrape-Eintrag anlegen
     const { data: scrape, error: insertError } = await supabase
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
       .insert({
         status: 'pending',
         mode,
+        credit_limit: creditLimit,
         started_at: new Date().toISOString(),
       })
       .select('id')
@@ -75,6 +78,7 @@ export async function POST(request: NextRequest) {
       notify_url: notifyUrl,
       status_url: statusUrl,
       mode,
+      credit_limit: creditLimit,
     })
 
     // HMAC-Signatur generieren
@@ -113,7 +117,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 502 })
     }
 
-    return NextResponse.json({ ok: true, scrape_id: scrapeId, mode })
+    return NextResponse.json({ ok: true, scrape_id: scrapeId, mode, credit_limit: creditLimit })
   } catch (err) {
     console.error('[POST /api/rebuy/trigger]', err)
     return NextResponse.json({ error: 'Interner Serverfehler' }, { status: 500 })

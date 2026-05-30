@@ -52,6 +52,7 @@ STATUS_URL      = os.environ.get("DASHBOARD_STATUS_URL", "")
 MAX_PAGES       = int(os.environ.get("MAX_PAGES", "86"))      # Rebuy-Hardlimit pro Filter
 PAGE_DELAY_SEC  = float(os.environ.get("PAGE_DELAY", "1.6"))  # ScrapeOps Free = 1 Concurrency
 STATUS_INTERVAL = int(os.environ.get("STATUS_INTERVAL", "60"))
+CREDIT_LIMIT    = int(os.environ.get("CREDIT_LIMIT", "0"))     # 0 = kein Limit
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -271,8 +272,9 @@ def main():
     mode = resolve_mode()
     subcats = resolve_subcats(mode)
 
-    log.info("Mode: %s | Subkategorien: %d | scrape_id=%s | PAGE_DELAY=%.1fs",
-             mode, len(subcats), scrape_id, PAGE_DELAY_SEC)
+    limit_str = f"{CREDIT_LIMIT}" if CREDIT_LIMIT > 0 else "kein Limit"
+    log.info("Mode: %s | Subkategorien: %d | scrape_id=%s | PAGE_DELAY=%.1fs | CREDIT_LIMIT=%s",
+             mode, len(subcats), scrape_id, PAGE_DELAY_SEC, limit_str)
 
     if scrape_id:
         SCRAPE_ID_FILE.write_text(scrape_id)
@@ -298,14 +300,22 @@ def main():
     PRODUCTS_FILE.unlink(missing_ok=True)
     jsonl_fp = open(PRODUCTS_FILE, "w", encoding="utf-8")
 
+    limit_reached = False
     try:
         page_no = 0
         for sub_idx, sub in enumerate(subcats, 1):
+            if limit_reached:
+                break
             log.info("[%d/%d] %s …", sub_idx, len(subcats), sub)
             for page in range(1, MAX_PAGES + 1):
                 if _cancel_requested:
                     log.warning("Cancel — abbruch in Subkategorie %s page %d", sub, page)
                     raise KeyboardInterrupt()
+                # Credit-Limit-Check VOR dem Request (verhindert Überschreiten)
+                if CREDIT_LIMIT > 0 and credits_used >= CREDIT_LIMIT:
+                    log.warning("Credit-Limit erreicht: %d/%d Credits — stoppe sauber", credits_used, CREDIT_LIMIT)
+                    limit_reached = True
+                    break
                 docs, ended = fetch_listing(sub, page)
                 credits_used += 1
                 page_no += 1
@@ -345,17 +355,23 @@ def main():
         xlsx = build_excel(products)
         file_path = upload_to_supabase(xlsx, scrape_id) if scrape_id else None
 
-        push_notify({
+        notify_payload = {
             "scrape_id": scrape_id,
             "scrape_date": date.today().isoformat(),
             "file_path": file_path,
             "row_count": len(products),
             "status": "success",
             "scrapeops_credits": credits_used,
-        })
+        }
+        if limit_reached:
+            notify_payload["error_message"] = (
+                f"Credit-Limit erreicht ({credits_used}/{CREDIT_LIMIT} Credits) — "
+                f"{len(products)} Produkte gesammelt, vorzeitig abgeschlossen."
+            )
+        push_notify(notify_payload)
         LAST_SCRAPE.write_text(date.today().isoformat())
-        log.info("DONE! %d Produkte, %d Credits verbraucht, file=%s",
-                 len(products), credits_used, file_path)
+        log.info("DONE! %d Produkte, %d Credits verbraucht%s, file=%s",
+                 len(products), credits_used, " (Limit erreicht)" if limit_reached else "", file_path)
 
     except KeyboardInterrupt:
         jsonl_fp.close()
