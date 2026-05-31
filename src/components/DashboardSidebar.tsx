@@ -10,6 +10,7 @@ import {
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/client'
 import { McpStatus } from '@/components/McpStatus'
+import { ProfileChangesBell } from '@/components/ProfileChangesBell'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -227,6 +228,7 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
 
       {/* Footer */}
       <div className={cn('py-4 border-t border-white/10 space-y-3', collapsed ? 'px-2' : 'px-3')}>
+        <ProfileChangesBell collapsed={collapsed} />
         {!collapsed && <McpStatus />}
         {!collapsed && userEmail && (
           <p className="text-[11px] text-white/30 truncate px-1">{userEmail}</p>
