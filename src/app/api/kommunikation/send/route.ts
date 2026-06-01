@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { withMessageFooter } from '@/lib/kommunikation'
 
 const sendSchema = z.object({
   recipient_ids: z.array(z.string().uuid()).min(1, 'Mindestens ein Empfänger erforderlich'),
@@ -51,7 +52,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { recipient_ids, message, context, context_ref_id } = parsed.data
+  const { recipient_ids, message: rawMessage, context, context_ref_id } = parsed.data
+  // Standard-Fußzeile an jede Nachricht anhängen (an N8N + im Log)
+  const message = withMessageFooter(rawMessage)
   const service = createSupabaseServiceClient()
 
   // Empfänger-Daten laden (Name + Telefonnummer)
