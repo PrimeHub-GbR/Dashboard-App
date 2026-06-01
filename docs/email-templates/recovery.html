@@ -1,0 +1,33 @@
+<!--
+  PrimeHub – Passwort-Reset-E-Mail (Supabase Auth → Email Templates → "Reset Password")
+  Einfügen unter: Authentication → Emails → Reset Password → Message body (HTML)
+  WICHTIG: Der Link nutzt token_hash, passend zur /portal/welcome-Seite.
+-->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0e10;padding:32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <tr><td align="center">
+    <table width="440" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+      <tr><td style="background:#005e30;padding:32px;text-align:center;">
+        <div style="color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.5px;">PrimeHub</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:14px;margin-top:4px;">Mitarbeiter-App</div>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <h1 style="margin:0 0 12px;font-size:20px;color:#0d0e10;">Passwort zurücksetzen</h1>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#444;">
+          Für dein PrimeHub-Konto wurde ein Passwort-Reset angefordert. Lege über den Button ein neues Passwort fest.
+        </p>
+        <p style="margin:0 0 24px;font-size:14px;color:#666;">
+          Deine Login-E-Mail: <strong style="color:#0d0e10;">{{ .Email }}</strong>
+        </p>
+        <a href="{{ .SiteURL }}/portal/welcome?token_hash={{ .TokenHash }}&type=recovery"
+           style="display:inline-block;background:#005e30;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 28px;border-radius:12px;">
+          Neues Passwort festlegen
+        </a>
+        <p style="margin:24px 0 0;font-size:12px;color:#999;line-height:1.5;">
+          Dein Passwort muss mindestens 8 Zeichen lang sein und Groß- und Kleinbuchstaben sowie eine Zahl enthalten.
+          Falls du das nicht angefordert hast, ignoriere diese E-Mail – dein aktuelles Passwort bleibt gültig.
+        </p>
+      </td></tr>
+    </table>
+    <div style="color:#555;font-size:11px;margin-top:16px;">PrimeHub GbR · Diese E-Mail wurde automatisch versendet.</div>
+  </td></tr>
+</table>
