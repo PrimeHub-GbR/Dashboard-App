@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle } from 'lucide-react'
 import { NachrichtFormular } from './NachrichtFormular'
 import { VersandHistorie } from './VersandHistorie'
+import { FooterEinstellungenDialog } from './FooterEinstellungenDialog'
+import { MESSAGE_FOOTER } from '@/lib/kommunikation'
 import type { SelectableEmployee } from './EmpfaengerSelector'
 
 export function KommunikationClient() {
@@ -14,6 +16,7 @@ export function KommunikationClient() {
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [n8nUnconfigured, setN8nUnconfigured] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [footer, setFooter] = useState(MESSAGE_FOOTER)
 
   useEffect(() => {
     const load = async () => {
@@ -55,12 +58,32 @@ export function KommunikationClient() {
     void check()
   }, [])
 
+  // Editierbare Standard-Fußzeile laden
+  useEffect(() => {
+    const loadFooter = async () => {
+      try {
+        const res = await fetch('/api/kommunikation/settings')
+        if (!res.ok) return
+        const data = await res.json() as { message_footer?: string }
+        if (typeof data.message_footer === 'string') setFooter(data.message_footer)
+      } catch {
+        // ignore — Default-Konstante bleibt
+      }
+    }
+    void loadFooter()
+  }, [])
+
   const handleMessageSent = () => {
     setRefreshKey((k) => k + 1)
   }
 
   return (
     <div className="space-y-6">
+      {/* Aktionsleiste */}
+      <div className="flex justify-end">
+        <FooterEinstellungenDialog footer={footer} onSaved={setFooter} />
+      </div>
+
       {/* N8N-Konfigurationsbanner */}
       {n8nUnconfigured && (
         <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800/30 dark:text-yellow-300">
@@ -82,7 +105,7 @@ export function KommunikationClient() {
             <Skeleton className="h-10 w-32 ml-auto" />
           </div>
         ) : (
-          <NachrichtFormular employees={employees} onMessageSent={handleMessageSent} />
+          <NachrichtFormular employees={employees} onMessageSent={handleMessageSent} footer={footer} />
         )}
         <VersandHistorie employees={employees} refreshKey={refreshKey} />
       </div>
@@ -104,7 +127,7 @@ export function KommunikationClient() {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : (
-              <NachrichtFormular employees={employees} onMessageSent={handleMessageSent} />
+              <NachrichtFormular employees={employees} onMessageSent={handleMessageSent} footer={footer} />
             )}
           </TabsContent>
 

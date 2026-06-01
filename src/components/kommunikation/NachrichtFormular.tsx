@@ -9,14 +9,14 @@ import { Separator } from '@/components/ui/separator'
 import { Loader2 } from 'lucide-react'
 import { EmpfaengerSelector, type SelectableEmployee } from './EmpfaengerSelector'
 import { useKommunikation } from '@/hooks/useKommunikation'
-import { MESSAGE_FOOTER } from '@/lib/kommunikation'
 
 interface Props {
   employees: SelectableEmployee[]
   onMessageSent?: () => void
+  footer?: string
 }
 
-export function NachrichtFormular({ employees, onMessageSent }: Props) {
+export function NachrichtFormular({ employees, onMessageSent, footer }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [allSelected, setAllSelected] = useState(false)
   const [message, setMessage] = useState('')
@@ -117,9 +117,11 @@ export function NachrichtFormular({ employees, onMessageSent }: Props) {
           className="min-h-[100px] resize-none"
           maxLength={1000}
         />
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground/70">Automatischer Zusatz:</span> {MESSAGE_FOOTER}
-        </p>
+        {footer && footer.trim().length > 0 && (
+          <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground/70">Automatischer Zusatz:</span> {footer}
+          </p>
+        )}
       </div>
 
       {/* Vorschau */}

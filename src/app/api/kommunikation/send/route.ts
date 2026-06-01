@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
-import { withMessageFooter } from '@/lib/kommunikation'
+import { withMessageFooter, MESSAGE_FOOTER } from '@/lib/kommunikation'
 
 const sendSchema = z.object({
   recipient_ids: z.array(z.string().uuid()).min(1, 'Mindestens ein Empfänger erforderlich'),
@@ -53,9 +53,19 @@ export async function POST(req: NextRequest) {
   }
 
   const { recipient_ids, message: rawMessage, context, context_ref_id } = parsed.data
-  // Standard-Fußzeile an jede Nachricht anhängen (an N8N + im Log)
-  const message = withMessageFooter(rawMessage)
   const service = createSupabaseServiceClient()
+
+  // Editierbare Standard-Fußzeile aus den Dashboard-Einstellungen laden
+  // (Fallback auf die Default-Konstante, falls keine Einstellung existiert)
+  const { data: settings } = await service
+    .from('kommunikation_settings')
+    .select('message_footer')
+    .limit(1)
+    .single()
+  const footer = settings?.message_footer ?? MESSAGE_FOOTER
+
+  // Standard-Fußzeile an jede Nachricht anhängen (an N8N + im Log)
+  const message = withMessageFooter(rawMessage, footer)
 
   // Empfänger-Daten laden (Name + Telefonnummer)
   const { data: employees, error: empError } = await service
