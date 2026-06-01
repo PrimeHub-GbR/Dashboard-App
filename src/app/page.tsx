@@ -26,7 +26,7 @@ export default function LoginPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        window.location.href = '/dashboard/workflow-hub'
+        window.location.href = '/dashboard/aufgaben'
       }
     })
   }, [])
@@ -54,7 +54,7 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = '/dashboard/workflow-hub'
+      window.location.href = '/dashboard/aufgaben'
     } catch {
       setServerError('Anmeldung fehlgeschlagen. Bitte versuche es erneut.')
     }

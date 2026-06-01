@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
 
   // Logged-in user on login page → redirect to dashboard
   if (user && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard/workflow-hub', request.url))
+    return NextResponse.redirect(new URL('/dashboard/aufgaben', request.url))
   }
 
   // Not logged-in user on protected dashboard route → redirect to login
