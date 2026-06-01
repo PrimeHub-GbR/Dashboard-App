@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
     desc: 'SKU, ASIN & EAN',
     href: '/dashboard/prices',
     icon: Database,
+    hidden: true,
   },
   {
     label: 'Repricer',
