@@ -29,14 +29,14 @@ export function HistorieFilterBar({ employees, filters, onChange }: Props) {
     <div className="flex flex-wrap gap-2 px-6 py-4 border-b border-border items-center">
       {/* Empfänger */}
       <Select
-        value={filters.recipient_id ?? ''}
-        onValueChange={(v) => set('recipient_id', v || undefined)}
+        value={filters.recipient_id ?? 'all'}
+        onValueChange={(v) => set('recipient_id', v === 'all' ? undefined : v)}
       >
         <SelectTrigger className="w-full sm:w-[140px]">
           <SelectValue placeholder="Empfänger" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Alle Empfänger</SelectItem>
+          <SelectItem value="all">Alle Empfänger</SelectItem>
           {employees.map((e) => (
             <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
           ))}
@@ -45,14 +45,14 @@ export function HistorieFilterBar({ employees, filters, onChange }: Props) {
 
       {/* Kontext */}
       <Select
-        value={filters.context ?? ''}
-        onValueChange={(v) => set('context', (v || '') as HistoryFilters['context'])}
+        value={filters.context || 'all'}
+        onValueChange={(v) => set('context', (v === 'all' ? '' : v) as HistoryFilters['context'])}
       >
         <SelectTrigger className="w-full sm:w-[140px]">
           <SelectValue placeholder="Kontext" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Alle Kontexte</SelectItem>
+          <SelectItem value="all">Alle Kontexte</SelectItem>
           <SelectItem value="manual">Manuell</SelectItem>
           <SelectItem value="aufgabe">Aufgabe</SelectItem>
           <SelectItem value="zeiterfassung">Zeiterfassung</SelectItem>
@@ -61,14 +61,14 @@ export function HistorieFilterBar({ employees, filters, onChange }: Props) {
 
       {/* Status */}
       <Select
-        value={filters.status ?? ''}
-        onValueChange={(v) => set('status', (v || '') as HistoryFilters['status'])}
+        value={filters.status || 'all'}
+        onValueChange={(v) => set('status', (v === 'all' ? '' : v) as HistoryFilters['status'])}
       >
         <SelectTrigger className="w-full sm:w-[140px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Alle Status</SelectItem>
+          <SelectItem value="all">Alle Status</SelectItem>
           <SelectItem value="sent">Gesendet</SelectItem>
           <SelectItem value="failed">Fehlgeschlagen</SelectItem>
           <SelectItem value="pending">Ausstehend</SelectItem>
@@ -77,18 +77,17 @@ export function HistorieFilterBar({ employees, filters, onChange }: Props) {
 
       {/* Zeitraum */}
       <Select
-        value={filters.date_range ?? ''}
-        onValueChange={(v) => set('date_range', (v || '') as HistoryFilters['date_range'])}
+        value={filters.date_range || 'all'}
+        onValueChange={(v) => set('date_range', (v === 'all' ? '' : v) as HistoryFilters['date_range'])}
       >
         <SelectTrigger className="w-full sm:w-[140px]">
           <SelectValue placeholder="Zeitraum" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">90 Tage</SelectItem>
+          <SelectItem value="all">90 Tage</SelectItem>
           <SelectItem value="today">Heute</SelectItem>
           <SelectItem value="week">Diese Woche</SelectItem>
           <SelectItem value="month">Dieser Monat</SelectItem>
-          <SelectItem value="90days">90 Tage</SelectItem>
         </SelectContent>
       </Select>
 
