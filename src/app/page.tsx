@@ -21,12 +21,33 @@ type LoginFormData = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null)
 
-  // BUG-2: Prevent login flash on SPA navigation for already-logged-in users
+  // Prevent login flash on SPA navigation for already-logged-in users
+  // + Rollencheck: nur Admin/Manager duerfen ins Dashboard.
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
+
+    // Hinweis, wenn Middleware einen Mitarbeiter abgewiesen hat
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error') === 'forbidden') {
+      setServerError(
+        'Dieser Zugang ist nur für Admins und Manager. Mitarbeitende melden sich bitte in der PrimeHub-App an.'
+      )
+      void supabase.auth.signOut()
+      return
+    }
+
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: roleRow } = await supabase
+        .from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+      const allowed = roleRow?.role === 'admin' || roleRow?.role === 'manager'
+      if (allowed) {
         window.location.href = '/dashboard/aufgaben'
+      } else {
+        await supabase.auth.signOut()
+        setServerError(
+          'Dieser Zugang ist nur für Admins und Manager. Mitarbeitende melden sich bitte in der PrimeHub-App an.'
+        )
       }
     })
   }, [])
@@ -44,13 +65,26 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       })
 
-      if (error) {
+      if (error || !signInData.user) {
         setServerError('Anmeldedaten ungültig. Bitte überprüfe E-Mail und Passwort.')
+        return
+      }
+
+      // Rollencheck: nur Admin/Manager duerfen ins Dashboard.
+      // Mitarbeitende haben zwar einen App-Login, aber keinen Dashboard-Zugang.
+      const { data: roleRow } = await supabase
+        .from('user_roles').select('role').eq('user_id', signInData.user.id).maybeSingle()
+      const allowed = roleRow?.role === 'admin' || roleRow?.role === 'manager'
+      if (!allowed) {
+        await supabase.auth.signOut()
+        setServerError(
+          'Dieser Zugang ist nur für Admins und Manager. Mitarbeitende melden sich bitte in der PrimeHub-App an.'
+        )
         return
       }
 

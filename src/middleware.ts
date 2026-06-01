@@ -67,14 +67,33 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Logged-in user on login page → redirect to dashboard
-  if (user && pathname === '/') {
+  // Rolle ermitteln — NUR admin/manager duerfen ins Web-Dashboard.
+  // Mitarbeiter (App-Nutzer mit Supabase-Auth-Account) duerfen NICHT rein.
+  let isManagerOrAdmin = false
+  if (user) {
+    const { data: roleRow } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    isManagerOrAdmin = roleRow?.role === 'admin' || roleRow?.role === 'manager'
+  }
+
+  // Eingeloggter Admin/Manager auf Login-Seite → Dashboard
+  if (user && isManagerOrAdmin && pathname === '/') {
     return NextResponse.redirect(new URL('/dashboard/aufgaben', request.url))
   }
 
-  // Not logged-in user on protected dashboard route → redirect to login
-  if (!user && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // Dashboard-Schutz
+  if (pathname.startsWith('/dashboard')) {
+    // Nicht eingeloggt → Login
+    if (!user) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+    // Eingeloggt, aber kein Admin/Manager (z.B. Mitarbeiter) → raus mit Hinweis
+    if (!isManagerOrAdmin) {
+      return NextResponse.redirect(new URL('/?error=forbidden', request.url))
+    }
   }
 
   return response
