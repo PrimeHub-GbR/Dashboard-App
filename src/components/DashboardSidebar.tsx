@@ -5,15 +5,24 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
-  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight, CheckSquare, Building2, MessageCircle, BookCheck,
+  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight, CheckSquare, Building2, MessageCircle, BookCheck, EyeOff,
 } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { createClient } from '@/lib/supabase/client'
 import { McpStatus } from '@/components/McpStatus'
 import { ProfileChangesBell } from '@/components/ProfileChangesBell'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+interface NavItem {
+  label: string
+  desc: string
+  href: string
+  icon: typeof LayoutDashboard
+  hidden?: boolean
+}
+
+const navItems: NavItem[] = [
   {
     label: 'Workflow Hub',
     desc: 'Upload & Verarbeitung',
@@ -25,6 +34,7 @@ const navItems = [
     desc: 'N8N Status & Steuerung',
     href: '/dashboard/workflows',
     icon: Workflow,
+    hidden: true,
   },
   {
     label: 'Bestellungen',
@@ -95,6 +105,7 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const hiddenItems = navItems.filter((item) => item.hidden)
 
   // Persist collapse state in localStorage
   useEffect(() => {
@@ -175,7 +186,7 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
             Navigation
           </p>
         )}
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.hidden).map((item) => {
           const isActive = pathname.startsWith(item.href)
           return (
             <Link
@@ -229,6 +240,51 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
       {/* Footer */}
       <div className={cn('py-4 border-t border-white/10 space-y-3', collapsed ? 'px-2' : 'px-3')}>
         <ProfileChangesBell collapsed={collapsed} />
+        {hiddenItems.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                title={collapsed ? `${hiddenItems.length} ausgeblendete Tabs` : undefined}
+                className={cn(
+                  'flex w-full items-center rounded-lg px-3 py-2 text-xs text-white/40 hover:bg-white/6 hover:text-white/70 transition-colors',
+                  collapsed ? 'justify-center' : 'gap-2'
+                )}
+              >
+                <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                {!collapsed && (
+                  <span className="flex-1 text-left">Ausgeblendet</span>
+                )}
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-white/10 px-1 text-[10px] font-semibold text-white/60">
+                  {hiddenItems.length}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="end"
+              className="w-60 border-white/10 bg-[#0a1510] p-2 text-white"
+            >
+              <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                Ausgeblendete Tabs
+              </p>
+              {hiddenItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-3 rounded-lg px-2 py-2 text-white/70 hover:bg-white/8 hover:text-white/90 transition-colors"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/8">
+                    <item.icon className="h-4 w-4 text-white/50" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-none">{item.label}</p>
+                    <p className="mt-0.5 text-[11px] text-white/35 truncate">{item.desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
         {!collapsed && <McpStatus />}
         {!collapsed && userEmail && (
           <p className="text-[11px] text-white/30 truncate px-1">{userEmail}</p>
