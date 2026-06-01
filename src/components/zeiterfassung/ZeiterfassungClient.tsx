@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ZeitDashboard } from './ZeitDashboard'
 import { Schichtplanung } from './Schichtplanung'
@@ -12,13 +13,23 @@ interface Props {
   kioskRegisterUrl: string | null
 }
 
+const VALID_TABS = ['dashboard', 'planung', 'korrektur', 'einstellungen']
+
 export function ZeiterfassungClient({ initialRole, kioskRegisterUrl }: Props) {
+  const [tab, setTab] = useState('dashboard')
+
+  // Deep-Link: ?tab=korrektur o.ä. (z. B. aus dem Notification-Center)
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (t && VALID_TABS.includes(t)) setTab(t)
+  }, [])
+
   if (initialRole === 'staff') {
     return <EigeneZeiten />
   }
 
   return (
-    <Tabs defaultValue="dashboard" className="space-y-6">
+    <Tabs value={tab} onValueChange={setTab} className="space-y-6">
       <TabsList className="flex-wrap h-auto gap-1">
         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         <TabsTrigger value="planung">Schichtplanung</TabsTrigger>

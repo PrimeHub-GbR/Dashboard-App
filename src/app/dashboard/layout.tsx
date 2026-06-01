@@ -1,12 +1,20 @@
 import type { ReactNode } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { DashboardSidebar } from '@/components/DashboardSidebar'
+import { NotificationBell } from '@/components/NotificationBell'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   const userEmail = user?.email ?? null
+
+  let isManagerOrAdmin = false
+  if (user) {
+    const { data: roleRow } = await supabase
+      .from('user_roles').select('role').eq('user_id', user.id).single()
+    isManagerOrAdmin = roleRow?.role === 'admin' || roleRow?.role === 'manager'
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -16,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           {children}
         </main>
       </div>
+      {isManagerOrAdmin && <NotificationBell />}
       <Toaster richColors position="top-right" />
     </div>
   )

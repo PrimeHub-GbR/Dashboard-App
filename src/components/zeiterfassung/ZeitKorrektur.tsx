@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useEmployees } from '@/hooks/useEmployees'
+import { cn } from '@/lib/utils'
 import { MonatsSelector } from './MonatsSelector'
 import { calculateBreakMinutes } from '@/lib/zeiterfassung/arbzg'
 import { MitarbeiterBadge } from './MitarbeiterBadge'
@@ -51,6 +52,10 @@ export function ZeitKorrektur() {
   const { employees } = useEmployees()
   const PAGE_SIZE = 50
 
+  // Deep-Link aus dem Notification-Center: bestimmten Eintrag direkt öffnen
+  const pendingEntryId = useRef<string | null>(null)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -72,6 +77,30 @@ export function ZeitKorrektur() {
   }, [year, month, employeeFilter, page])
 
   useEffect(() => { load() }, [load])
+
+  // Beim Mount Deep-Link-Parameter lesen (Monat/Mitarbeiter/Eintrag vorwählen)
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const emp = p.get('employee')
+    const y = p.get('y')
+    const m = p.get('m')
+    const entry = p.get('entry')
+    if (emp) setEmployeeFilter(emp)
+    if (y && !Number.isNaN(Number(y))) setYear(Number(y))
+    if (m && !Number.isNaN(Number(m))) setMonth(Number(m))
+    if (entry) pendingEntryId.current = entry
+  }, [])
+
+  // Sobald die Einträge geladen sind: Ziel-Eintrag öffnen + hervorheben
+  useEffect(() => {
+    if (!pendingEntryId.current || entries.length === 0) return
+    const found = entries.find((e) => e.id === pendingEntryId.current)
+    if (found) {
+      openEdit(found)
+      setHighlightId(found.id)
+    }
+    pendingEntryId.current = null
+  }, [entries])
 
   function openEdit(entry: EntryWithEmployee) {
     setEditingEntry(entry)
@@ -223,7 +252,7 @@ export function ZeitKorrektur() {
                   ? Math.floor((new Date(e.checked_out_at).getTime() - new Date(e.checked_in_at).getTime()) / 60_000)
                   : null
                 return (
-                  <TableRow key={e.id}>
+                  <TableRow key={e.id} className={cn(highlightId === e.id && 'bg-amber-500/10')}>
                     <TableCell>
                       {emp ? <MitarbeiterBadge name={emp.name} color={emp.color} size="sm" /> : '—'}
                     </TableCell>

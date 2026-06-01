@@ -10,7 +10,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { createClient } from '@/lib/supabase/client'
 import { McpStatus } from '@/components/McpStatus'
-import { ProfileChangesBell } from '@/components/ProfileChangesBell'
 import { CommandPalette } from '@/components/CommandPalette'
 import { homeItem, navGroups, type NavItem, type NavGroup } from '@/lib/nav-config'
 import { cn } from '@/lib/utils'
@@ -247,7 +246,6 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
 
       {/* Footer */}
       <div className={cn('py-4 border-t border-white/10 space-y-3', collapsed ? 'px-2' : 'px-3')}>
-        <ProfileChangesBell collapsed={collapsed} />
         {!collapsed && <McpStatus />}
         {!collapsed && userEmail && (
           <p className="text-[11px] text-white/30 truncate px-1">{userEmail}</p>
