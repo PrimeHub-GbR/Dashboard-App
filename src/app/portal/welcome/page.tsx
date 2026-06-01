@@ -38,44 +38,46 @@ export default function WelcomePage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
 
-  // Token aus dem E-Mail-Link einlösen → Session etablieren.
+  // Token aus dem E-Mail-Link einlösen → Session NUR für diesen Token etablieren.
   useEffect(() => {
     const supabase = createClient()
-    const params = new URLSearchParams(window.location.search)
-    const tokenHash = params.get('token_hash')
-    const type = params.get('type') // 'invite' | 'recovery'
 
     async function run() {
-      // Fall A: token_hash-Link (von unseren Templates) → verifyOtp
-      if (tokenHash && type) {
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: type as 'invite' | 'recovery',
-        })
-        if (error || !data.session) {
-          setErrorMsg(
-            'Dieser Link ist ungültig oder abgelaufen. Bitte fordere bei deinem Admin einen neuen an.'
-          )
-          setPhase('error')
-          return
-        }
-        setEmail(data.user?.email ?? null)
-        setPhase('ready')
+      const params = new URLSearchParams(window.location.search)
+      const tokenHash = params.get('token_hash')
+      const type = params.get('type') // 'invite' | 'recovery'
+
+      // SICHERHEIT: Diese Seite darf AUSSCHLIESSLICH über einen frischen
+      // E-Mail-Token funktionieren. Eine evtl. bestehende Session (z.B. eines
+      // im selben Browser eingeloggten Admins) wird zuvor lokal beendet, damit
+      // sie hier NICHT genutzt werden kann (kein Fremd-Passwort-Reset).
+      await supabase.auth.signOut({ scope: 'local' })
+
+      if (!tokenHash || !type) {
+        setErrorMsg(
+          'Diese Seite lässt sich nur über den Link aus deiner Einladungs- bzw. ' +
+            'Reset-E-Mail öffnen. Bitte nutze den Button in der E-Mail.'
+        )
+        setPhase('error')
         return
       }
 
-      // Fall B: impliziter Flow (#access_token) → von detectSessionInUrl gesetzt
-      const { data: sessionData } = await supabase.auth.getSession()
-      if (sessionData.session) {
-        setEmail(sessionData.session.user.email ?? null)
-        setPhase('ready')
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: type as 'invite' | 'recovery',
+      })
+      if (error || !data.session) {
+        setErrorMsg(
+          'Dieser Link ist ungültig oder abgelaufen. Bitte fordere bei deinem Admin einen neuen an.'
+        )
+        setPhase('error')
         return
       }
-
-      setErrorMsg(
-        'Kein gültiger Einladungslink gefunden. Bitte öffne den Link aus deiner E-Mail erneut.'
-      )
-      setPhase('error')
+      // Token sofort aus der Adressleiste/History entfernen, damit er dort
+      // nicht offen liegt (er ist ohnehin nur einmal verwendbar).
+      window.history.replaceState(null, '', '/portal/welcome')
+      setEmail(data.user?.email ?? null)
+      setPhase('ready')
     }
 
     run()
