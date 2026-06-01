@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
-  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight, CheckSquare, Building2, MessageCircle, BookCheck, EyeOff,
+  RefreshCw, LogOut, Package, BookOpen, Clock, ChevronLeft, ChevronRight, CheckSquare, Building2, MessageCircle, BookCheck, EyeOff, Wallet,
 } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -96,6 +96,12 @@ const navItems: NavItem[] = [
     desc: 'Preiskonformität · Amazon · VLB',
     href: '/dashboard/buchpreisbindung',
     icon: BookCheck,
+  },
+  {
+    label: 'CashFlow',
+    desc: 'Barmittel · Trend · Analyse',
+    href: '/dashboard/cashflow',
+    icon: Wallet,
   },
 ]
 

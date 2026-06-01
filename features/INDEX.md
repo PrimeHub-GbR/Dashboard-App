@@ -89,6 +89,12 @@
 |---------|--------|------|
 | Buchpreisbindungs-Prüfung — Amazon-Scraping + VLB-Abgleich + Excel-Archiv | Deployed | [buchpreisbindung/overview.md](buchpreisbindung/overview.md) |
 
+## CashFlow `/dashboard/cashflow`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Barmittel-Tracking pro Monatsende + Trend & Analyse (nur Admin/Manager) | Deployed | [cashflow/overview.md](cashflow/overview.md) |
+
 ---
 
 ## Neues Feature anlegen
