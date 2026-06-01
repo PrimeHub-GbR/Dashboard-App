@@ -50,7 +50,7 @@ const navItems: NavItem[] = [
     hidden: true,
   },
   {
-    label: 'Repricer',
+    label: 'Repricer Preissync',
     desc: 'Automatische Preise',
     href: '/dashboard/repricer',
     icon: RefreshCw,
