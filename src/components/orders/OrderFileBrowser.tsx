@@ -99,7 +99,7 @@ export function OrderFileBrowser() {
   }
 
   return (
-    <div className="space-y-1">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-1 md:grid-cols-2 xl:grid-cols-3 items-start">
       {groups.map((group) => {
         const isOpen = openFolders.has(group.supplier)
         return (
@@ -107,6 +107,7 @@ export function OrderFileBrowser() {
             key={group.supplier}
             open={isOpen}
             onOpenChange={() => toggleFolder(group.supplier)}
+            className="rounded-lg border border-border/60 bg-background/40"
           >
             <CollapsibleTrigger asChild>
               <button
@@ -130,7 +131,7 @@ export function OrderFileBrowser() {
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <ul className="ml-9 mt-0.5 space-y-0.5 border-l border-border pl-3">
+              <ul className="ml-6 mb-2 mr-2 mt-0.5 space-y-0.5 border-l border-border pl-3">
                 {group.files.map((file) => (
                   <li
                     key={file.file_id}
