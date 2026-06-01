@@ -22,11 +22,34 @@ interface SupplierGroup {
   files: OrderFileEntry[]
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return ""
-  const d = new Date(value)
-  if (isNaN(d.getTime())) return value
-  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+/**
+ * Leitet das Datum aus dem Dateinamen ab (das echte Drive-Upload-Datum wird
+ * nicht gespeichert). Liefert ein Anzeige-Label und einen Sortierschlüssel
+ * (YYYYMMDD). Dateien ohne erkennbares Jahr bekommen Schlüssel 0 → ans Ende.
+ *   AvusOrder150625.xlsx     → 15.06.25  (DDMMYY)
+ *   BlankOrder25082025.xlsx  → 25.08.2025 (DDMMYYYY)
+ *   A43Order0702.xlsx        → 07.02.    (kein Jahr → Schlüssel 0)
+ */
+function parseFileDate(fileName: string): { label: string | null; sortKey: number } {
+  const groups = fileName.match(/\d{4,8}/g)
+  if (!groups) return { label: null, sortKey: 0 }
+  const digits = [...groups].sort((a, b) => b.length - a.length)[0]
+  let day = "", month = "", year = ""
+  if (digits.length === 8) {
+    day = digits.slice(0, 2); month = digits.slice(2, 4); year = digits.slice(4, 8)
+  } else if (digits.length === 6) {
+    day = digits.slice(0, 2); month = digits.slice(2, 4); year = "20" + digits.slice(4, 6)
+  } else if (digits.length === 4) {
+    day = digits.slice(0, 2); month = digits.slice(2, 4)
+  } else {
+    return { label: null, sortKey: 0 }
+  }
+  const dn = parseInt(day, 10), mn = parseInt(month, 10)
+  if (dn < 1 || dn > 31 || mn < 1 || mn > 12) return { label: null, sortKey: 0 }
+  return {
+    label: year ? `${day}.${month}.${year}` : `${day}.${month}.`,
+    sortKey: year ? parseInt(`${year}${month}${day}`, 10) : 0,
+  }
 }
 
 export function OrderFileBrowser() {
@@ -53,7 +76,16 @@ export function OrderFileBrowser() {
 
         const grouped: SupplierGroup[] = Array.from(map.entries())
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(([supplier, supplierFiles]) => ({ supplier, files: supplierFiles }))
+          .map(([supplier, supplierFiles]) => ({
+            supplier,
+            // Neueste zuerst (nach Datum im Dateinamen), dann alphabetisch
+            files: [...supplierFiles].sort((a, b) => {
+              const ka = parseFileDate(a.file_name).sortKey
+              const kb = parseFileDate(b.file_name).sortKey
+              if (kb !== ka) return kb - ka
+              return a.file_name.localeCompare(b.file_name)
+            }),
+          }))
 
         setGroups(grouped)
         // Open all folders by default
@@ -132,7 +164,9 @@ export function OrderFileBrowser() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <ul className="ml-6 mb-2 mr-2 mt-0.5 space-y-0.5 border-l border-border pl-3">
-                {group.files.map((file) => (
+                {group.files.map((file) => {
+                  const dateLabel = parseFileDate(file.file_name).label
+                  return (
                   <li
                     key={file.file_id}
                     className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/40 transition-colors"
@@ -141,9 +175,9 @@ export function OrderFileBrowser() {
                     <span className="flex-1 truncate" title={file.file_name}>
                       {file.file_name}
                     </span>
-                    {file.order_date && (
+                    {dateLabel && (
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDate(file.order_date)}
+                        {dateLabel}
                       </span>
                     )}
                     <Button
@@ -157,7 +191,8 @@ export function OrderFileBrowser() {
                       <Download className="h-3.5 w-3.5" />
                     </Button>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             </CollapsibleContent>
           </Collapsible>
