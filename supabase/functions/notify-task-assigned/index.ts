@@ -100,6 +100,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => null);
+
+    // Health-Check: prüft nur, ob FCM_SERVICE_ACCOUNT gesetzt ist und ein
+    // FCM-OAuth-Token geholt werden kann. Leakt keine Secrets (nur project_id
+    // + Token-Präfix). Sendet keine Nachricht.
+    if (body?.smoke === true) {
+      try {
+        const sa = JSON.parse(Deno.env.get("FCM_SERVICE_ACCOUNT")!);
+        const at = await getAccessToken(sa);
+        return json({
+          smoke: true,
+          ok: true,
+          project: sa.project_id,
+          tokenPrefix: at.slice(0, 12),
+        });
+      } catch (e) {
+        return json({ smoke: true, ok: false, error: String(e) }, 500);
+      }
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Nicht autorisiert" }, 401);
 
@@ -117,7 +137,6 @@ Deno.serve(async (req) => {
     if (roleErr) return json({ error: "Rollenprüfung fehlgeschlagen" }, 500);
     if (!isAdmin) return json({ error: "Nur Chef darf zuweisen" }, 403);
 
-    const body = await req.json().catch(() => null);
     const taskId = body?.task_id as string | undefined;
     const assigneeIds = (body?.assignee_ids as string[] | undefined) ?? [];
     if (!taskId || assigneeIds.length === 0) {
