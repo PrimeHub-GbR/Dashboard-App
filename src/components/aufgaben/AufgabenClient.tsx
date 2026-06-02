@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Plus, List, LayoutGrid, GitBranch, Network, RefreshCw } from 'lucide-react'
-import { useAufgaben, computeKPIs, Task, TaskFilters, CreateTaskPayload } from '@/hooks/useAufgaben'
+import { useAufgaben, computeKPIs, Task, TaskFilters, CreateTaskPayload, SaveResult } from '@/hooks/useAufgaben'
 import { useEmployees } from '@/hooks/useEmployees'
 import { AufgabenKPIs } from './AufgabenKPIs'
 import { AufgabenFilterBar } from './AufgabenFilterBar'
@@ -60,7 +60,7 @@ export function AufgabenClient() {
     setDialogOpen(true)
   }
 
-  const handleSave = async (payload: CreateTaskPayload): Promise<boolean> => {
+  const handleSave = async (payload: CreateTaskPayload): Promise<SaveResult> => {
     if (selectedTask) {
       return updateTask(selectedTask.id, payload)
     }

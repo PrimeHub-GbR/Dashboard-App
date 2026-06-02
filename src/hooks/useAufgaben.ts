@@ -50,6 +50,27 @@ export interface CreateTaskPayload {
   org_node_id?: string | null
 }
 
+export type SaveResult = { ok: true } | { ok: false; error: string }
+
+// Fehlermeldung aus einer fehlgeschlagenen API-Antwort lesbar machen.
+async function extractError(res: Response): Promise<string> {
+  try {
+    const json = await res.json()
+    const err = json?.error
+    if (typeof err === 'string') return err
+    // Zod flatten() -> { fieldErrors, formErrors }
+    if (err && typeof err === 'object') {
+      const fieldErrors = err.fieldErrors as Record<string, string[]> | undefined
+      const fields = fieldErrors ? Object.keys(fieldErrors) : []
+      if (fields.length > 0) return `Ungültige Eingabe: ${fields.join(', ')}`
+      return 'Ungültige Eingabe'
+    }
+  } catch {
+    /* keine JSON-Antwort */
+  }
+  return `Speichern fehlgeschlagen (Status ${res.status})`
+}
+
 export function useAufgaben(filters: TaskFilters = {}) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -88,33 +109,33 @@ export function useAufgaben(filters: TaskFilters = {}) {
 
   const refresh = () => load(filters)
 
-  const createTask = async (payload: CreateTaskPayload): Promise<boolean> => {
+  const createTask = async (payload: CreateTaskPayload): Promise<SaveResult> => {
     try {
       const res = await fetch('/api/aufgaben', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!res.ok) return false
+      if (!res.ok) return { ok: false, error: await extractError(res) }
       await load(filters)
-      return true
+      return { ok: true }
     } catch {
-      return false
+      return { ok: false, error: 'Netzwerkfehler — Server nicht erreichbar' }
     }
   }
 
-  const updateTask = async (id: string, updates: Partial<CreateTaskPayload>): Promise<boolean> => {
+  const updateTask = async (id: string, updates: Partial<CreateTaskPayload>): Promise<SaveResult> => {
     try {
       const res = await fetch(`/api/aufgaben/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       })
-      if (!res.ok) return false
+      if (!res.ok) return { ok: false, error: await extractError(res) }
       await load(filters)
-      return true
+      return { ok: true }
     } catch {
-      return false
+      return { ok: false, error: 'Netzwerkfehler — Server nicht erreichbar' }
     }
   }
 
@@ -130,7 +151,8 @@ export function useAufgaben(filters: TaskFilters = {}) {
   }
 
   const completeTask = async (id: string): Promise<boolean> => {
-    return updateTask(id, { status: 'done' } as Partial<CreateTaskPayload>)
+    const res = await updateTask(id, { status: 'done' } as Partial<CreateTaskPayload>)
+    return res.ok
   }
 
   return { tasks, isLoading, error, refresh, createTask, updateTask, deleteTask, completeTask }

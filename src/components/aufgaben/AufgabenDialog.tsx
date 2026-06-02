@@ -16,8 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { AssigneeSelector } from './AssigneeSelector'
-import { Task, TaskPriority, TaskStatus, CreateTaskPayload } from '@/hooks/useAufgaben'
-import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
+import { Task, TaskPriority, TaskStatus, CreateTaskPayload, SaveResult } from '@/hooks/useAufgaben'
 import { AlertTriangle, Trash2 } from 'lucide-react'
 import { WhatsAppSendenButton } from '@/components/kommunikation/WhatsAppSendenButton'
 
@@ -43,7 +42,7 @@ interface Props {
   employees: Employee[]
   defaultOrgNodeId?: string | null
   onClose: () => void
-  onSave: (payload: CreateTaskPayload) => Promise<boolean>
+  onSave: (payload: CreateTaskPayload) => Promise<SaveResult>
   onDelete?: (id: string) => Promise<boolean>
   onComplete?: (id: string) => Promise<boolean>
 }
@@ -66,9 +65,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
   const [deleting, setDeleting] = useState(false)
   const [gfWarningOpen, setGfWarningOpen] = useState(false)
   const [pendingPayload, setPendingPayload] = useState<CreateTaskPayload | null>(null)
-
-  const { nodes } = useOrgNodes()
-  const flatNodes = buildFlatList(nodes)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (task) {
@@ -86,6 +83,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
     } else {
       setForm(defaultPayload(defaultOrgNodeId))
     }
+    setSaveError(null)
   }, [task, open, defaultOrgNodeId])
 
   const set = <K extends keyof CreateTaskPayload>(key: K, value: CreateTaskPayload[K]) =>
@@ -93,6 +91,7 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
 
   const handleSave = async () => {
     if (!form.title.trim()) return
+    setSaveError(null)
 
     // Prüfen ob ein GF zugewiesen wird
     const assignedGF = employees.filter(
@@ -105,19 +104,21 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
     }
 
     setSaving(true)
-    const ok = await onSave(form)
+    const res = await onSave(form)
     setSaving(false)
-    if (ok) onClose()
+    if (res.ok) onClose()
+    else setSaveError(res.error)
   }
 
   const handleGfConfirm = async () => {
     if (!pendingPayload) return
     setGfWarningOpen(false)
     setSaving(true)
-    const ok = await onSave(pendingPayload)
+    const res = await onSave(pendingPayload)
     setSaving(false)
     setPendingPayload(null)
-    if (ok) onClose()
+    if (res.ok) onClose()
+    else setSaveError(res.error)
   }
 
   const handleDelete = async () => {
@@ -182,29 +183,6 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
             />
           </div>
 
-          {/* Bereich */}
-          {flatNodes.length > 0 && (
-            <div className="space-y-1.5">
-              <Label>Bereich</Label>
-              <Select
-                value={form.org_node_id ?? '__none__'}
-                onValueChange={(v) => set('org_node_id', v === '__none__' ? null : v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Keinem Bereich zugeordnet" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Kein Bereich</SelectItem>
-                  {flatNodes.map((n) => (
-                    <SelectItem key={n.id} value={n.id}>
-                      {'  '.repeat(n.depth)}{n.depth > 0 ? '└ ' : ''}{n.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           {/* Priorität (Status ist im Footer) */}
           <div className="space-y-1.5">
             <Label>Priorität</Label>
@@ -264,6 +242,14 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
             />
           </div>
         </div>
+
+        {/* Fehlermeldung beim Speichern */}
+        {saveError && (
+          <div className="shrink-0 mt-2 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{saveError}</span>
+          </div>
+        )}
 
         {/* Footer: Löschen links — Status-Dropdown + Abbrechen + Speichern rechts */}
         <div className="shrink-0 border-t pt-4 mt-2 flex flex-wrap items-center justify-between gap-2">
