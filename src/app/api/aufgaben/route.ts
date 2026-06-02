@@ -153,8 +153,10 @@ export async function POST(req: NextRequest) {
   if (assignee_ids.length > 0) {
     const assignees = assignee_ids.map((employee_id) => ({ task_id: task.id, employee_id }))
     await service.from('task_assignees').insert(assignees)
-    // Push an die neu zugewiesenen Mitarbeiter (Best-Effort).
-    await notifyTaskAssigned(task.id, assignee_ids)
+    // Push an die neu zugewiesenen Mitarbeiter (Best-Effort, mit Chef-JWT).
+    const sb = await createSupabaseServerClient()
+    const { data: { session } } = await sb.auth.getSession()
+    await notifyTaskAssigned(task.id, assignee_ids, session?.access_token ?? null)
   }
 
   return NextResponse.json({ task: { id: task.id } }, { status: 201 })

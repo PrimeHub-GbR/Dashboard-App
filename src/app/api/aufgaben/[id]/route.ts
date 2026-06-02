@@ -122,7 +122,9 @@ export async function PUT(
     }
 
     const newly = assignee_ids.filter((e) => !oldIds.has(e))
-    await notifyTaskAssigned(id, newly)
+    const sb = await createSupabaseServerClient()
+    const { data: { session } } = await sb.auth.getSession()
+    await notifyTaskAssigned(id, newly, session?.access_token ?? null)
   }
 
   return NextResponse.json({ success: true })
