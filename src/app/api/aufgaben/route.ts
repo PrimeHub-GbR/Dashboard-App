@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { notifyTaskAssigned } from '@/lib/notify-task'
 
 // Permissive UUID-Pruefung: akzeptiert jedes 8-4-4-4-12-Hex-Format (wie Postgres),
 // nicht nur strikt RFC-4122-konforme Versionen. Seed-/Demo-Mitarbeiter haben
@@ -122,6 +123,14 @@ export async function POST(req: NextRequest) {
   const { assignee_ids, org_node_id, ...taskData } = parsed.data
   const service = createSupabaseServiceClient()
 
+  // Ersteller-Name denormalisiert ablegen, damit Mitarbeitende in der App
+  // sehen, von wem die Aufgabe stammt (employees-RLS verbirgt den Chef sonst).
+  const { data: creator } = await service
+    .from('employees')
+    .select('name')
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
+
   const { data: task, error: taskError } = await service
     .from('tasks')
     .insert({
@@ -131,6 +140,7 @@ export async function POST(req: NextRequest) {
       reminder_email: taskData.reminder_email || null,
       completed_at: taskData.status === 'done' ? new Date().toISOString() : null,
       created_by: user.id,
+      created_by_name: creator?.name ?? user.email ?? null,
       org_node_id: org_node_id ?? null,
     })
     .select('id')
@@ -143,6 +153,8 @@ export async function POST(req: NextRequest) {
   if (assignee_ids.length > 0) {
     const assignees = assignee_ids.map((employee_id) => ({ task_id: task.id, employee_id }))
     await service.from('task_assignees').insert(assignees)
+    // Push an die neu zugewiesenen Mitarbeiter (Best-Effort).
+    await notifyTaskAssigned(task.id, assignee_ids)
   }
 
   return NextResponse.json({ task: { id: task.id } }, { status: 201 })

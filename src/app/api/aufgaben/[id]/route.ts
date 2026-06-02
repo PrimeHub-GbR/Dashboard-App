@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { notifyTaskAssigned } from '@/lib/notify-task'
 
 // Permissive UUID-Pruefung (siehe POST-Route): Seed-/Demo-Mitarbeiter haben
 // hand-gebaute IDs, die Zods strenges .uuid() ablehnen wuerde.
@@ -107,11 +108,21 @@ export async function PUT(
   if (taskError) return NextResponse.json({ error: 'Fehler beim Aktualisieren' }, { status: 500 })
 
   if (assignee_ids !== undefined) {
+    // Alte Zuweisungen merken, um nur NEU hinzugefügte zu benachrichtigen.
+    const { data: existing } = await service
+      .from('task_assignees')
+      .select('employee_id')
+      .eq('task_id', id)
+    const oldIds = new Set((existing ?? []).map((r: any) => r.employee_id))
+
     await service.from('task_assignees').delete().eq('task_id', id)
     if (assignee_ids.length > 0) {
       const assignees = assignee_ids.map((employee_id) => ({ task_id: id, employee_id }))
       await service.from('task_assignees').insert(assignees)
     }
+
+    const newly = assignee_ids.filter((e) => !oldIds.has(e))
+    await notifyTaskAssigned(id, newly)
   }
 
   return NextResponse.json({ success: true })

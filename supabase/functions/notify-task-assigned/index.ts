@@ -127,15 +127,20 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Rollen-Check mit dem User-JWT
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: isAdmin, error: roleErr } = await userClient.rpc(
-      "is_admin_or_manager",
-    );
-    if (roleErr) return json({ error: "Rollenprüfung fehlgeschlagen" }, 500);
-    if (!isAdmin) return json({ error: "Nur Chef darf zuweisen" }, 403);
+    // Interner Aufruf (Web-API mit Service-Role-Key) ist bereits serverseitig
+    // autorisiert und überspringt den User-Rollencheck. Alle anderen Aufrufe
+    // (App mit User-JWT) müssen Admin/Manager sein.
+    const isInternal = authHeader === `Bearer ${serviceKey}`;
+    if (!isInternal) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: isAdmin, error: roleErr } = await userClient.rpc(
+        "is_admin_or_manager",
+      );
+      if (roleErr) return json({ error: "Rollenprüfung fehlgeschlagen" }, 500);
+      if (!isAdmin) return json({ error: "Nur Chef darf zuweisen" }, 403);
+    }
 
     const taskId = body?.task_id as string | undefined;
     const assigneeIds = (body?.assignee_ids as string[] | undefined) ?? [];
