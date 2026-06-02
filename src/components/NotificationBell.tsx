@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Bell, BellRing, Check, Loader2, AlertTriangle, Clock, TrendingUp, UserCog, ArrowRight,
+  Bell, BellRing, Check, Loader2, AlertTriangle, Clock, TrendingUp, UserCog, ArrowRight, CheckCircle2,
 } from 'lucide-react'
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger,
@@ -16,6 +16,7 @@ const SOURCE_META: Record<NotificationSource, { icon: typeof Bell; tint: string;
   zeit_review: { icon: Clock, tint: 'text-amber-500', actionLabel: 'Prüfen', ackLabel: 'Kontrolle OK' },
   overtime: { icon: TrendingUp, tint: 'text-sky-500', actionLabel: 'Ansehen', ackLabel: 'Zur Kenntnis' },
   profile: { icon: UserCog, tint: 'text-muted-foreground', actionLabel: 'Ansehen', ackLabel: 'Zur Kenntnis' },
+  task_done: { icon: CheckCircle2, tint: 'text-green-600', actionLabel: 'Zur Aufgabe', ackLabel: 'Zur Kenntnis' },
 }
 
 const SEVERITY_ACCENT: Record<AppNotification['severity'], string> = {

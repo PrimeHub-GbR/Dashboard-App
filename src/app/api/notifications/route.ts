@@ -153,6 +153,37 @@ export async function GET() {
     })
   }
 
+  // ── Quelle 5: Von Mitarbeitern erledigte Aufgaben ─────────────────────────
+  // Nur Aufgaben, die ein Mitarbeiter selbst abgehakt hat (completed_by gesetzt;
+  // im Web abgehakte Aufgaben haben completed_by = null). Letzte 30 Tage.
+  const taskSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: doneTasks } = await service
+    .from('tasks')
+    .select('id, title, completed_at, completed_by, completed_by_employee:employees!completed_by ( name, color )')
+    .eq('status', 'done')
+    .not('completed_by', 'is', null)
+    .not('completed_at', 'is', null)
+    .gte('completed_at', taskSince)
+    .order('completed_at', { ascending: false })
+    .limit(50)
+
+  for (const t of doneTasks ?? []) {
+    const emp = t.completed_by_employee as unknown as { name: string; color: string } | null
+    // completed_at im Key -> erneutes Erledigen (nach Wiedereröffnen) erzeugt eine neue Meldung
+    const key = `taskdone:${t.id}:${t.completed_at}`
+    notifications.push({
+      key,
+      source: 'task_done',
+      severity: 'info',
+      title: `${emp?.name ?? 'Mitarbeiter'}: Aufgabe erledigt`,
+      body: t.title,
+      employee: emp && t.completed_by ? { id: t.completed_by, name: emp.name, color: emp.color } : null,
+      created_at: t.completed_at as string,
+      link: `/dashboard/aufgaben?task=${t.id}`,
+      acknowledged: ackedKeys.has(key),
+    })
+  }
+
   // Sortierung: offen vor erledigt, dann Schweregrad, dann neueste zuerst
   notifications.sort((a, b) => {
     if (a.acknowledged !== b.acknowledged) return a.acknowledged ? 1 : -1

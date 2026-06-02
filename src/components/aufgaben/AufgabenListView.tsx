@@ -1,10 +1,10 @@
 'use client'
 
-import { Task } from '@/hooks/useAufgaben'
+import { Task, formatCompletedAt } from '@/hooks/useAufgaben'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-import { AlertTriangle, Calendar } from 'lucide-react'
+import { AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
 
 const PRIORITY_STYLES = {
   high: 'text-red-700 bg-red-50 border-red-200',
@@ -84,13 +84,22 @@ export function AufgabenListView({ tasks, onTaskClick, onComplete }: Props) {
                 className="shrink-0"
               />
 
-              {/* Titel */}
-              <p className={cn(
-                'flex-1 text-sm font-medium min-w-0 truncate',
-                isDone ? 'line-through text-muted-foreground' : 'text-foreground'
-              )}>
-                {task.title}
-              </p>
+              {/* Titel + Erledigt-Zeitstempel */}
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  'text-sm font-medium truncate',
+                  isDone ? 'line-through text-muted-foreground' : 'text-foreground'
+                )}>
+                  {task.title}
+                </p>
+                {isDone && task.completed_at && (
+                  <p className="text-[11px] text-green-700 flex items-center gap-1 truncate">
+                    <CheckCircle2 className="h-3 w-3 shrink-0" />
+                    Erledigt {formatCompletedAt(task.completed_at)}
+                    {task.completed_by_name && ` · ${task.completed_by_name}`}
+                  </p>
+                )}
+              </div>
 
               {/* Priorität */}
               <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden sm:flex', PRIORITY_STYLES[task.priority])}>

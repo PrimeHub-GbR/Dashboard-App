@@ -2,7 +2,7 @@
 // Mehrere Quellen (Profil-Änderungen, Zeiterfassung, Überstunden) werden zur
 // Ladezeit zu dieser gemeinsamen Form aggregiert.
 
-export type NotificationSource = 'profile' | 'zeit_stale' | 'zeit_review' | 'overtime'
+export type NotificationSource = 'profile' | 'zeit_stale' | 'zeit_review' | 'overtime' | 'task_done'
 
 export type NotificationSeverity = 'critical' | 'warning' | 'info'
 

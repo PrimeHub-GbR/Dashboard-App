@@ -25,6 +25,8 @@ export interface Task {
   created_at: string
   updated_at: string
   completed_at: string | null
+  completed_by: string | null
+  completed_by_name: string | null
   org_node_id: string | null
   assignees: TaskAssignee[]
 }
@@ -156,6 +158,15 @@ export function useAufgaben(filters: TaskFilters = {}) {
   }
 
   return { tasks, isLoading, error, refresh, createTask, updateTask, deleteTask, completeTask }
+}
+
+// Erledigt-Zeitstempel einheitlich formatieren (Berlin-Zeit)
+export function formatCompletedAt(iso: string): string {
+  return new Date(iso).toLocaleString('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 
 // KPI-Berechnungen

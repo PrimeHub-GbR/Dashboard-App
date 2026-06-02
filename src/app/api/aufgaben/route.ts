@@ -49,7 +49,8 @@ export async function GET(req: NextRequest) {
     .select(`
       id, title, description, status, priority,
       due_date, reminder_at, reminder_email, reminder_sent,
-      created_by, created_at, updated_at, completed_at,
+      created_by, created_at, updated_at, completed_at, completed_by,
+      completed_by_employee:employees!completed_by ( name ),
       org_node_id,
       task_assignees (
         employee_id,
@@ -59,7 +60,12 @@ export async function GET(req: NextRequest) {
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 
-  if (status) query = query.eq('status', status)
+  // status kann eine kommaseparierte Liste sein (Mehrfachauswahl im Filter)
+  if (status) {
+    const statuses = status.split(',').map((s) => s.trim()).filter(Boolean)
+    if (statuses.length === 1) query = query.eq('status', statuses[0])
+    else if (statuses.length > 1) query = query.in('status', statuses)
+  }
   if (priority) query = query.eq('priority', priority)
   if (search) query = query.ilike('title', `%${search}%`)
   if (org_node_id) query = query.eq('org_node_id', org_node_id)
@@ -87,10 +93,12 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Assignees normalisieren
+  // Assignees + Ersteller-/Erlediger-Namen normalisieren
   const normalized = tasks.map((t: any) => ({
     ...t,
     assignees: (t.task_assignees ?? []).map((a: any) => a.employees).filter(Boolean),
+    completed_by_name: t.completed_by_employee?.name ?? null,
+    completed_by_employee: undefined,
     task_assignees: undefined,
   }))
 

@@ -41,6 +41,27 @@ export function AufgabenClient() {
     void load()
   }, [])
 
+  // Deep-Link aus der Glocke: ?task=<id> -> Aufgabe direkt im Dialog oeffnen
+  useEffect(() => {
+    const taskId = new URLSearchParams(window.location.search).get('task')
+    if (!taskId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`/api/aufgaben/${taskId}`)
+        if (!res.ok || cancelled) return
+        const json = await res.json() as { task?: Task }
+        if (!json.task || cancelled) return
+        setSelectedTask(json.task)
+        setDefaultOrgNodeId(null)
+        setDialogOpen(true)
+        // URL bereinigen, damit ein Reload den Dialog nicht erneut oeffnet
+        window.history.replaceState(null, '', '/dashboard/aufgaben')
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   const employeesWithPhone = (employees ?? []).map((e) => ({
     ...e,
     phone: phoneMap[e.id] ?? null,

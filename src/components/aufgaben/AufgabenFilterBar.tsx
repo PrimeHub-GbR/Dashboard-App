@@ -4,10 +4,22 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { Search, X } from 'lucide-react'
+import { Search, X, ChevronDown } from 'lucide-react'
 import { TaskFilters } from '@/hooks/useAufgaben'
 import { useOrgNodes, buildFlatList } from '@/hooks/useOrgNodes'
+
+const STATUS_OPTIONS = [
+  { value: 'todo', label: 'Offen' },
+  { value: 'in_progress', label: 'In Bearbeitung' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'done', label: 'Erledigt' },
+  { value: 'blocked', label: 'Blockiert' },
+] as const
 
 interface Employee {
   id: string
@@ -31,6 +43,21 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
     onChange({ ...filters, [key]: value === ALL ? '' : value })
   }
 
+  // Status: Mehrfachauswahl als kommaseparierte Liste in filters.status
+  const selectedStatuses = (filters.status ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+  const toggleStatus = (value: string) => {
+    const next = new Set(selectedStatuses)
+    if (next.has(value)) next.delete(value)
+    else next.add(value)
+    onChange({ ...filters, status: Array.from(next).join(',') })
+  }
+  const statusLabel =
+    selectedStatuses.length === 0
+      ? 'Alle Status'
+      : selectedStatuses.length === 1
+        ? (STATUS_OPTIONS.find((o) => o.value === selectedStatuses[0])?.label ?? '1 Status')
+        : `${selectedStatuses.length} Status`
+
   const hasActiveFilters = !!(filters.status || filters.priority || filters.employee_id || filters.due_filter || filters.search || filters.org_node_id)
 
   return (
@@ -46,20 +73,37 @@ export function AufgabenFilterBar({ filters, employees, onChange }: Props) {
         />
       </div>
 
-      {/* Status */}
-      <Select value={filters.status || ALL} onValueChange={(v) => set('status', v)}>
-        <SelectTrigger className="w-[140px] h-9 text-sm">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>Alle Status</SelectItem>
-          <SelectItem value="todo">Offen</SelectItem>
-          <SelectItem value="in_progress">In Bearbeitung</SelectItem>
-          <SelectItem value="in_review">In Review</SelectItem>
-          <SelectItem value="done">Erledigt</SelectItem>
-          <SelectItem value="blocked">Blockiert</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* Status — Mehrfachauswahl */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-[150px] h-9 justify-between text-sm font-normal"
+          >
+            <span className="truncate">{statusLabel}</span>
+            <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[180px]">
+          <DropdownMenuItem
+            onClick={() => onChange({ ...filters, status: '' })}
+            className="text-muted-foreground"
+          >
+            Alle Status
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {STATUS_OPTIONS.map((o) => (
+            <DropdownMenuCheckboxItem
+              key={o.value}
+              checked={selectedStatuses.includes(o.value)}
+              onCheckedChange={() => toggleStatus(o.value)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {o.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Priorität */}
       <Select value={filters.priority || ALL} onValueChange={(v) => set('priority', v)}>

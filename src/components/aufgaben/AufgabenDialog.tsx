@@ -16,8 +16,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { AssigneeSelector } from './AssigneeSelector'
-import { Task, TaskPriority, TaskStatus, CreateTaskPayload, SaveResult } from '@/hooks/useAufgaben'
-import { AlertTriangle, Trash2 } from 'lucide-react'
+import { Task, TaskPriority, TaskStatus, CreateTaskPayload, SaveResult, formatCompletedAt } from '@/hooks/useAufgaben'
+import { AlertTriangle, Trash2, CheckCircle2 } from 'lucide-react'
 import { WhatsAppSendenButton } from '@/components/kommunikation/WhatsAppSendenButton'
 
 const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
@@ -161,6 +161,17 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
 
         {/* Scrollbarer Body */}
         <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+          {/* Erledigt-Hinweis */}
+          {isEdit && isDone && task?.completed_at && (
+            <div className="flex items-start gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                Erledigt am <strong>{formatCompletedAt(task.completed_at)}</strong>
+                {task.completed_by_name && <> von <strong>{task.completed_by_name}</strong></>}
+              </span>
+            </div>
+          )}
+
           {/* Titel */}
           <div className="space-y-1.5">
             <Label>Titel *</Label>

@@ -43,7 +43,8 @@ export async function GET(
     .select(`
       id, title, description, status, priority,
       due_date, reminder_at, reminder_email, reminder_sent,
-      created_by, created_at, updated_at, completed_at,
+      created_by, created_at, updated_at, completed_at, completed_by,
+      completed_by_employee:employees!completed_by ( name ),
       org_node_id,
       task_assignees (
         employee_id,
@@ -58,6 +59,8 @@ export async function GET(
   const task = {
     ...data,
     assignees: (data.task_assignees ?? []).map((a: any) => a.employees).filter(Boolean),
+    completed_by_name: (data as any).completed_by_employee?.name ?? null,
+    completed_by_employee: undefined,
     task_assignees: undefined,
   }
 

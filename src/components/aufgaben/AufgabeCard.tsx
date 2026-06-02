@@ -1,6 +1,6 @@
 'use client'
 
-import { Task } from '@/hooks/useAufgaben'
+import { Task, formatCompletedAt } from '@/hooks/useAufgaben'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
@@ -79,6 +79,15 @@ export function AufgabeCard({ task, onClick, compact = false }: Props) {
 
       {!compact && task.description && (
         <p className="text-xs text-muted-foreground mb-3 ml-6 line-clamp-2">{task.description}</p>
+      )}
+
+      {/* Erledigt-Zeitstempel */}
+      {task.status === 'done' && task.completed_at && (
+        <p className="text-[11px] text-green-700 mb-2 ml-6 flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3 shrink-0" />
+          Erledigt {formatCompletedAt(task.completed_at)}
+          {task.completed_by_name && ` · ${task.completed_by_name}`}
+        </p>
       )}
 
       {/* Footer */}
