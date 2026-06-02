@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
+// Permissive UUID-Pruefung: akzeptiert jedes 8-4-4-4-12-Hex-Format (wie Postgres),
+// nicht nur strikt RFC-4122-konforme Versionen. Seed-/Demo-Mitarbeiter haben
+// hand-gebaute IDs (z.B. aa000000-0000-...), die Zods strenges .uuid() ablehnt.
+const looseUuid = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  'Ungültige ID',
+)
+
 const createTaskSchema = z.object({
   title: z.string().min(1).max(255),
   description: z.string().optional(),
@@ -10,8 +18,8 @@ const createTaskSchema = z.object({
   due_date: z.string().optional().nullable(),
   reminder_at: z.string().optional().nullable(),
   reminder_email: z.string().email().optional().nullable(),
-  assignee_ids: z.array(z.string().uuid()).default([]),
-  org_node_id: z.string().uuid().optional().nullable(),
+  assignee_ids: z.array(looseUuid).default([]),
+  org_node_id: looseUuid.optional().nullable(),
 })
 
 async function requireAuth() {

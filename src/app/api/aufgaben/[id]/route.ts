@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 
+// Permissive UUID-Pruefung (siehe POST-Route): Seed-/Demo-Mitarbeiter haben
+// hand-gebaute IDs, die Zods strenges .uuid() ablehnen wuerde.
+const looseUuid = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  'Ungültige ID',
+)
+
 const updateTaskSchema = z.object({
   title: z.string().min(1).max(255).optional(),
   description: z.string().optional().nullable(),
@@ -10,8 +17,8 @@ const updateTaskSchema = z.object({
   due_date: z.string().optional().nullable(),
   reminder_at: z.string().optional().nullable(),
   reminder_email: z.string().email().optional().nullable(),
-  assignee_ids: z.array(z.string().uuid()).optional(),
-  org_node_id: z.string().uuid().optional().nullable(),
+  assignee_ids: z.array(looseUuid).optional(),
+  org_node_id: looseUuid.optional().nullable(),
 })
 
 async function requireAuth() {
