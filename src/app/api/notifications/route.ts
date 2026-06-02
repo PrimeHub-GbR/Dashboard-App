@@ -169,8 +169,9 @@ export async function GET() {
 
   for (const t of doneTasks ?? []) {
     const emp = t.completed_by_employee as unknown as { name: string; color: string } | null
-    // completed_at im Key -> erneutes Erledigen (nach Wiedereröffnen) erzeugt eine neue Meldung
-    const key = `taskdone:${t.id}:${t.completed_at}`
+    // Stabiler Key (ohne completed_at) -> Bestaetigungen sind zwischen Web-
+    // Dashboard und App-Glocke geteilt (siehe RPC get_chef_task_notifications).
+    const key = `taskdone:${t.id}`
     notifications.push({
       key,
       source: 'task_done',
