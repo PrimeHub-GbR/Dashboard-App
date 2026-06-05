@@ -77,6 +77,12 @@
 |---------|--------|------|
 | Mitarbeiter-Kontaktfelder + Dokumente-API | Deployed | — |
 
+## Skill-Matrix `/dashboard/skill-matrix`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Kompetenz-Matrix (Kann/Lernt/Noch nicht) — editierbar, Skill-Katalog | Deployed | — |
+
 ## Kommunikation `/dashboard/kommunikation`
 
 | Feature | Status | Spec |
