@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Search, Settings2, Check, GraduationCap, Minus, Filter } from 'lucide-react'
+import { Search, Settings2, Check, GraduationCap, Minus, Filter, ChevronRight, ChevronDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,29 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
   const [onlyGaps, setOnlyGaps] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [pending, setPending] = useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+
+  // Eingeklappte Kategorien aus localStorage wiederherstellen
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('skill-matrix-collapsed')
+      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]))
+    } catch { /* ignore */ }
+  }, [])
+
+  const persistCollapsed = useCallback((next: Set<string>) => {
+    setCollapsed(next)
+    try { localStorage.setItem('skill-matrix-collapsed', JSON.stringify([...next])) } catch { /* ignore */ }
+  }, [])
+
+  const toggleCategory = useCallback((category: string) => {
+    persistCollapsed((() => {
+      const next = new Set(collapsed)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })())
+  }, [collapsed, persistCollapsed])
 
   const load = useCallback(async () => {
     try {
@@ -128,6 +151,13 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
 
   const totalSkills = skills.length
 
+  const allCategories = useMemo(
+    () => Array.from(new Set(skills.map((s) => s.category))),
+    [skills],
+  )
+  const allCollapsed = allCategories.length > 0 && allCategories.every((c) => collapsed.has(c))
+  const toggleAll = () => persistCollapsed(allCollapsed ? new Set() : new Set(allCategories))
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -159,6 +189,11 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
           />
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={toggleAll}>
+            {allCollapsed
+              ? <><ChevronsUpDown className="mr-1.5 h-4 w-4" />Alle ausklappen</>
+              : <><ChevronsDownUp className="mr-1.5 h-4 w-4" />Alle einklappen</>}
+          </Button>
           <Button
             variant={onlyGaps ? 'default' : 'outline'}
             size="sm"
@@ -227,17 +262,27 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
             {groupedSkills.map(([category, items]) => {
               const visible = items.filter((s) => showRow(s.id))
               if (visible.length === 0) return null
+              const isCollapsed = collapsed.has(category)
               return (
                 <FragmentGroup key={category}>
                   <tr>
                     <td
                       colSpan={employees.length + 1}
-                      className="sticky left-0 z-10 border-b bg-muted/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                      onClick={() => toggleCategory(category)}
+                      className="sticky left-0 z-10 cursor-pointer select-none border-b bg-muted/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition hover:bg-muted/70"
                     >
-                      {category}
+                      <span className="flex items-center gap-1.5">
+                        {isCollapsed
+                          ? <ChevronRight className="h-3.5 w-3.5" />
+                          : <ChevronDown className="h-3.5 w-3.5" />}
+                        {category}
+                        <span className="font-normal normal-case tracking-normal text-muted-foreground/60">
+                          ({visible.length})
+                        </span>
+                      </span>
                     </td>
                   </tr>
-                  {visible.map((skill) => (
+                  {!isCollapsed && visible.map((skill) => (
                     <tr key={skill.id} className="group hover:bg-muted/30">
                       <td className="sticky left-0 z-10 border-b border-r bg-background px-3 py-1.5 group-hover:bg-muted/30">
                         {skill.name}
