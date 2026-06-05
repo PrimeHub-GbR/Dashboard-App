@@ -151,12 +151,51 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
 
   const totalSkills = skills.length
 
-  const allCategories = useMemo(
-    () => Array.from(new Set(skills.map((s) => s.category))),
-    [skills],
+  // Eine Kategorie ist "flach", wenn sie genau einen Skill mit gleichem Namen hat
+  // → wird als einzelne Zeile gerendert (ohne Gruppen-Überschrift, nicht einklappbar)
+  const isFlatCategory = useCallback(
+    (category: string, items: Skill[]) => items.length === 1 && items[0].name === category,
+    [],
   )
-  const allCollapsed = allCategories.length > 0 && allCategories.every((c) => collapsed.has(c))
-  const toggleAll = () => persistCollapsed(allCollapsed ? new Set() : new Set(allCategories))
+
+  // Nur echte Gruppen (Software etc.) sind einklappbar
+  const collapsibleCategories = useMemo(() => {
+    const byCat = new Map<string, Skill[]>()
+    for (const s of skills) {
+      if (!byCat.has(s.category)) byCat.set(s.category, [])
+      byCat.get(s.category)!.push(s)
+    }
+    return [...byCat.entries()]
+      .filter(([cat, items]) => !(items.length === 1 && items[0].name === cat))
+      .map(([cat]) => cat)
+  }, [skills])
+  const allCollapsed = collapsibleCategories.length > 0 && collapsibleCategories.every((c) => collapsed.has(c))
+  const toggleAll = () => persistCollapsed(allCollapsed ? new Set() : new Set(collapsibleCategories))
+
+  const renderSkillRow = (skill: Skill, indent = false) => (
+    <tr key={skill.id} className="group hover:bg-muted/30">
+      <td className={cn(
+        'sticky left-0 z-10 border-b border-r bg-background px-3 py-1.5 group-hover:bg-muted/30',
+        indent && 'pl-8',
+      )}>
+        {skill.name}
+      </td>
+      {employees.map((e) => {
+        const key = entryKey(e.id, skill.id)
+        return (
+          <td key={e.id} className="border-b px-1 py-1 text-center">
+            <SkillCell
+              status={getStatus(e.id, skill.id)}
+              editable={canEdit}
+              pending={pending.has(key)}
+              onCycle={() => cycle(e, skill)}
+              ariaLabel={`${e.name} · ${skill.name}`}
+            />
+          </td>
+        )
+      })}
+    </tr>
+  )
 
   if (loading) {
     return (
@@ -189,11 +228,13 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={toggleAll}>
-            {allCollapsed
-              ? <><ChevronsUpDown className="mr-1.5 h-4 w-4" />Alle ausklappen</>
-              : <><ChevronsDownUp className="mr-1.5 h-4 w-4" />Alle einklappen</>}
-          </Button>
+          {collapsibleCategories.length > 0 && (
+            <Button variant="outline" size="sm" onClick={toggleAll}>
+              {allCollapsed
+                ? <><ChevronsUpDown className="mr-1.5 h-4 w-4" />Gruppen ausklappen</>
+                : <><ChevronsDownUp className="mr-1.5 h-4 w-4" />Gruppen einklappen</>}
+            </Button>
+          )}
           <Button
             variant={onlyGaps ? 'default' : 'outline'}
             size="sm"
@@ -262,6 +303,13 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
             {groupedSkills.map(([category, items]) => {
               const visible = items.filter((s) => showRow(s.id))
               if (visible.length === 0) return null
+
+              // Flache Kategorie (z.B. "3D-Druck") → einzelne bewertbare Zeile
+              if (isFlatCategory(category, items)) {
+                return renderSkillRow(visible[0])
+              }
+
+              // Echte Gruppe (z.B. "Software") → einklappbare Überschrift + Unterpunkte
               const isCollapsed = collapsed.has(category)
               return (
                 <FragmentGroup key={category}>
@@ -282,27 +330,7 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
                       </span>
                     </td>
                   </tr>
-                  {!isCollapsed && visible.map((skill) => (
-                    <tr key={skill.id} className="group hover:bg-muted/30">
-                      <td className="sticky left-0 z-10 border-b border-r bg-background px-3 py-1.5 group-hover:bg-muted/30">
-                        {skill.name}
-                      </td>
-                      {employees.map((e) => {
-                        const key = entryKey(e.id, skill.id)
-                        return (
-                          <td key={e.id} className="border-b px-1 py-1 text-center">
-                            <SkillCell
-                              status={getStatus(e.id, skill.id)}
-                              editable={canEdit}
-                              pending={pending.has(key)}
-                              onCycle={() => cycle(e, skill)}
-                              ariaLabel={`${e.name} · ${skill.name}`}
-                            />
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
+                  {!isCollapsed && visible.map((skill) => renderSkillRow(skill, true))}
                 </FragmentGroup>
               )
             })}
