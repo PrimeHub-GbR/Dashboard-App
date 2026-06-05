@@ -12,6 +12,7 @@ export default async function KioskPage() {
       .from('employees')
       .select('id, name, color, pin, position')
       .eq('is_active', true)
+      .eq('is_demo', false) // Demo-Mitarbeiter (Max Muster) nie am Kiosk zeigen
       .neq('position', 'geschaeftsfuehrer')
       .order('position') // manager kommt vor mitarbeiter (alphabetisch)
       .order('name'),
