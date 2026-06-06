@@ -55,6 +55,9 @@ export function QrLabel({
         @media print {
           @page { margin: 12mm; }
           body { background: white; }
+          /* Dashboard-Rahmen (Sidebar, Padding) beim Drucken ausblenden */
+          aside { display: none !important; }
+          main { padding: 0 !important; overflow: visible !important; }
         }
       `}</style>
     </div>
