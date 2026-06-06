@@ -2,6 +2,7 @@ import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
   RefreshCw, Package, BookOpen, Clock, CheckSquare, Building2,
   MessageCircle, BookCheck, Wallet, Cog, Boxes, Users, Banknote, Grid3x3,
+  Warehouse,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -55,6 +56,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Aufgaben', desc: 'To-Dos · Delegation · KPIs', href: '/dashboard/aufgaben', icon: CheckSquare },
       { label: 'Organisation', desc: 'Team · Hierarchie · Stammdaten', href: '/dashboard/organisation', icon: Building2 },
       { label: 'Skill-Matrix', desc: 'Kompetenzen · Wer kann was', href: '/dashboard/skill-matrix', icon: Grid3x3 },
+      { label: 'Lager / Nachbestellung', desc: 'QR-Etiketten · Bestellliste', href: '/dashboard/lager', icon: Warehouse },
     ],
   },
   {
