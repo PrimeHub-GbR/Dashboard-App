@@ -21,14 +21,15 @@ export function DownloadButton({ jobId, hasResultFile }: DownloadButtonProps) {
       const res = await fetch(`/api/jobs/${jobId}/download`)
 
       if (!res.ok) {
-        toast.error('Download-Link abgelaufen. Bitte starte den Job erneut.')
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error ?? 'Download fehlgeschlagen. Bitte starte den Job erneut.')
         return
       }
 
       const { url } = await res.json()
       window.open(url, '_blank')
     } catch {
-      toast.error('Download-Link abgelaufen. Bitte starte den Job erneut.')
+      toast.error('Download fehlgeschlagen. Bitte prüfe deine Verbindung.')
     } finally {
       setIsDownloading(false)
     }

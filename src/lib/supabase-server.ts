@@ -44,3 +44,21 @@ export function createSupabaseServiceClient() {
     },
   })
 }
+
+export const WORKFLOW_RESULTS_BUCKET = 'workflow-results'
+
+/**
+ * Normalizes a stored result file path to a bucket-relative object key.
+ *
+ * N8N callbacks sometimes include the bucket name as a prefix
+ * (e.g. "workflow-results/foo.csv") or a leading slash. Supabase's
+ * createSignedUrl expects ONLY the object key relative to the bucket, so a
+ * prefixed value would resolve to "workflow-results/workflow-results/foo.csv"
+ * and fail. This strips any leading slashes and bucket-name prefix.
+ */
+export function normalizeResultKey(path: string): string {
+  let key = path.trim().replace(/^\/+/, '')
+  const prefix = `${WORKFLOW_RESULTS_BUCKET}/`
+  while (key.startsWith(prefix)) key = key.slice(prefix.length)
+  return key
+}

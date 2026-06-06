@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createHmac, timingSafeEqual } from 'crypto'
-import { createSupabaseServiceClient } from '@/lib/supabase-server'
+import { createSupabaseServiceClient, normalizeResultKey } from '@/lib/supabase-server'
 
 const callbackBodySchema = z.object({
   status: z.enum(['success', 'failed', 'timeout']),
@@ -106,7 +106,9 @@ export async function POST(
     }
 
     if (result_file_path) {
-      updateData.result_file_url = result_file_path
+      // Strip any bucket-name prefix / leading slash so the stored value is a
+      // clean bucket-relative key (some N8N workflows prepend "workflow-results/").
+      updateData.result_file_url = normalizeResultKey(result_file_path)
     }
 
     if (error_message) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   createSupabaseServerClient,
   createSupabaseServiceClient,
+  normalizeResultKey,
 } from '@/lib/supabase-server'
 
 export async function GET(
@@ -64,15 +65,19 @@ export async function GET(
     }
 
     // 5. Generate signed URL (valid for 1 hour)
+    // Normalize the stored path: N8N callbacks may prefix the bucket name
+    // (e.g. "workflow-results/foo.csv"), which would otherwise resolve to a
+    // non-existent "workflow-results/workflow-results/foo.csv".
+    const objectKey = normalizeResultKey(job.result_file_url)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('workflow-results')
-      .createSignedUrl(job.result_file_url, 3600)
+      .createSignedUrl(objectKey, 3600)
 
     if (signedUrlError || !signedUrlData?.signedUrl) {
-      console.error('Signed URL generation failed:', signedUrlError)
+      console.error('Signed URL generation failed:', signedUrlError, 'key:', objectKey)
       return NextResponse.json(
-        { error: 'Download-URL konnte nicht erstellt werden' },
-        { status: 500 }
+        { error: 'Ergebnisdatei nicht im Speicher gefunden' },
+        { status: 404 }
       )
     }
 
