@@ -113,6 +113,11 @@ export function WebsiteSettingsClient({ canToggle }: { canToggle: boolean }) {
               <FileText className="mr-1.5 h-4 w-4" /> Impressum ansehen
             </a>
           </Button>
+          <Button variant="outline" size="sm" asChild>
+            <a href="/datenschutz" target="_blank" rel="noopener noreferrer">
+              <FileText className="mr-1.5 h-4 w-4" /> Datenschutz ansehen
+            </a>
+          </Button>
         </CardContent>
       </Card>
     </div>

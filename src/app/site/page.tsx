@@ -165,6 +165,7 @@ export default function SitePage() {
           <span>© {COMPANY.name}</span>
           <div className="flex items-center gap-5">
             <Link href="/impressum" className="transition hover:text-foreground">Impressum</Link>
+            <Link href="/datenschutz" className="transition hover:text-foreground">Datenschutz</Link>
           </div>
         </div>
       </footer>
