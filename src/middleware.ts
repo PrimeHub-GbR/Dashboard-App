@@ -3,8 +3,38 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const KIOSK_COOKIE = 'kiosk_device'
 
+const APEX_HOSTS = ['primehubgbr.com', 'www.primehubgbr.com']
+const DASHBOARD_URL = 'https://dashboard.primehubgbr.com'
+
+// Liest den landing_enabled-Schalter direkt via Supabase REST (kein SDK-Overhead)
+async function isLandingEnabled(): Promise<boolean> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/site_settings?key=eq.landing_enabled&select=value&limit=1`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    )
+    const rows = await res.json()
+    return Array.isArray(rows) && rows[0]?.value === true
+  } catch {
+    return false
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Apex-Domain (primehubgbr.com): öffentliche Firmen-Landingpage statt Login.
+  // Nur die Root-Route wird umgeschrieben; /impressum etc. sind ohnehin öffentlich.
+  const host = (request.headers.get('host') || '').toLowerCase().split(':')[0]
+  if (APEX_HOSTS.includes(host) && pathname === '/') {
+    if (await isLandingEnabled()) {
+      return NextResponse.rewrite(new URL('/site', request.url))
+    }
+    // Website ausgeschaltet → auf das (private) Dashboard umleiten
+    return NextResponse.redirect(DASHBOARD_URL)
+  }
 
   // Kiosk-Geräteschutz: /kiosk nur mit registriertem Device-Token erlaubt
   if (pathname.startsWith('/kiosk') && pathname !== '/kiosk/blocked') {

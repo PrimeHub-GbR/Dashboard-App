@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
   RefreshCw, Package, BookOpen, Clock, CheckSquare, Building2,
   MessageCircle, BookCheck, Wallet, Cog, Boxes, Users, Banknote, Grid3x3,
-  Warehouse,
+  Warehouse, Globe,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -65,6 +65,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'CashFlow', desc: 'Barmittel · Trend · Analyse', href: '/dashboard/cashflow', icon: Wallet },
       { label: 'Kommunikation', desc: 'WhatsApp · Nachrichten · Verlauf', href: '/dashboard/kommunikation', icon: MessageCircle },
+      { label: 'Webseite', desc: 'Firmen-Landingpage · Impressum', href: '/dashboard/website', icon: Globe },
     ],
   },
 ]
