@@ -6,17 +6,23 @@ const KIOSK_COOKIE = 'kiosk_device'
 const APEX_HOSTS = ['primehubgbr.com', 'www.primehubgbr.com']
 const DASHBOARD_URL = 'https://dashboard.primehubgbr.com'
 
-// Liest den landing_enabled-Schalter direkt via Supabase REST (kein SDK-Overhead)
-async function isLandingEnabled(): Promise<boolean> {
+// Prüft, ob die öffentliche Landingpage live ist: Schalter an UND Frist (falls
+// gesetzt) noch nicht abgelaufen. Liest direkt via Supabase REST (kein SDK-Overhead).
+async function isLandingLive(): Promise<boolean> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/site_settings?key=eq.landing_enabled&select=value&limit=1`,
+      `${supabaseUrl}/rest/v1/site_settings?key=in.(landing_enabled,auto_disable_at)&select=key,value`,
       { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
     )
     const rows = await res.json()
-    return Array.isArray(rows) && rows[0]?.value === true
+    if (!Array.isArray(rows)) return false
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+    if (map.landing_enabled !== true) return false
+    const at = typeof map.auto_disable_at === 'string' ? map.auto_disable_at : null
+    if (at && new Date(at).getTime() <= Date.now()) return false // Frist abgelaufen
+    return true
   } catch {
     return false
   }
@@ -29,7 +35,7 @@ export async function middleware(request: NextRequest) {
   // Nur die Root-Route wird umgeschrieben; /impressum etc. sind ohnehin öffentlich.
   const host = (request.headers.get('host') || '').toLowerCase().split(':')[0]
   if (APEX_HOSTS.includes(host) && pathname === '/') {
-    if (await isLandingEnabled()) {
+    if (await isLandingLive()) {
       return NextResponse.rewrite(new URL('/site', request.url))
     }
     // Website ausgeschaltet → auf das (private) Dashboard umleiten
