@@ -107,7 +107,8 @@ Deno.serve(async (req) => {
     const targets: { employeeId: string; title: string; body: string }[] = [];
 
     if (mode === "no_shows") {
-      const { data: rows } = await admin.rpc("get_no_shows_internal");
+      // persistiert die Events (fuer das MA-Pop-up) UND gibt sie zurueck.
+      const { data: rows } = await admin.rpc("record_yesterday_no_shows");
       const list = (rows ?? []) as Array<
         { employee_name: string; planned_from: string; planned_to: string }
       >;
