@@ -190,7 +190,8 @@ Deno.serve(async (req) => {
       if (res.ok) {
         sent++;
       } else {
-        if (res.status === 404 || res.status === 400) stale.push(token);
+        // Nur 404 (UNREGISTERED) = Token endgültig tot; 400 nicht löschen.
+        if (res.status === 404) stale.push(token);
       }
     }
 

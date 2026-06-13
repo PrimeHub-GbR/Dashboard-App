@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
           },
         );
         if (res.ok) sent++;
-        else if (res.status === 404 || res.status === 400) stale.push(row.token);
+        else if (res.status === 404) stale.push(row.token);
       }
     }
     if (stale.length > 0) {

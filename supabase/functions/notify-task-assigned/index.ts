@@ -198,8 +198,9 @@ Deno.serve(async (req) => {
       if (res.ok) {
         sent++;
       } else {
-        // Ungültige/abgemeldete Tokens einsammeln und entfernen
-        if (res.status === 404 || res.status === 400) stale.push(token);
+        // Nur eindeutig abgemeldete Tokens (404 UNREGISTERED) entfernen — bei
+        // 400 koennte es ein transienter/Request-Fehler sein (Token behalten).
+        if (res.status === 404) stale.push(token);
       }
     }
 

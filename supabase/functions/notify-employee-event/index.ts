@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       if (res.ok) {
         sent++;
       } else {
-        if (res.status === 404 || res.status === 400) stale.push(token);
+        if (res.status === 404) stale.push(token);
       }
     }
 
