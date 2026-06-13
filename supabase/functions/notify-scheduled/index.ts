@@ -144,8 +144,18 @@ Deno.serve(async (req) => {
             `Solange dein Plan unvollständig ist, erinnert dich die App bei jedem Start.`,
         });
       }
+    } else if (mode === "overdue_tasks") {
+      // setzt Prio 'high' (Seiteneffekt) + liefert Eskalations-Empfaenger.
+      const { data: rows } = await admin.rpc("escalate_overdue_tasks");
+      const list = (rows ?? []) as Array<
+        { recipient_id: string; title: string; body: string }
+      >;
+      if (list.length === 0) return json({ sent: 0, reason: "keine Eskalation" });
+      for (const r of list) {
+        targets.push({ employeeId: r.recipient_id, title: r.title, body: r.body });
+      }
     } else {
-      return json({ error: "mode muss 'no_shows' oder 'planning_due' sein" }, 400);
+      return json({ error: "unbekannter mode" }, 400);
     }
 
     if (targets.length === 0) return json({ sent: 0 });
