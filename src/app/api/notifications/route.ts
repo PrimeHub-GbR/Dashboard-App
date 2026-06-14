@@ -41,9 +41,33 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const notifications: AppNotification[] = []
 
-  // Bereits gespeicherte Bestätigungen (Überstunden + dismisste Stale-Einträge)
-  const { data: ackRows } = await service.from('notification_acks').select('notif_key')
-  const ackedKeys = new Set((ackRows ?? []).map(r => r.notif_key))
+  // Bereits gespeicherte Bestätigungen — geteilte Glocke: Meldungen bleiben
+  // nach dem Abhaken fuer ALLE Chefs sichtbar (mit Attribution: wer hat
+  // abgehakt). acknowledged_by ist die auth.users-UUID -> ueber employees.
+  const { data: ackRows } = await service
+    .from('notification_acks')
+    .select('notif_key, acknowledged_by, acknowledged_at')
+  const ackInfo = new Map<string, { by: string | null; at: string | null }>()
+  for (const r of ackRows ?? []) {
+    ackInfo.set(r.notif_key, { by: r.acknowledged_by, at: r.acknowledged_at })
+  }
+
+  const { data: ackEmps } = await service.from('employees').select('auth_user_id, name')
+  const nameByAuth = new Map<string, string>()
+  for (const e of ackEmps ?? []) {
+    if (e.auth_user_id) nameByAuth.set(e.auth_user_id, e.name)
+  }
+
+  /** Bestaetigungs-Felder fuer einen Key (geteilt, mit Attribution). */
+  const ackFields = (key: string) => {
+    const info = ackInfo.get(key)
+    if (!info) return { acknowledged: false as const }
+    return {
+      acknowledged: true as const,
+      acknowledgedBy: info.by ? (nameByAuth.get(info.by) ?? null) : null,
+      acknowledgedAt: info.at,
+    }
+  }
 
   // ── Quelle 1: Profil-Änderungen ───────────────────────────────────────────
   const { data: profileChanges } = await service
@@ -90,7 +114,7 @@ export async function GET() {
       employee: emp ? { id: emp.id, name: emp.name, color: emp.color } : null,
       created_at: e.checked_in_at,
       link: `/dashboard/zeiterfassung?tab=korrektur&entry=${e.id}&employee=${e.employee_id}&y=${ymd[0]}&m=${ymd[1]}`,
-      acknowledged: ackedKeys.has(key),
+      ...ackFields(key),
     })
   }
 
@@ -149,7 +173,7 @@ export async function GET() {
       employee: { id: row.employee_id, name: row.employee_name, color: row.employee_color },
       created_at: new Date().toISOString(),
       link: '/dashboard/zeiterfassung?tab=dashboard',
-      acknowledged: ackedKeys.has(key),
+      ...ackFields(key),
     })
   }
 
@@ -181,12 +205,52 @@ export async function GET() {
       employee: emp && t.completed_by ? { id: t.completed_by, name: emp.name, color: emp.color } : null,
       created_at: t.completed_at as string,
       link: `/dashboard/aufgaben?task=${t.id}`,
-      acknowledged: ackedKeys.has(key),
+      ...ackFields(key),
     })
   }
 
+  // ── Quelle 6: "Nicht geplant" (gearbeitet, aber nicht eingeplant) ─────────
+  // Persistiert nachts (unplanned_work_events). Geteilte Glocke + Attribution.
+  const unplannedSince = berlinYmd(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+  const { data: unplannedEvents } = await service
+    .from('unplanned_work_events')
+    .select('id, employee_id, event_date, worked_from, worked_to, employees(name, color)')
+    .gte('event_date', unplannedSince)
+    .order('event_date', { ascending: false })
+    .limit(50)
+
+  for (const u of unplannedEvents ?? []) {
+    const emp = u.employees as unknown as { name: string; color: string } | null
+    const key = `unplannedwork:${u.id}`
+    const dateLabel = new Date(u.event_date as string).toLocaleDateString('de-DE', {
+      weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric',
+    })
+    const timePart = u.worked_from && u.worked_to
+      ? ` · gearbeitet ${u.worked_from}–${u.worked_to}`
+      : ''
+    const ymd = (u.event_date as string).split('-')
+    notifications.push({
+      key,
+      source: 'unplanned',
+      severity: 'warning',
+      title: `${emp?.name ?? 'Mitarbeiter'}: nicht geplant`,
+      body: `Gearbeitet, aber nicht eingeplant — ${dateLabel}${timePart}`,
+      employee: emp ? { id: u.employee_id, name: emp.name, color: emp.color } : null,
+      created_at: u.event_date as string,
+      link: `/dashboard/zeiterfassung?tab=korrektur&employee=${u.employee_id}&y=${ymd[0]}&m=${ymd[1]}`,
+      ...ackFields(key),
+    })
+  }
+
+  // 2-Wochen-Historie: abgehakte Meldungen verschwinden 14 Tage nach dem
+  // Abhaken dauerhaft aus der Liste.
+  const ackCutoff = Date.now() - 14 * 24 * 60 * 60 * 1000
+  const visible = notifications.filter(
+    n => !n.acknowledged || !n.acknowledgedAt || new Date(n.acknowledgedAt).getTime() >= ackCutoff,
+  )
+
   // Sortierung: offen vor erledigt, dann Schweregrad, dann neueste zuerst
-  notifications.sort((a, b) => {
+  visible.sort((a, b) => {
     if (a.acknowledged !== b.acknowledged) return a.acknowledged ? 1 : -1
     if (SEVERITY_RANK[a.severity] !== SEVERITY_RANK[b.severity]) {
       return SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
@@ -194,7 +258,7 @@ export async function GET() {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
-  const unread = notifications.filter(n => !n.acknowledged).length
+  const unread = visible.filter(n => !n.acknowledged).length
 
-  return NextResponse.json({ notifications, unread })
+  return NextResponse.json({ notifications: visible, unread })
 }

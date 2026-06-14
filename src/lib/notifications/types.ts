@@ -2,7 +2,7 @@
 // Mehrere Quellen (Profil-Änderungen, Zeiterfassung, Überstunden) werden zur
 // Ladezeit zu dieser gemeinsamen Form aggregiert.
 
-export type NotificationSource = 'profile' | 'zeit_stale' | 'zeit_review' | 'overtime' | 'task_done'
+export type NotificationSource = 'profile' | 'zeit_stale' | 'zeit_review' | 'overtime' | 'task_done' | 'unplanned'
 
 export type NotificationSeverity = 'critical' | 'warning' | 'info'
 
@@ -19,6 +19,10 @@ export interface AppNotification {
   /** Deep-Link-Ziel (interner Pfad) oder null wenn keine Navigation */
   link: string | null
   acknowledged: boolean
+  /** Name des Chefs/Managers, der abgehakt hat (geteilte Glocke) */
+  acknowledgedBy?: string | null
+  /** Wann abgehakt wurde (ISO) — fuer 2-Wochen-Historie */
+  acknowledgedAt?: string | null
 }
 
 export const SEVERITY_RANK: Record<NotificationSeverity, number> = {

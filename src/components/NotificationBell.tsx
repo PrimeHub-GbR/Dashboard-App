@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Bell, BellRing, Check, Loader2, AlertTriangle, Clock, TrendingUp, UserCog, ArrowRight, CheckCircle2,
+  Bell, BellRing, Check, Loader2, AlertTriangle, Clock, TrendingUp, UserCog, ArrowRight, CheckCircle2, CalendarX,
 } from 'lucide-react'
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger,
@@ -17,6 +17,7 @@ const SOURCE_META: Record<NotificationSource, { icon: typeof Bell; tint: string;
   overtime: { icon: TrendingUp, tint: 'text-sky-500', actionLabel: 'Ansehen', ackLabel: 'Zur Kenntnis' },
   profile: { icon: UserCog, tint: 'text-muted-foreground', actionLabel: 'Ansehen', ackLabel: 'Zur Kenntnis' },
   task_done: { icon: CheckCircle2, tint: 'text-green-600', actionLabel: 'Zur Aufgabe', ackLabel: 'Zur Kenntnis' },
+  unplanned: { icon: CalendarX, tint: 'text-amber-500', actionLabel: 'Ansehen', ackLabel: 'Zur Kenntnis' },
 }
 
 const SEVERITY_ACCENT: Record<AppNotification['severity'], string> = {
@@ -177,8 +178,9 @@ export function NotificationBell() {
                         <p className="mt-1 text-[10px] text-muted-foreground/70">{time}</p>
                       </div>
                       {n.acknowledged && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
-                          <Check className="h-3 w-3" /> erledigt
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 shrink-0">
+                          <Check className="h-3 w-3" />
+                          {n.acknowledgedBy ? `von ${n.acknowledgedBy}` : 'erledigt'}
                         </span>
                       )}
                     </div>

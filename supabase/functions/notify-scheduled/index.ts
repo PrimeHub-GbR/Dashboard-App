@@ -1,9 +1,11 @@
 // Edge Function: notify-scheduled
 //
 // Zeitgesteuerte Pushes, ausgeloest per pg_cron (pg_net). Authentifizierung
-// ueber den Service-Role-Key (Bearer). Zwei Modi:
-//   { "mode": "no_shows" }     -> Chef-Push: gestern verplant, nicht erschienen
-//   { "mode": "planning_due" } -> Mitarbeiter-Push: naechster Monat unverplant
+// ueber den Service-Role-Key (Bearer). Modi:
+//   { "mode": "no_shows" }        -> Chef-Push: gestern verplant, nicht erschienen
+//   { "mode": "planning_due" }    -> Mitarbeiter-Push: naechster Monat unverplant
+//   { "mode": "overdue_tasks" }   -> Chef/GF-Push: ueberfaellige Aufgaben
+//   { "mode": "unplanned_work" }  -> Chef-Push: gestern gearbeitet, NICHT geplant
 //
 // FCM v1 via Service-Account (geteilt mit notify-employee-event).
 
@@ -143,6 +145,30 @@ Deno.serve(async (req) => {
             `Bitte plane den nächsten Monat — es fehlen noch ${missing} h. ` +
             `Solange dein Plan unvollständig ist, erinnert dich die App bei jedem Start.`,
         });
+      }
+    } else if (mode === "unplanned_work") {
+      // persistiert die Events (fuer die Chef-Glocke) UND gibt sie zurueck.
+      const { data: rows } = await admin.rpc("record_yesterday_unplanned_work");
+      const list = (rows ?? []) as Array<
+        { employee_name: string; worked_from: string; worked_to: string }
+      >;
+      if (list.length === 0) {
+        return json({ sent: 0, reason: "keine ungeplante Arbeit" });
+      }
+      const names = list
+        .map((r) =>
+          r.worked_from && r.worked_to
+            ? `${r.employee_name} (${r.worked_from}–${r.worked_to})`
+            : r.employee_name
+        )
+        .join(", ");
+      const title = list.length === 1
+        ? "Mitarbeiter nicht geplant"
+        : `${list.length} Mitarbeiter nicht geplant`;
+      const text = `Gestern gearbeitet, aber nicht eingeplant: ${names}.`;
+      const { data: chefs } = await admin.rpc("chef_employee_ids");
+      for (const c of (chefs ?? []) as Array<{ id: string }>) {
+        targets.push({ employeeId: c.id, title, body: text });
       }
     } else if (mode === "overdue_tasks") {
       // setzt Prio 'high' (Seiteneffekt) + liefert Eskalations-Empfaenger.
