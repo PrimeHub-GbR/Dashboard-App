@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
-import { withMessageFooter, MESSAGE_FOOTER } from '@/lib/kommunikation'
+import { withMessageFooter, MESSAGE_FOOTER, normalizePhone } from '@/lib/kommunikation'
 
 const sendSchema = z.object({
   recipient_ids: z.array(z.string().uuid()).min(1, 'Mindestens ein Empfänger erforderlich'),
@@ -108,8 +108,9 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    // Telefonnummer-Validierung: muss mit + beginnen
-    if (!employee.phone.startsWith('+')) {
+    // Telefonnummer normalisieren (nationale dt. Nummern -> +49…)
+    const phone = normalizePhone(employee.phone)
+    if (!phone) {
       const { data: logEntry } = await service
         .from('message_logs')
         .insert({
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
           context,
           context_ref_id: context_ref_id ?? null,
           status: 'failed',
-          error_message: 'Ungültiges Telefonnummern-Format (internationales Format +49... erforderlich)',
+          error_message: 'Ungültiges Telefonnummern-Format (keine gültige Rufnummer)',
         })
         .select()
         .single()
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
       .insert({
         sent_by: user.id,
         recipient_id: recipientId,
-        recipient_phone: employee.phone,
+        recipient_phone: phone,
         message_text: message,
         context,
         context_ref_id: context_ref_id ?? null,
@@ -158,7 +159,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           log_id: logEntry.id,
-          phone: employee.phone,
+          phone,
           message,
         }),
       })
