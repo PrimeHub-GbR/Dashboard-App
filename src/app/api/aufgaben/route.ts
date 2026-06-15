@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
-import { notifyTaskAssigned } from '@/lib/notify-task'
+import { notifyTaskAssigned, notifyTaskAssignedWhatsApp } from '@/lib/notify-task'
 
 // Permissive UUID-Pruefung: akzeptiert jedes 8-4-4-4-12-Hex-Format (wie Postgres),
 // nicht nur strikt RFC-4122-konforme Versionen. Seed-/Demo-Mitarbeiter haben
@@ -157,6 +157,8 @@ export async function POST(req: NextRequest) {
     const sb = await createSupabaseServerClient()
     const { data: { session } } = await sb.auth.getSession()
     await notifyTaskAssigned(task.id, assignee_ids, session?.access_token ?? null)
+    // WhatsApp an die Zugewiesenen (Vorlage aufgabe_neu) — Best-Effort.
+    await notifyTaskAssignedWhatsApp(task.id, assignee_ids, user.id)
   }
 
   return NextResponse.json({ task: { id: task.id } }, { status: 201 })
