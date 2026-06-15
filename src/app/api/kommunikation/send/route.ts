@@ -5,9 +5,14 @@ import { withMessageFooter, MESSAGE_FOOTER, normalizePhone } from '@/lib/kommuni
 
 const sendSchema = z.object({
   recipient_ids: z.array(z.string().uuid()).min(1, 'Mindestens ein Empfänger erforderlich'),
-  message: z.string().min(1, 'Nachricht darf nicht leer sein').max(1000, 'Nachricht darf maximal 1000 Zeichen lang sein'),
+  message: z.string().min(1, 'Nachricht darf nicht leer sein').max(1024, 'Nachricht zu lang'),
   context: z.enum(['manual', 'aufgabe', 'zeiterfassung']),
   context_ref_id: z.string().uuid().optional().nullable(),
+  // Optionaler Vorlagen-Versand (für Nachrichten außerhalb des 24h-Fensters).
+  // message enthält dann den gerenderten Vorlagentext (für die Historie).
+  template_name: z.string().optional().nullable(),
+  template_language: z.string().optional().nullable(),
+  template_params: z.array(z.string()).optional().nullable(),
 })
 
 async function requireAuthWithRole() {
@@ -52,7 +57,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { recipient_ids, message: rawMessage, context, context_ref_id } = parsed.data
+  const {
+    recipient_ids,
+    message: rawMessage,
+    context,
+    context_ref_id,
+    template_name,
+    template_language,
+    template_params,
+  } = parsed.data
+  const isTemplate = !!template_name
   const service = createSupabaseServiceClient()
 
   // Editierbare Standard-Fußzeile aus den Dashboard-Einstellungen laden
@@ -64,8 +78,9 @@ export async function POST(req: NextRequest) {
     .single()
   const footer = settings?.message_footer ?? MESSAGE_FOOTER
 
-  // Standard-Fußzeile an jede Nachricht anhängen (an N8N + im Log)
-  const message = withMessageFooter(rawMessage, footer)
+  // Freier Text bekommt die Standard-Fußzeile. Vorlagen NICHT — deren Body ist
+  // von Meta genehmigt und fix; `message` ist hier der gerenderte Vorlagentext.
+  const message = isTemplate ? rawMessage.trim() : withMessageFooter(rawMessage, footer)
 
   // Empfänger-Daten laden (Name + Telefonnummer)
   const { data: employees, error: empError } = await service
@@ -157,11 +172,17 @@ export async function POST(req: NextRequest) {
       const n8nResponse = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          log_id: logEntry.id,
-          phone,
-          message,
-        }),
+        body: JSON.stringify(
+          isTemplate
+            ? {
+                log_id: logEntry.id,
+                phone,
+                template_name,
+                template_language: template_language || 'de',
+                template_params: template_params || [],
+              }
+            : { log_id: logEntry.id, phone, message }
+        ),
       })
 
       if (!n8nResponse.ok) {
