@@ -27,6 +27,10 @@ export interface SendPayload {
   message: string
   context: MessageContext
   context_ref_id?: string | null
+  // Optionaler Vorlagen-Versand (außerhalb des 24h-Fensters)
+  template_name?: string | null
+  template_language?: string | null
+  template_params?: string[] | null
 }
 
 export interface HistoryFilters {

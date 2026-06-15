@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle } from 'lucide-react'
 import { NachrichtFormular } from './NachrichtFormular'
 import { VersandHistorie } from './VersandHistorie'
+import { VorlagenVerwaltung } from './VorlagenVerwaltung'
 import { FooterEinstellungenDialog } from './FooterEinstellungenDialog'
 import { MESSAGE_FOOTER } from '@/lib/kommunikation'
 import type { SelectableEmployee } from './EmpfaengerSelector'
@@ -95,47 +96,39 @@ export function KommunikationClient() {
         </Alert>
       )}
 
-      {/* Desktop-Layout (ab lg) */}
-      <div className="hidden lg:grid grid-cols-2 gap-6 items-start">
-        {loadingEmployees ? (
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-10 w-32 ml-auto" />
-          </div>
-        ) : (
-          <NachrichtFormular employees={employees} onMessageSent={handleMessageSent} footer={footer} />
-        )}
-        <VersandHistorie employees={employees} refreshKey={refreshKey} />
-      </div>
+      <Tabs defaultValue="nachricht">
+        <TabsList className="w-full max-w-md">
+          <TabsTrigger value="nachricht" className="flex-1">Senden</TabsTrigger>
+          <TabsTrigger value="vorlagen" className="flex-1">Vorlagen</TabsTrigger>
+          <TabsTrigger value="verlauf" className="flex-1">Verlauf</TabsTrigger>
+        </TabsList>
 
-      {/* Mobile-Layout (unter lg) — Tabs */}
-      <div className="lg:hidden">
-        <Tabs defaultValue="nachricht">
-          <TabsList className="w-full">
-            <TabsTrigger value="nachricht" className="flex-1">Neue Nachricht</TabsTrigger>
-            <TabsTrigger value="verlauf" className="flex-1">Verlauf</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="nachricht" className="mt-4">
+        <TabsContent value="nachricht" className="mt-4">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             {loadingEmployees ? (
               <div className="rounded-xl border border-border bg-card p-6 space-y-4">
                 <Skeleton className="h-6 w-40" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-32 ml-auto" />
               </div>
             ) : (
               <NachrichtFormular employees={employees} onMessageSent={handleMessageSent} footer={footer} />
             )}
-          </TabsContent>
+            <div className="hidden lg:block">
+              <VersandHistorie employees={employees} refreshKey={refreshKey} />
+            </div>
+          </div>
+        </TabsContent>
 
-          <TabsContent value="verlauf" className="mt-4">
-            <VersandHistorie employees={employees} refreshKey={refreshKey} />
-          </TabsContent>
-        </Tabs>
-      </div>
+        <TabsContent value="vorlagen" className="mt-4">
+          <VorlagenVerwaltung />
+        </TabsContent>
+
+        <TabsContent value="verlauf" className="mt-4">
+          <VersandHistorie employees={employees} refreshKey={refreshKey} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
