@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
   RefreshCw, Package, BookOpen, Clock, CheckSquare, Building2,
   MessageCircle, BookCheck, Wallet, Cog, Boxes, Users, Banknote, Grid3x3,
-  Warehouse, Globe,
+  Warehouse, Globe, PackageCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -43,6 +43,7 @@ export const navGroups: NavGroup[] = [
     icon: Boxes,
     items: [
       { label: 'Bestellungen', desc: 'Google Drive Sync', href: '/dashboard/orders', icon: ShoppingCart },
+      { label: 'Wareneingang', desc: 'Palettenannahme · Blank', href: '/dashboard/wareneingang', icon: PackageCheck },
       { label: 'Preisdatenbank', desc: 'SKU, ASIN & EAN', href: '/dashboard/prices', icon: Database },
       { label: 'Rebuy Scraper', desc: 'Bücher · wöchentlich · Excel', href: '/dashboard/rebuy', icon: BookOpen },
       { label: 'Buchpreisbindung', desc: 'Preiskonformität · Amazon · VLB', href: '/dashboard/buchpreisbindung', icon: BookCheck },

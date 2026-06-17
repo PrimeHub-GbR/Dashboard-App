@@ -30,6 +30,12 @@
 |---------|--------|------|
 | Google Drive → Supabase → Tabelle | Deployed | [orders/overview.md](orders/overview.md) |
 
+## Wareneingang `/dashboard/wareneingang`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Palettenannahme (Blank: AB→Lieferschein→Empfang, N8N-Mail-Erkennung) | Deployed | [wareneingang/overview.md](wareneingang/overview.md) |
+
 ## Preisdatenbank `/dashboard/prices`
 
 | Feature | Status | Spec |
