@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ZeitDashboard } from './ZeitDashboard'
 import { Schichtplanung } from './Schichtplanung'
 import { ZeitKorrektur } from './ZeitKorrektur'
+import { PauschaleStunden } from './PauschaleStunden'
 import { EigeneZeiten } from './EigeneZeiten'
 import { Einstellungen } from './Einstellungen'
 
@@ -13,7 +14,7 @@ interface Props {
   kioskRegisterUrl: string | null
 }
 
-const VALID_TABS = ['dashboard', 'planung', 'korrektur', 'einstellungen']
+const VALID_TABS = ['dashboard', 'planung', 'korrektur', 'pauschal', 'einstellungen']
 
 export function ZeiterfassungClient({ initialRole, kioskRegisterUrl }: Props) {
   const [tab, setTab] = useState('dashboard')
@@ -34,6 +35,7 @@ export function ZeiterfassungClient({ initialRole, kioskRegisterUrl }: Props) {
         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         <TabsTrigger value="planung">Schichtplanung</TabsTrigger>
         <TabsTrigger value="korrektur">Stempelzeiten</TabsTrigger>
+        <TabsTrigger value="pauschal">Pauschale Stunden</TabsTrigger>
         <TabsTrigger value="einstellungen">Einstellungen</TabsTrigger>
       </TabsList>
 
@@ -47,6 +49,10 @@ export function ZeiterfassungClient({ initialRole, kioskRegisterUrl }: Props) {
 
       <TabsContent value="korrektur">
         <ZeitKorrektur />
+      </TabsContent>
+
+      <TabsContent value="pauschal">
+        <PauschaleStunden />
       </TabsContent>
 
       <TabsContent value="einstellungen">

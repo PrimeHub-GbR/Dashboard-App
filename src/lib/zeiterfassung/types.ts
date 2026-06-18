@@ -79,8 +79,9 @@ export interface MonthStats {
   employee_name: string
   employee_color: string
   target_hours_per_month: number
-  total_work_minutes: number
+  total_work_minutes: number     // inkl. genehmigter Pauschalstunden
   total_break_minutes: number
+  total_pauschal_minutes: number // genehmigte Pauschalstunden (Teilmenge von work)
   net_work_minutes: number       // total_work_minutes - total_break_minutes
   target_minutes: number         // target_hours_per_month * 60
   overtime_minutes: number       // positiv = Überstunden, negativ = Minusstunden

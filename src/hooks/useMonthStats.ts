@@ -33,6 +33,7 @@ export function useMonthStats(year?: number, month?: number) {
         target_hours_per_month: number
         total_work_minutes: number
         total_break_minutes: number
+        total_pauschal_minutes?: number
         entry_count: number
       }[]).map((row) => {
         const netWorkMinutes = Math.max(0, row.total_work_minutes - row.total_break_minutes)
@@ -44,6 +45,7 @@ export function useMonthStats(year?: number, month?: number) {
           target_hours_per_month: row.target_hours_per_month,
           total_work_minutes: row.total_work_minutes,
           total_break_minutes: row.total_break_minutes,
+          total_pauschal_minutes: row.total_pauschal_minutes ?? 0,
           net_work_minutes: netWorkMinutes,
           target_minutes: targetMinutes,
           overtime_minutes: netWorkMinutes - targetMinutes,

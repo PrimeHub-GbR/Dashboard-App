@@ -66,6 +66,7 @@ export function StundenUebersicht() {
               <TableHead>Mitarbeiter</TableHead>
               <TableHead className="text-right">Brutto</TableHead>
               <TableHead className="text-right">Pause</TableHead>
+              <TableHead className="text-right">Pauschal</TableHead>
               <TableHead className="text-right">Netto</TableHead>
               <TableHead className="text-right">Soll</TableHead>
               <TableHead className="text-right">Differenz</TableHead>
@@ -77,14 +78,14 @@ export function StundenUebersicht() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: 9 }).map((_, j) => (
                     <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>
                   ))}
                 </TableRow>
               ))
             ) : stats.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   Keine Daten für diesen Monat.
                 </TableCell>
               </TableRow>
@@ -101,6 +102,9 @@ export function StundenUebersicht() {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {s.total_break_minutes > 0 ? formatDuration(s.total_break_minutes) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {s.total_pauschal_minutes > 0 ? `+${formatDuration(s.total_pauschal_minutes)}` : '—'}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatDuration(s.net_work_minutes)}
