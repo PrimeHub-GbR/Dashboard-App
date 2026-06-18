@@ -7,6 +7,7 @@
 //   { "mode": "overdue_tasks" }   -> Chef/GF-Push: ueberfaellige Aufgaben
 //   { "mode": "unplanned_work" }  -> Chef-Push: gestern gearbeitet, NICHT geplant
 //   { "mode": "tasks_due" }       -> WhatsApp an MA (faellige Aufgabe) + Push an Vorgesetzten
+//   { "mode": "gf_frist_reminders" } -> WhatsApp + Push an GF: Frist in X Tagen faellig
 //
 // FCM v1 via Service-Account (geteilt mit notify-employee-event).
 
@@ -284,6 +285,117 @@ Deno.serve(async (req) => {
             `Folgende Aufgabe(n) sind heute fällig: ${titles}. ` +
             `Der zuständige Mitarbeiter wurde per WhatsApp benachrichtigt.`,
         });
+      }
+    } else if (mode === "gf_frist_reminders") {
+      // GF-Pflicht-Fristen, die innerhalb des "X Tage vorher"-Fensters liegen,
+      // noch nicht in der App abgehakt sind und fuer die diese Periode noch
+      // keine WhatsApp verschickt wurde. Pro Periode genau eine WhatsApp.
+      const { data: rows } = await admin.rpc("get_gf_due_reminders_internal");
+      const list = (rows ?? []) as Array<{
+        reminder_id: string;
+        title: string;
+        next_due_date: string;
+        days_until: number;
+        gf_employee_id: string;
+        gf_name: string;
+        gf_phone: string | null;
+      }>;
+      if (list.length === 0) {
+        return json({ sent: 0, reason: "keine faelligen Fristen" });
+      }
+
+      const WA_SEND_URL = "https://n8n.primehubgbr.com/webhook/whatsapp-send";
+      const normPhone = (raw: string | null): string | null => {
+        if (!raw) return null;
+        let p = raw.trim();
+        if (p.startsWith("+")) p = "+" + p.slice(1).replace(/\D/g, "");
+        else if (p.replace(/\D/g, "").startsWith("00")) {
+          p = "+" + p.replace(/\D/g, "").slice(2);
+        } else {
+          const d = p.replace(/\D/g, "");
+          p = d.startsWith("0")
+            ? "+49" + d.slice(1)
+            : d.startsWith("49")
+            ? "+" + d
+            : d
+            ? "+49" + d
+            : "";
+        }
+        return /^\+\d{8,15}$/.test(p) ? p : null;
+      };
+      const fmtDue = (d: string): string => {
+        const [y, m, day] = (d || "").split("-");
+        return day && m && y ? `${day}.${m}.${y}` : d;
+      };
+
+      // Periode markieren (einmal je Frist), damit nicht erneut gesendet wird.
+      const seenPeriods = new Set<string>();
+      for (const r of list) {
+        const dueLabel = fmtDue(r.next_due_date);
+        const daysLabel = String(Math.max(0, r.days_until));
+
+        // App-Push an die GF.
+        targets.push({
+          employeeId: r.gf_employee_id,
+          title: "Frist fällig",
+          body:
+            `${r.title} ist in ${daysLabel} Tagen fällig (Stichtag ${dueLabel}). ` +
+            `Bitte erledigen.`,
+        });
+
+        const phone = normPhone(r.gf_phone);
+        if (phone) {
+          const { data: log } = await admin
+            .from("message_logs")
+            .insert({
+              sent_by: null,
+              recipient_id: r.gf_employee_id,
+              recipient_phone: phone,
+              message_text:
+                `Erinnerung: ${r.title} ist in ${daysLabel} Tagen fällig ` +
+                `(Stichtag ${dueLabel}). Bitte erledigen.`,
+              context: "gf_frist",
+              context_ref_id: r.reminder_id,
+              status: "pending",
+              n8n_triggered_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+          if (log) {
+            try {
+              await fetch(WA_SEND_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  log_id: log.id,
+                  phone,
+                  template_name: "gf_frist_erinnerung",
+                  template_language: "de",
+                  template_params: [r.title, daysLabel, dueLabel],
+                }),
+              });
+              whatsappSent++;
+            } catch {
+              await admin
+                .from("message_logs")
+                .update({
+                  status: "failed",
+                  error_message: "N8N nicht erreichbar",
+                })
+                .eq("id", log.id);
+            }
+          }
+        }
+
+        // Periode genau einmal als "verschickt" markieren.
+        const periodKey = `${r.reminder_id}:${r.next_due_date}`;
+        if (!seenPeriods.has(periodKey)) {
+          seenPeriods.add(periodKey);
+          await admin.rpc("mark_gf_reminder_whatsapp_sent", {
+            p_id: r.reminder_id,
+            p_due: r.next_due_date,
+          });
+        }
       }
     } else {
       return json({ error: "unbekannter mode" }, 400);

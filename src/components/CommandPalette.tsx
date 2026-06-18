@@ -5,15 +5,17 @@ import { useRouter } from 'next/navigation'
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
-import { homeItem, navGroups } from '@/lib/nav-config'
+import { homeItem, visibleNavGroups } from '@/lib/nav-config'
 
 interface CommandPaletteProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  isAdmin?: boolean
 }
 
-export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, isAdmin = false }: CommandPaletteProps) {
   const router = useRouter()
+  const navGroups = visibleNavGroups(isAdmin)
 
   // Globaler ⌘K / Strg+K Shortcut
   useEffect(() => {

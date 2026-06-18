@@ -11,15 +11,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { createClient } from '@/lib/supabase/client'
 import { McpStatus } from '@/components/McpStatus'
 import { CommandPalette } from '@/components/CommandPalette'
-import { homeItem, navGroups, type NavItem, type NavGroup } from '@/lib/nav-config'
+import { homeItem, visibleNavGroups, type NavItem, type NavGroup } from '@/lib/nav-config'
 import { cn } from '@/lib/utils'
 
 interface DashboardSidebarProps {
   userEmail: string | null
+  isAdmin?: boolean
 }
 
-export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
+export function DashboardSidebar({ userEmail, isAdmin = false }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const navGroups = visibleNavGroups(isAdmin)
   const [collapsed, setCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -263,7 +265,7 @@ export function DashboardSidebar({ userEmail }: DashboardSidebarProps) {
         </button>
       </div>
 
-      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} isAdmin={isAdmin} />
     </aside>
   )
 }

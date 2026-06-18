@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
   RefreshCw, Package, BookOpen, Clock, CheckSquare, Building2,
   MessageCircle, BookCheck, Wallet, Cog, Boxes, Users, Banknote, Grid3x3,
-  Warehouse, Globe, PackageCheck,
+  Warehouse, Globe, PackageCheck, ShieldCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -11,6 +11,8 @@ export interface NavItem {
   desc: string
   href: string
   icon: LucideIcon
+  /** Nur für Geschäftsführung (user_roles.role === 'admin') sichtbar. */
+  adminOnly?: boolean
 }
 
 export interface NavGroup {
@@ -58,6 +60,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Organisation', desc: 'Team · Hierarchie · Stammdaten', href: '/dashboard/organisation', icon: Building2 },
       { label: 'Skill-Matrix', desc: 'Kompetenzen · Wer kann was', href: '/dashboard/skill-matrix', icon: Grid3x3 },
       { label: 'Lager / Nachbestellung', desc: 'QR-Etiketten · Bestellliste', href: '/dashboard/lager', icon: Warehouse },
+      { label: 'Manager', desc: 'GF-Fristen · Firmeninfos', href: '/dashboard/manager', icon: ShieldCheck, adminOnly: true },
     ],
   },
   {
@@ -73,3 +76,13 @@ export const navGroups: NavGroup[] = [
 
 // Flache Liste aller Items (für Suche / Command-Palette)
 export const allNavItems: NavItem[] = [homeItem, ...navGroups.flatMap((g) => g.items)]
+
+/**
+ * Filtert Nav-Gruppen nach Rolle. `adminOnly`-Items sind nur für 'admin' (GF)
+ * sichtbar. Leere Gruppen (nach Filterung) werden entfernt.
+ */
+export function visibleNavGroups(isAdmin: boolean): NavGroup[] {
+  return navGroups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.adminOnly || isAdmin) }))
+    .filter((g) => g.items.length > 0)
+}
