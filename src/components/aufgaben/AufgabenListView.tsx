@@ -6,13 +6,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
 
-const PRIORITY_STYLES = {
-  high: 'text-red-700 bg-red-50 border-red-200',
-  medium: 'text-amber-700 bg-amber-50 border-amber-200',
-  low: 'text-green-700 bg-green-50 border-green-200',
-}
-const PRIORITY_LABELS = { high: 'Hoch', medium: 'Mittel', low: 'Niedrig' }
-
 const STATUS_STYLES = {
   todo: 'text-gray-600 bg-gray-100 border-gray-200',
   in_progress: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -90,6 +83,9 @@ export function AufgabenListView({ tasks, onTaskClick, onComplete }: Props) {
                   'text-sm font-medium truncate',
                   isDone ? 'line-through text-muted-foreground' : 'text-foreground'
                 )}>
+                  {isOverdue && !isDone && (
+                    <span className="text-red-600 font-extrabold mr-1.5">!</span>
+                  )}
                   {task.title}
                 </p>
                 {isDone && task.completed_at && (
@@ -100,11 +96,6 @@ export function AufgabenListView({ tasks, onTaskClick, onComplete }: Props) {
                   </p>
                 )}
               </div>
-
-              {/* Priorität */}
-              <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden sm:flex', PRIORITY_STYLES[task.priority])}>
-                {PRIORITY_LABELS[task.priority]}
-              </Badge>
 
               {/* Status */}
               <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 shrink-0 hidden md:flex', STATUS_STYLES[task.status])}>
@@ -122,23 +113,20 @@ export function AufgabenListView({ tasks, onTaskClick, onComplete }: Props) {
                 </span>
               )}
 
-              {/* Assignees */}
+              {/* Assignees: Farbkreis + ausgeschriebener Name */}
               {task.assignees.length > 0 && (
-                <div className="flex -space-x-1 shrink-0">
+                <div className="hidden sm:flex items-center gap-x-3 gap-y-1 flex-wrap justify-end shrink-0 max-w-[40%]">
                   {task.assignees.slice(0, 3).map((a) => (
-                    <span
-                      key={a.id}
-                      title={a.name}
-                      className="h-6 w-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white"
-                      style={{ backgroundColor: a.color }}
-                    >
-                      {a.name.charAt(0).toUpperCase()}
+                    <span key={a.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span
+                        className="h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: a.color }}
+                      />
+                      <span className="font-medium text-foreground/80 whitespace-nowrap">{a.name}</span>
                     </span>
                   ))}
                   {task.assignees.length > 3 && (
-                    <span className="h-6 w-6 rounded-full border-2 border-white bg-muted flex items-center justify-center text-[9px] text-muted-foreground">
-                      +{task.assignees.length - 3}
-                    </span>
+                    <span className="text-xs text-muted-foreground">+{task.assignees.length - 3}</span>
                   )}
                 </div>
               )}

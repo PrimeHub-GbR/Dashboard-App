@@ -5,13 +5,6 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, Calendar, CheckCircle2 } from 'lucide-react'
 
-const PRIORITY_STYLES = {
-  high: 'text-red-700 bg-red-50 border-red-200',
-  medium: 'text-amber-700 bg-amber-50 border-amber-200',
-  low: 'text-green-700 bg-green-50 border-green-200',
-}
-const PRIORITY_LABELS = { high: 'Hoch', medium: 'Mittel', low: 'Niedrig' }
-
 const STATUS_STYLES = {
   todo: 'text-gray-600 bg-gray-100 border-gray-200',
   in_progress: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -73,6 +66,9 @@ export function AufgabeCard({ task, onClick, compact = false }: Props) {
           'text-sm font-medium leading-snug flex-1',
           task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'
         )}>
+          {isOverdue && (
+            <span className="text-red-600 font-extrabold mr-1.5">!</span>
+          )}
           {task.title}
         </p>
       </div>
@@ -92,10 +88,6 @@ export function AufgabeCard({ task, onClick, compact = false }: Props) {
 
       {/* Footer */}
       <div className="flex items-center gap-2 flex-wrap ml-6">
-        <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', PRIORITY_STYLES[task.priority])}>
-          {PRIORITY_LABELS[task.priority]}
-        </Badge>
-
         {!compact && (
           <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', STATUS_STYLES[task.status])}>
             {STATUS_LABELS[task.status]}
@@ -113,21 +105,18 @@ export function AufgabeCard({ task, onClick, compact = false }: Props) {
         )}
 
         {task.assignees.length > 0 && (
-          <div className="ml-auto flex -space-x-1">
+          <div className="ml-auto flex items-center gap-x-2.5 gap-y-1 flex-wrap justify-end">
             {task.assignees.slice(0, 3).map((a) => (
-              <span
-                key={a.id}
-                title={a.name}
-                className="h-5 w-5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
-                style={{ backgroundColor: a.color }}
-              >
-                {a.name.charAt(0).toUpperCase()}
+              <span key={a.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: a.color }}
+                />
+                <span className="font-medium text-foreground/80 whitespace-nowrap">{a.name}</span>
               </span>
             ))}
             {task.assignees.length > 3 && (
-              <span className="h-5 w-5 rounded-full border-2 border-white bg-muted flex items-center justify-center text-[9px] text-muted-foreground">
-                +{task.assignees.length - 3}
-              </span>
+              <span className="text-[11px] text-muted-foreground">+{task.assignees.length - 3}</span>
             )}
           </div>
         )}
