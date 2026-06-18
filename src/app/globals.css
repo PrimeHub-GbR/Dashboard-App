@@ -90,3 +90,38 @@
   50%  { transform: translateY(-10px); }
   100% { transform: translateY(0px); }
 }
+
+/* ---------------------------------------------------------------------------
+   Druck-Layout fuer die Zeiterfassungs-Archiv-Auswertung.
+   Beim Drucken wird nur #archiv-report gezeigt; Sidebar/Chrome werden
+   ausgeblendet. So entsteht eine saubere A4-PDF-/Druckansicht.
+--------------------------------------------------------------------------- */
+@media print {
+  /* Alles ausblenden, das nicht zur Auswertung gehoert. */
+  body:has(#archiv-report) > * {
+    display: none !important;
+  }
+  /* Die Layout-Kette bis zum Report wieder einblenden. */
+  body:has(#archiv-report) :is(#archiv-report),
+  body:has(#archiv-report) :is(#archiv-report) * {
+    visibility: visible;
+  }
+  #archiv-report {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 16px;
+    width: 100%;
+    background: #fff;
+    color: #111;
+  }
+  /* Container-Ahnen des Reports sichtbar lassen, damit er gerendert wird. */
+  body:has(#archiv-report) main,
+  body:has(#archiv-report) main *:has(#archiv-report),
+  body:has(#archiv-report) main #archiv-report {
+    display: block !important;
+  }
+  .break-before-page {
+    break-before: page;
+  }
+}
