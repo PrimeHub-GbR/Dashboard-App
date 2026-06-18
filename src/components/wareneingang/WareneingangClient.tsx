@@ -42,6 +42,7 @@ interface Wareneingang {
   eta_date: string | null
   eta_text: string | null
   tracking_last_event_at: string | null
+  lieferadresse: string | null
   status: Status
   ab_pdf_path: string | null
   ls_pdf_path: string | null
@@ -226,6 +227,9 @@ export function WareneingangClient() {
                           {row.tracking_last_event_at && (
                             <span>Letztes Update: {fmtDateTime(row.tracking_last_event_at)}</span>
                           )}
+                          {row.lieferadresse && (
+                            <span>Lieferadresse: <span className="text-foreground">{row.lieferadresse}</span></span>
+                          )}
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
@@ -237,6 +241,9 @@ export function WareneingangClient() {
                           </span>
                           {row.avisiert_fuer && (
                             <span>Avisiert: <span className="text-foreground">{fmtDateTime(row.avisiert_fuer)}</span></span>
+                          )}
+                          {row.lieferadresse && (
+                            <span>Lieferadresse: <span className="text-foreground">{row.lieferadresse}</span></span>
                           )}
                         </div>
                       )}

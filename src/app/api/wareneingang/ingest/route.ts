@@ -2,14 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { timingSafeEqual } from 'crypto'
 import { createSupabaseServiceClient } from '@/lib/supabase-server'
-import { WARENEINGANG_BUCKET, buildTrackingUrl } from '@/lib/wareneingang'
+import {
+  WARENEINGANG_BUCKET,
+  buildTrackingUrl,
+  normalizeTrackingStatus,
+  TRACKING_STATUS_LABEL,
+} from '@/lib/wareneingang'
 
 // N8N parst eingehende Mails (Blank-Paletten ODER allgemeine Bestellungen/Versand
 // von Amazon/eBay & Co.) und POSTet die extrahierten Felder hierher.
 // Auth via gemeinsamem Secret-Header.
 const ingestSchema = z.object({
   // palette: auftragsbestaetigung|lieferschein ; paket: bestellung|versand
-  type: z.enum(['auftragsbestaetigung', 'lieferschein', 'bestellung', 'versand']),
+  // status_update: reine Status-Mail (versandt/zugestellt/verspätet …) zu einer
+  // bereits erfassten Bestellung — aktualisiert nur den Sendungsstatus.
+  type: z.enum([
+    'auftragsbestaetigung',
+    'lieferschein',
+    'bestellung',
+    'versand',
+    'status_update',
+  ]),
   supplier: z.string().trim().min(1).max(80).optional(),
   shop: z.string().trim().max(120).optional(),
   // Paletten-Felder (Blank)
@@ -28,6 +41,11 @@ const ingestSchema = z.object({
   tracking_url: z.string().trim().max(500).optional(),
   eta_date: z.string().trim().optional(),
   eta_text: z.string().trim().max(120).optional(),
+  // Status-Klartext (für status_update / versand) — wird normalisiert.
+  status_text: z.string().trim().max(200).optional(),
+  status_code: z.string().trim().max(60).optional(),
+  // Lieferadresse (wohin geliefert wird, z. B. "Rilkestr. 5", "Amazon Locker …")
+  lieferadresse: z.string().trim().max(300).optional(),
   // Meta
   sender_email: z.string().trim().max(200).optional(),
   betreff: z.string().trim().max(300).optional(),
@@ -96,8 +114,11 @@ export async function POST(request: NextRequest) {
 
   const data = parsed.data
   const supabase = createSupabaseServiceClient()
-  const isPaket = data.type === 'bestellung' || data.type === 'versand'
 
+  if (data.type === 'status_update') {
+    return handleStatusUpdate(supabase, data)
+  }
+  const isPaket = data.type === 'bestellung' || data.type === 'versand'
   if (isPaket) {
     return handlePaket(supabase, data)
   }
@@ -106,6 +127,84 @@ export async function POST(request: NextRequest) {
 
 type Supa = ReturnType<typeof createSupabaseServiceClient>
 type Data = z.infer<typeof ingestSchema>
+
+// ---- Status-Update-Mails (Amazon & Co. "versandt/zugestellt/verspätet") -----
+// Matching über Sendungsnummer ODER (shop/supplier + Bestellnummer) ODER
+// shop + Betreff-Heuristik. Aktualisiert nur den Sendungsstatus eines
+// bereits erfassten Eintrags — legt selbst nichts Neues an.
+async function handleStatusUpdate(supabase: Supa, data: Data) {
+  let target: { id: string; status: string; tracking_status_code: string | null } | null = null
+
+  // 1) Sendungsnummer (stärkster Match).
+  if (data.tracking_number) {
+    const { data: byT } = await supabase
+      .from('wareneingang')
+      .select('id, status, tracking_status_code')
+      .eq('tracking_number', data.tracking_number)
+      .maybeSingle()
+    target = byT ?? null
+  }
+  // 2) Bestellnummer (+ optional supplier).
+  if (!target && data.order_number) {
+    let q = supabase
+      .from('wareneingang')
+      .select('id, status, tracking_status_code')
+      .eq('order_number', data.order_number)
+    if (data.supplier) q = q.eq('supplier', data.supplier)
+    const { data: byO } = await q
+      .order('created_at', { ascending: false })
+      .limit(1)
+    target = byO?.[0] ?? null
+  }
+  // 3) Shop + Betreff-Heuristik (neuester offener Paket-Eintrag dieses Shops).
+  if (!target && (data.shop || data.supplier)) {
+    let q = supabase
+      .from('wareneingang')
+      .select('id, status, tracking_status_code')
+      .eq('kind', 'paket')
+      .neq('status', 'empfangen')
+    if (data.supplier) q = q.eq('supplier', data.supplier)
+    else if (data.shop) q = q.eq('shop', data.shop)
+    const { data: byShop } = await q
+      .order('created_at', { ascending: false })
+      .limit(1)
+    target = byShop?.[0] ?? null
+  }
+
+  if (!target) {
+    // Bestellung (noch) nicht erfasst — kein Fehler, Status-Mail kann früh kommen.
+    return NextResponse.json({ ok: true, ignored: 'kein passender Eintrag' }, { status: 202 })
+  }
+
+  const code = normalizeTrackingStatus(data.status_code || data.status_text)
+  const update: Record<string, unknown> = {
+    tracking_last_checked: new Date().toISOString(),
+  }
+  if (data.status_text) update.tracking_status = data.status_text
+  else if (code) update.tracking_status = TRACKING_STATUS_LABEL[code]
+  if (code) update.tracking_status_code = code
+  if (data.tracking_number) update.tracking_number = data.tracking_number
+  if (data.carrier) update.carrier = data.carrier
+  if (data.carrier_code) {
+    update.carrier_code = data.carrier_code
+    const url = buildTrackingUrl(data.carrier_code, data.tracking_number)
+    if (url) update.tracking_url = url
+  }
+  if (data.eta_date) update.eta_date = normalizeDate(data.eta_date)
+  if (data.eta_text) update.eta_text = data.eta_text
+  if (data.lieferadresse) update.lieferadresse = data.lieferadresse
+
+  // In-Transit-Codes heben 'bestellt' auf 'unterwegs' (nie zurückstufen, 'empfangen' nie überschreiben).
+  const inTransit = ['info_received', 'in_transit', 'out_for_delivery'].includes(code ?? '')
+  if (inTransit && target.status === 'bestellt') update.status = 'unterwegs'
+
+  const { error } = await supabase.from('wareneingang').update(update).eq('id', target.id)
+  if (error) {
+    console.error('Wareneingang Status-Update fehlgeschlagen:', error)
+    return NextResponse.json({ error: 'DB-Fehler' }, { status: 500 })
+  }
+  return NextResponse.json({ ok: true, id: target.id, action: 'status_updated', status_code: code })
+}
 
 // ---- Pakete (Amazon, eBay & Co.) -------------------------------------------
 async function handlePaket(supabase: Supa, data: Data) {
@@ -128,6 +227,12 @@ async function handlePaket(supabase: Supa, data: Data) {
   if (trackingUrl) fields.tracking_url = trackingUrl
   if (data.eta_date) fields.eta_date = normalizeDate(data.eta_date)
   if (data.eta_text) fields.eta_text = data.eta_text
+  if (data.lieferadresse) fields.lieferadresse = data.lieferadresse
+  // Status-Klartext (z. B. aus Versandmail) übernehmen + normalisieren.
+  const paketCode = normalizeTrackingStatus(data.status_code || data.status_text)
+  if (data.status_text) fields.tracking_status = data.status_text
+  else if (paketCode) fields.tracking_status = TRACKING_STATUS_LABEL[paketCode]
+  if (paketCode) fields.tracking_status_code = paketCode
   if (data.gmail_message_id) {
     fields[data.type === 'versand' ? 'gmail_message_id_ls' : 'gmail_message_id_ab'] =
       data.gmail_message_id
@@ -223,6 +328,7 @@ async function handlePalette(supabase: Supa, data: Data) {
       nettogewicht_kg: data.nettogewicht_kg ?? null,
     }
     if (pdfPath) fields.ab_pdf_path = pdfPath
+    if (data.lieferadresse) fields.lieferadresse = data.lieferadresse
     if (data.gmail_message_id) fields.gmail_message_id_ab = data.gmail_message_id
 
     if (existing) {
@@ -268,6 +374,7 @@ async function handlePalette(supabase: Supa, data: Data) {
     ls_datum: normalizeDate(data.ls_datum),
   }
   if (pdfPath) lsFields.ls_pdf_path = pdfPath
+  if (data.lieferadresse) lsFields.lieferadresse = data.lieferadresse
   if (data.gmail_message_id) lsFields.gmail_message_id_ls = data.gmail_message_id
 
   if (target) {

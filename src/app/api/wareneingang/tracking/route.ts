@@ -7,16 +7,24 @@ import { normalizeTrackingStatus, TRACKING_STATUS_LABEL, buildTrackingUrl } from
 // Tracking-Status-Update. Der Tracking-Aggregator (z. B. Ship24/AfterShip) sendet
 // bei jeder Statusänderung einen Webhook → N8N normalisiert ihn → POSTet hierher.
 // Auth via gemeinsamem Secret-Header (gleiches Secret wie /ingest).
-const trackingSchema = z.object({
-  tracking_number: z.string().trim().min(3).max(120),
-  status: z.string().trim().max(200).optional(),        // Klartext-Status vom Carrier
-  status_code: z.string().trim().max(60).optional(),    // roher Aggregator-Code → wird normalisiert
-  carrier: z.string().trim().max(60).optional(),
-  carrier_code: z.string().trim().max(40).optional(),
-  eta_date: z.string().trim().optional(),
-  eta_text: z.string().trim().max(120).optional(),
-  last_event_at: z.string().trim().optional(),
-})
+const trackingSchema = z
+  .object({
+    // Match per Sendungsnummer ODER (Bestellnummer [+ supplier]) — mind. eins nötig.
+    tracking_number: z.string().trim().min(3).max(120).optional(),
+    order_number: z.string().trim().max(120).optional(),
+    supplier: z.string().trim().max(80).optional(),
+    status: z.string().trim().max(200).optional(),        // Klartext-Status vom Carrier
+    status_code: z.string().trim().max(60).optional(),    // roher Aggregator-Code → wird normalisiert
+    carrier: z.string().trim().max(60).optional(),
+    carrier_code: z.string().trim().max(40).optional(),
+    eta_date: z.string().trim().optional(),
+    eta_text: z.string().trim().max(120).optional(),
+    lieferadresse: z.string().trim().max(300).optional(),
+    last_event_at: z.string().trim().optional(),
+  })
+  .refine((d) => !!d.tracking_number || !!d.order_number, {
+    message: 'tracking_number oder order_number erforderlich',
+  })
 
 function secretsMatch(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
@@ -61,11 +69,25 @@ export async function POST(request: NextRequest) {
   const d = parsed.data
   const supabase = createSupabaseServiceClient()
 
-  const { data: row } = await supabase
-    .from('wareneingang')
-    .select('id, status, carrier_code')
-    .eq('tracking_number', d.tracking_number)
-    .maybeSingle()
+  // Match: erst per Sendungsnummer, dann per (supplier +) Bestellnummer.
+  let row: { id: string; status: string; carrier_code: string | null } | null = null
+  if (d.tracking_number) {
+    const { data: byT } = await supabase
+      .from('wareneingang')
+      .select('id, status, carrier_code')
+      .eq('tracking_number', d.tracking_number)
+      .maybeSingle()
+    row = byT ?? null
+  }
+  if (!row && d.order_number) {
+    let q = supabase
+      .from('wareneingang')
+      .select('id, status, carrier_code')
+      .eq('order_number', d.order_number)
+    if (d.supplier) q = q.eq('supplier', d.supplier)
+    const { data: byO } = await q.order('created_at', { ascending: false }).limit(1)
+    row = byO?.[0] ?? null
+  }
 
   if (!row) {
     // Sendung noch nicht erfasst — kein Fehler (Webhook kann vor der Mail kommen).
@@ -79,6 +101,8 @@ export async function POST(request: NextRequest) {
   if (d.status) update.tracking_status = d.status
   else if (code) update.tracking_status = TRACKING_STATUS_LABEL[code]
   if (code) update.tracking_status_code = code
+  if (d.tracking_number) update.tracking_number = d.tracking_number
+  if (d.lieferadresse) update.lieferadresse = d.lieferadresse
   if (d.carrier) update.carrier = d.carrier
   if (d.carrier_code) {
     update.carrier_code = d.carrier_code
