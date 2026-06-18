@@ -17,12 +17,27 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pencil, Plus, Clock, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Clock, Trash2, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 import { StempelquelleBadge } from './StempelquelleBadge'
 
 interface EntryWithEmployee extends TimeEntry {
   employees?: { id: string; name: string; color: string } | null
+}
+
+interface NoShow {
+  day: string // "yyyy-MM-dd"
+  planned_from: string | null
+  planned_to: string | null
+  source: string
+}
+
+const WEEKDAYS_DE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
+
+function formatNoShowDate(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return `${WEEKDAYS_DE[date.getDay()]}, ${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`
 }
 
 export function ZeitKorrektur() {
@@ -31,6 +46,7 @@ export function ZeitKorrektur() {
   const [month, setMonth] = useState(now.month)
   const [employeeFilter, setEmployeeFilter] = useState<string>('all')
   const [entries, setEntries] = useState<EntryWithEmployee[]>([])
+  const [noShows, setNoShows] = useState<NoShow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -78,6 +94,33 @@ export function ZeitKorrektur() {
   }, [year, month, employeeFilter, page])
 
   useEffect(() => { load() }, [load])
+
+  // "Nicht erschienen"-Tage — nur sinnvoll für EINEN Mitarbeiter (verplant,
+  // aber nicht eingestempelt und nicht abwesend). RPC get_employee_no_shows.
+  useEffect(() => {
+    if (employeeFilter === 'all') {
+      setNoShows([])
+      return
+    }
+    let cancelled = false
+    const loadNoShows = async () => {
+      try {
+        const params = new URLSearchParams({
+          employee_id: employeeFilter,
+          year: String(year),
+          month: String(month),
+        })
+        const res = await fetch(`/api/zeiterfassung/no-shows?${params}`)
+        if (!res.ok) { if (!cancelled) setNoShows([]); return }
+        const json = await res.json() as { noShows: NoShow[] }
+        if (!cancelled) setNoShows(json.noShows ?? [])
+      } catch {
+        if (!cancelled) setNoShows([])
+      }
+    }
+    void loadNoShows()
+    return () => { cancelled = true }
+  }, [employeeFilter, year, month])
 
   // Beim Mount Deep-Link-Parameter lesen (Monat/Mitarbeiter/Eintrag vorwählen)
   useEffect(() => {
@@ -232,6 +275,27 @@ export function ZeitKorrektur() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* "Nicht erschienen"-Hinweise: verplant, aber nicht eingestempelt
+                und nicht abwesend. Nur bei Einzel-Mitarbeiter-Ansicht, auf
+                Seite 1, da es eine Monatsübersicht ist (nicht paginiert). */}
+            {!loading && employeeFilter !== 'all' && page === 1 && noShows.map((ns) => (
+              <TableRow key={`noshow-${ns.day}`} className="bg-destructive/5 hover:bg-destructive/10">
+                <TableCell>
+                  <span className="inline-flex items-center gap-1.5 text-destructive text-sm font-medium">
+                    <UserX className="w-4 h-4" />
+                    Nicht erschienen
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm text-destructive">
+                  {formatNoShowDate(ns.day)}
+                </TableCell>
+                <TableCell colSpan={6} className="text-sm text-destructive/80">
+                  {ns.planned_from && ns.planned_to
+                    ? `Verplant ${ns.planned_from}–${ns.planned_to} Uhr · nicht eingestempelt`
+                    : 'Verplant · nicht eingestempelt'}
+                </TableCell>
+              </TableRow>
+            ))}
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
@@ -240,7 +304,7 @@ export function ZeitKorrektur() {
                   ))}
                 </TableRow>
               ))
-            ) : entries.length === 0 ? (
+            ) : entries.length === 0 && !(employeeFilter !== 'all' && page === 1 && noShows.length > 0) ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Keine Einträge gefunden.
