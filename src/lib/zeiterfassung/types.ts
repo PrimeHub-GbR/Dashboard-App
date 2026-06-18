@@ -25,6 +25,8 @@ export interface Employee {
   is_active: boolean
   target_hours_per_month: number
   weekly_schedule: WeeklySchedule
+  /** Planungssperre-Override in Wochen. null = Standard (2 Wochen), 0 = keine Sperre. */
+  schedule_freeze_weeks: number | null
   created_by: string | null
   created_at: string
   updated_at: string

@@ -18,6 +18,8 @@ const updateEmployeeSchema = z.object({
     sat: z.number().min(0).max(24),
     sun: z.number().min(0).max(24),
   }).optional(),
+  // Planungssperre-Override (Wochen). null = Standard (2 Wochen), 0 = keine Sperre.
+  schedule_freeze_weeks: z.number().int().min(0).max(8).nullable().optional(),
 })
 
 async function requireAdmin() {
@@ -76,7 +78,7 @@ export async function PATCH(
     .from('employees')
     .update(updates)
     .eq('id', id)
-    .select('id, name, color, is_active, target_hours_per_month')
+    .select('id, name, color, is_active, target_hours_per_month, schedule_freeze_weeks')
     .single()
 
   if (error) {
