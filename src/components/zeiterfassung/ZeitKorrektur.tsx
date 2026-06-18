@@ -17,8 +17,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pencil, Plus, Clock, Trash2, Fingerprint, KeyRound } from 'lucide-react'
+import { Pencil, Plus, Clock, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { StempelquelleBadge } from './StempelquelleBadge'
 
 interface EntryWithEmployee extends TimeEntry {
   employees?: { id: string; name: string; color: string } | null
@@ -278,12 +279,7 @@ export function ZeitKorrektur() {
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <span title={e.auth_method === 'fingerprint' ? 'Fingerabdruck' : 'PIN'}>
-                        {e.auth_method === 'fingerprint'
-                          ? <Fingerprint className="w-3.5 h-3.5 text-blue-400" />
-                          : <KeyRound className="w-3.5 h-3.5 text-gray-400" />
-                        }
-                      </span>
+                      <StempelquelleBadge entry={e} />
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>

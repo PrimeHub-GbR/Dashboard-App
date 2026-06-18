@@ -7,7 +7,7 @@ import type { TimeEntry } from '@/lib/zeiterfassung/types'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Fingerprint, KeyRound } from 'lucide-react'
+import { StempelquelleBadge } from './StempelquelleBadge'
 
 interface Props {
   employeeId?: string
@@ -118,12 +118,7 @@ export function EigeneZeiten({ employeeId }: Props) {
                       {e.note ?? '—'}
                     </TableCell>
                     <TableCell>
-                      <span title={e.auth_method === 'fingerprint' ? 'Fingerabdruck' : 'PIN'}>
-                        {e.auth_method === 'fingerprint'
-                          ? <Fingerprint className="w-3.5 h-3.5 text-blue-400" />
-                          : <KeyRound className="w-3.5 h-3.5 text-gray-400" />
-                        }
-                      </span>
+                      <StempelquelleBadge entry={e} />
                     </TableCell>
                   </TableRow>
                 )
