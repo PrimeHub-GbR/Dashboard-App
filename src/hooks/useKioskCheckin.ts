@@ -9,6 +9,7 @@ export type KioskStep =
   | 'set_pin'
   | 'set_pin_confirm'
   | 'success'
+  | 'completion'
   | 'personal'
   | 'change_pin_old'
   | 'change_pin_new'
@@ -24,6 +25,10 @@ interface ForgotEntry {
 
 const KIOSK_TOKEN = process.env.NEXT_PUBLIC_KIOSK_TOKEN ?? ''
 const PERSONAL_VIEW_SECONDS = 30
+// Glückwunsch-Anzeige ("Stunden voll") etwas länger zeigen als der normale
+// Success-Screen, da sie mehr Inhalt hat. Kehrt danach automatisch zur Auswahl
+// zurück (muss nicht weggeklickt werden).
+export const COMPLETION_VIEW_SECONDS = 12
 
 interface UseKioskCheckinOptions {
   onReset?: () => void
@@ -139,8 +144,15 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
       }
 
       setResult(json)
-      setStep('success')
-      setTimeout(() => setStep('personal'), 5000)
+      // "Stunden voll" erreicht → Glückwunsch-Anzeige (kehrt selbst zur Auswahl
+      // zurück), sonst normaler Erfolgs-Screen → Monatsübersicht.
+      if (json.type === 'checkout' && json.month_completion?.reached) {
+        setStep('completion')
+        setTimeout(() => resetFull(), COMPLETION_VIEW_SECONDS * 1000)
+      } else {
+        setStep('success')
+        setTimeout(() => setStep('personal'), 5000)
+      }
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
       setPin('')
@@ -148,7 +160,7 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [resetFull])
 
   // PIN setzen (erster Kiosk-Besuch oder nach Admin-Reset)
   const submitSetPin = useCallback(async (newPin: string, confirmPin: string) => {
@@ -310,16 +322,21 @@ export function useKioskCheckin(opts?: UseKioskCheckinOptions) {
       resolvePinRef.current = ''
       setForgotEntry(null)
       setResult(json)
-      setStep('success')
       submitting.current = false
       setLoading(false)
-      setTimeout(() => setStep('personal'), 5000)
+      if (json.type === 'checkout' && json.month_completion?.reached) {
+        setStep('completion')
+        setTimeout(() => resetFull(), COMPLETION_VIEW_SECONDS * 1000)
+      } else {
+        setStep('success')
+        setTimeout(() => setStep('personal'), 5000)
+      }
     } catch {
       setError('Verbindungsfehler — bitte erneut versuchen')
       submitting.current = false
       setLoading(false)
     }
-  }, [])
+  }, [resetFull])
 
   // Refs auf aktuelle Versionen
   const submitRef = useRef(submitWithPin)

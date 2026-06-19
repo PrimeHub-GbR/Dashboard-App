@@ -126,6 +126,10 @@ export async function POST(req: NextRequest) {
       employee.target_hours_per_month
     ).catch(() => {})
 
+    // "Stunden voll": prüfen ob das Monats-Soll mit dieser Buchung (erstmalig)
+    // erreicht wurde. Synchron, damit der Kiosk die Glückwunsch-Facts erhält.
+    const monthCompletion = await checkMonthCompletionAndNotify(service, employee_id).catch(() => null)
+
     return NextResponse.json({
       type: 'checkout',
       entry_id: openEntry.id,
@@ -136,6 +140,7 @@ export async function POST(req: NextRequest) {
       gross_minutes: grossMinutes,
       break_minutes: breakMinutes,
       net_minutes: netMinutes,
+      month_completion: monthCompletion,
     })
   } else {
     // === EINSTEMPELN ===
@@ -199,4 +204,93 @@ async function checkOvertimeAndNotify(
       overtime_hours: Math.round(overtimeHours * 100) / 100,
     })
   }
+}
+
+interface MonthCompletionFacts {
+  ist_minutes: number
+  soll_minutes: number
+  reached: boolean
+  worked_days: number
+  avg_minutes_per_day: number
+  break_minutes: number
+  vacation_days: number
+  sick_days: number
+  unpaid_days: number
+  completed_tasks: number
+}
+
+/**
+ * Prüft, ob der Mitarbeiter mit dieser Buchung sein Monats-Soll (erstmalig)
+ * erreicht hat. Wenn ja und für den Monat noch kein Event existiert: Event
+ * idempotent anlegen + Push auslösen. Gibt die Facts an den Kiosk zurück, sobald
+ * das Soll erreicht ist (für die Glückwunsch-Anzeige) — unabhängig davon, ob das
+ * Event neu war (z.B. bei mehrfachem Aus-/Einstempeln am selben Tag).
+ */
+async function checkMonthCompletionAndNotify(
+  service: ReturnType<typeof createSupabaseServiceClient>,
+  employeeId: string
+): Promise<MonthCompletionFacts | null> {
+  const { periodStart, periodEnd, periodMonth } = berlinMonthBounds()
+
+  const { data: factsRows, error: factsErr } = await service.rpc('get_month_completion_facts', {
+    p_employee_id: employeeId,
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+  })
+  if (factsErr || !factsRows || factsRows.length === 0) return null
+
+  const facts = factsRows[0] as MonthCompletionFacts
+  if (!facts.reached) return null
+
+  // Event idempotent anlegen — TRUE nur beim erstmaligen Erreichen pro Monat.
+  const { data: isNew } = await service.rpc('record_month_completion', {
+    p_employee_id: employeeId,
+    p_period_month: periodMonth,
+  })
+
+  // Push nur beim erstmaligen Erreichen auslösen (fire-and-forget).
+  if (isNew === true) {
+    triggerMonthCompletionPush(employeeId).catch(() => {})
+  }
+
+  // Facts immer zurückgeben, solange das Soll erreicht ist → Kiosk-Glückwunsch.
+  return facts
+}
+
+/** Erster und letzter Tag + Monatsanfang des aktuellen Berlin-Monats (YYYY-MM-DD). */
+function berlinMonthBounds(): { periodStart: string; periodEnd: string; periodMonth: string } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const get = (t: string) => parts.find(p => p.type === t)!.value
+  const year = Number(get('year'))
+  const month = Number(get('month'))
+  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
+  // Letzter Tag des Monats: Tag 0 des Folgemonats.
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  return { periodStart, periodEnd, periodMonth: periodStart }
+}
+
+/** Push via Edge Function notify-month-completion (Service-Role-Bearer). */
+async function triggerMonthCompletionPush(employeeId: string): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) return
+
+  await fetch(`${url}/functions/v1/notify-month-completion`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${serviceKey}`,
+    },
+    body: JSON.stringify({
+      employee_id: employeeId,
+      title: '🎉 Stunden erreicht',
+      body: 'Du hast deine Stunden für diesen Monat erreicht. Stark!',
+    }),
+  })
 }

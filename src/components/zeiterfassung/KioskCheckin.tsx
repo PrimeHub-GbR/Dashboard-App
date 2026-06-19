@@ -1,9 +1,9 @@
 'use client'
 
-import { useKioskCheckin } from '@/hooks/useKioskCheckin'
+import { useKioskCheckin, COMPLETION_VIEW_SECONDS } from '@/hooks/useKioskCheckin'
 import { formatTimeBerlin, formatDuration, formatDateBerlin, formatDateTimeBerlin, berlinDateTimeToUtcISO, currentBerlinYearMonth } from '@/lib/zeiterfassung/timezone'
 import type { Employee, KioskCheckinResult } from '@/lib/zeiterfassung/types'
-import { CheckCircle, LogIn, LogOut, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X, Plus, Minus } from 'lucide-react'
+import { CheckCircle, LogIn, LogOut, Delete, Clock, AlertTriangle, TrendingUp, TrendingDown, X, Plus, Minus, PartyPopper, CalendarDays, Coffee, Plane, Stethoscope, FileMinus, ListChecks } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
@@ -151,6 +151,99 @@ function SuccessScreen({ result }: { result: KioskCheckinResult }) {
         {isCheckin ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
         {isCheckin ? 'Eingestempelt' : 'Ausgestempelt'}
       </div>
+    </div>
+  )
+}
+
+// Glückwunsch-Anzeige nach dem Ausstempeln, wenn das Monats-Soll erreicht ist.
+// Muss NICHT weggeklickt werden — kehrt automatisch zur Auswahl zurück.
+function CompletionView({
+  employee,
+  result,
+  onExit,
+  seconds,
+}: {
+  employee: Pick<Employee, 'id' | 'name' | 'color'>
+  result: KioskCheckinResult
+  onExit: () => void
+  seconds: number
+}) {
+  const [countdown, setCountdown] = useState(seconds)
+  const facts = result.month_completion!
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          onExit()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [onExit])
+
+  const sideFacts: { icon: typeof CalendarDays; label: string; value: string }[] = [
+    { icon: CalendarDays, label: 'Gearbeitete Tage', value: `${facts.worked_days}` },
+    { icon: Clock, label: 'Ø Stunden / Tag', value: facts.avg_minutes_per_day > 0 ? formatDuration(facts.avg_minutes_per_day) : '—' },
+    { icon: Coffee, label: 'Abgezogene Pause', value: facts.break_minutes > 0 ? formatDuration(facts.break_minutes) : '0min' },
+    { icon: Plane, label: 'Urlaubstage', value: `${facts.vacation_days}` },
+    { icon: Stethoscope, label: 'Kranktage', value: `${facts.sick_days}` },
+    { icon: FileMinus, label: 'Unbez. Freistellung', value: `${facts.unpaid_days}` },
+    { icon: ListChecks, label: 'Erledigte Aufgaben', value: `${facts.completed_tasks}` },
+  ]
+
+  return (
+    <div className="flex flex-col items-center gap-8 max-w-3xl mx-auto px-6 w-full text-center">
+      {/* Header mit Party-Icon */}
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative flex items-center justify-center w-28 h-28">
+          <div className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping" />
+          <div
+            className="relative w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: result.employee_color ?? '#22c55e' }}
+          >
+            <PartyPopper className="w-10 h-10 text-white" strokeWidth={2.2} />
+          </div>
+        </div>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-white">
+            🎉 Stunden erreicht!
+          </h1>
+          <p className="text-lg text-gray-300 mt-2 max-w-xl">
+            {employee.name}, du hast deine Stunden für diesen Monat erreicht. Stark!
+          </p>
+        </div>
+      </div>
+
+      {/* Ist / Soll */}
+      <div className="grid grid-cols-2 gap-6 w-full max-w-md">
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6">
+          <p className="text-base text-gray-400 mb-2">Ist</p>
+          <p className="text-4xl font-bold text-green-400">{formatDuration(facts.ist_minutes)}</p>
+        </div>
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-6">
+          <p className="text-base text-gray-400 mb-2">Soll</p>
+          <p className="text-4xl font-bold text-white">{formatDuration(facts.soll_minutes)}</p>
+        </div>
+      </div>
+
+      {/* Side-Facts */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full">
+        {sideFacts.map(({ icon: Icon, label, value }) => (
+          <div key={label} className="flex items-center gap-3 bg-gray-900/40 border border-white/5 rounded-xl px-4 py-3 text-left">
+            <Icon className="w-5 h-5 shrink-0 text-gray-400" />
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 truncate">{label}</p>
+              <p className="text-base font-semibold text-white">{value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-gray-700 text-xs">Automatisch zur Auswahl in {countdown}s</p>
     </div>
   )
 }
@@ -623,6 +716,17 @@ export function KioskCheckin({ employees }: Props) {
 
   if (step === 'success' && result) {
     return <SuccessScreen result={result} />
+  }
+
+  if (step === 'completion' && result && selectedEmployee) {
+    return (
+      <CompletionView
+        employee={selectedEmployee}
+        result={result}
+        onExit={reset}
+        seconds={COMPLETION_VIEW_SECONDS}
+      />
+    )
   }
 
   if (step === 'personal' && selectedEmployee) {

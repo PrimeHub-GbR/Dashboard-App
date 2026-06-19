@@ -98,6 +98,20 @@ export interface LiveCheckin {
   arbzg_warning: boolean         // true wenn >= 360 min eingestempelt
 }
 
+/** Kennzahlen der "Stunden voll"-Erkennung (aus get_month_completion_facts). */
+export interface MonthCompletionFacts {
+  ist_minutes: number
+  soll_minutes: number
+  reached: boolean
+  worked_days: number
+  avg_minutes_per_day: number
+  break_minutes: number
+  vacation_days: number
+  sick_days: number
+  unpaid_days: number
+  completed_tasks: number
+}
+
 export interface KioskCheckinResult {
   type: 'checkin' | 'checkout'
   entry_id: string
@@ -109,6 +123,8 @@ export interface KioskCheckinResult {
   break_minutes?: number
   net_minutes?: number
   auth_method?: 'pin' | 'fingerprint'
+  /** Gesetzt beim Checkout, wenn das Monats-Soll erreicht ist → Glückwunsch-Anzeige. */
+  month_completion?: MonthCompletionFacts | null
 }
 
 /**
