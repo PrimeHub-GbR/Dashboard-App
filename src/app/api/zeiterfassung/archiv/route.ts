@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 // den Service-Client (der haette keine auth.uid() und is_chef() waere false).
 
 const listSchema = z.object({ mode: z.literal('list') })
-const reportSchema = z.object({
-  mode: z.literal('report'),
+const rangeSchema = z.object({
+  mode: z.enum(['report', 'entries']),
   employee_id: z.string().uuid(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ employees: data ?? [] })
   }
 
-  const parsed = reportSchema.safeParse({
+  const parsed = rangeSchema.safeParse({
     mode,
     employee_id: req.nextUrl.searchParams.get('employee_id'),
     from: req.nextUrl.searchParams.get('from'),
@@ -64,6 +64,19 @@ export async function GET(req: NextRequest) {
     )
   }
   const { employee_id, from, to } = parsed.data
+
+  // Read-only Einzel-Stempelzeiten (Hauptansicht im Archiv, Mig 121).
+  if (parsed.data.mode === 'entries') {
+    const { data, error } = await supabase.rpc('get_employee_archive_entries', {
+      p_employee_id: employee_id,
+      p_from: from,
+      p_to: to,
+    })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ entries: data ?? [] })
+  }
 
   const [summaryRes, monthlyRes, daysRes] = await Promise.all([
     supabase.rpc('get_employee_archive', {
