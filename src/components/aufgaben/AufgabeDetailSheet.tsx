@@ -112,6 +112,31 @@ export function AufgabeDetailSheet({
 
   // --- Status (RPC set_my_task_status — prüft Chef ODER Zuweisung serverseitig) ---
 
+  // Erledigt-Push an den Aufgaben-Ersteller (Edge Function notify-task-completed,
+  // User-JWT). Fire-and-forget: Fehler werden geschluckt, damit ein Push-Problem
+  // den Statuswechsel nie bricht. Die Function prüft serverseitig Zuweisung +
+  // status='done' und schickt KEINEN Push, wenn der Ersteller selbst erledigt hat.
+  const notifyCompleted = async (id: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-task-completed`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ task_id: id }),
+        }
+      )
+    } catch {
+      // bewusst geschluckt — Push ist Best-Effort
+    }
+  }
+
   const setStatus = async (status: TaskStatus) => {
     if (!task) return
     setBusy(true)
@@ -121,6 +146,7 @@ export function AufgabeDetailSheet({
         p_status: status,
       })
       if (error) throw new Error(error.message)
+      if (status === 'done') void notifyCompleted(task.id)
       await load()
       onChanged()
     } catch (e) {
