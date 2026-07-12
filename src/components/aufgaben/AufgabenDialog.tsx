@@ -25,7 +25,7 @@ const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'in_progress', label: 'In Bearbeitung',  color: 'text-blue-600' },
   { value: 'in_review',   label: 'In Review',       color: 'text-purple-600' },
   { value: 'done',        label: 'Erledigt',        color: 'text-green-600' },
-  { value: 'blocked',     label: 'Blockiert',       color: 'text-red-600' },
+  { value: 'blocked',     label: 'Nicht machbar',   color: 'text-red-600' },
 ]
 
 interface Employee {
@@ -44,7 +44,6 @@ interface Props {
   onClose: () => void
   onSave: (payload: CreateTaskPayload) => Promise<SaveResult>
   onDelete?: (id: string) => Promise<boolean>
-  onComplete?: (id: string) => Promise<boolean>
 }
 
 const defaultPayload = (orgNodeId?: string | null): CreateTaskPayload => ({
@@ -59,7 +58,7 @@ const defaultPayload = (orgNodeId?: string | null): CreateTaskPayload => ({
   org_node_id: orgNodeId ?? null,
 })
 
-export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClose, onSave, onDelete, onComplete }: Props) {
+export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClose, onSave, onDelete }: Props) {
   const [form, setForm] = useState<CreateTaskPayload>(defaultPayload())
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -126,12 +125,6 @@ export function AufgabenDialog({ open, task, employees, defaultOrgNodeId, onClos
     setDeleting(true)
     await onDelete(task.id)
     setDeleting(false)
-    onClose()
-  }
-
-  const handleComplete = async () => {
-    if (!task || !onComplete) return
-    await onComplete(task.id)
     onClose()
   }
 

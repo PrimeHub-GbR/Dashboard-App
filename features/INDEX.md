@@ -65,7 +65,7 @@
 
 | Feature | Status | Spec |
 |---------|--------|------|
-| To-Do-Liste, Delegation, KPIs, E-Mail-Erinnerungen | Deployed | [aufgaben/overview.md](aufgaben/overview.md) |
+| To-Do-Liste in App-Struktur (Meine/Mitarbeiter, Erledigt, Archiv), Detail mit Kommentaren, Delegation | Deployed | [aufgaben/overview.md](aufgaben/overview.md) |
 
 ---
 

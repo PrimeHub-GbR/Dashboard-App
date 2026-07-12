@@ -44,7 +44,7 @@ export async function GET(
     .select(`
       id, title, description, status, priority,
       due_date, reminder_at, reminder_email, reminder_sent,
-      created_by, created_at, updated_at, completed_at, completed_by,
+      created_by, created_by_name, created_at, updated_at, completed_at, completed_by,
       completed_by_employee:employees!completed_by ( name ),
       org_node_id,
       task_assignees (

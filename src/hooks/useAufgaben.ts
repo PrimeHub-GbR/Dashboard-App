@@ -22,6 +22,7 @@ export interface Task {
   reminder_email: string | null
   reminder_sent: boolean
   created_by: string | null
+  created_by_name: string | null
   created_at: string
   updated_at: string
   completed_at: string | null
@@ -152,12 +153,7 @@ export function useAufgaben(filters: TaskFilters = {}) {
     }
   }
 
-  const completeTask = async (id: string): Promise<boolean> => {
-    const res = await updateTask(id, { status: 'done' } as Partial<CreateTaskPayload>)
-    return res.ok
-  }
-
-  return { tasks, isLoading, error, refresh, createTask, updateTask, deleteTask, completeTask }
+  return { tasks, isLoading, error, refresh, createTask, updateTask, deleteTask }
 }
 
 // Erledigt-Zeitstempel einheitlich formatieren (Berlin-Zeit)
@@ -167,17 +163,4 @@ export function formatCompletedAt(iso: string): string {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
-}
-
-// KPI-Berechnungen
-export function computeKPIs(tasks: Task[]) {
-  const today = new Date().toISOString().split('T')[0]
-  const total = tasks.length
-  const done = tasks.filter((t) => t.status === 'done').length
-  const open = total - done
-  const overdue = tasks.filter(
-    (t) => t.due_date && t.due_date < today && t.status !== 'done'
-  ).length
-  const rate = total > 0 ? Math.round((done / total) * 100) : 0
-  return { total, done, open, overdue, rate }
 }
