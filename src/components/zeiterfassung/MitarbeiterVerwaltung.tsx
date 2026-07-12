@@ -23,15 +23,11 @@ interface FormState {
   color: string
   target_hours_per_month: number
   weekly_schedule: WeeklySchedule
-  // Planungssperre: manuell = Override aktiv. freeze_weeks = Sperr-Horizont.
-  freeze_manual: boolean
-  freeze_weeks: number
 }
 
 const defaultForm: FormState = {
   name: '', color: '#22c55e', target_hours_per_month: 160,
   weekly_schedule: { ...DEFAULT_WEEKLY_SCHEDULE },
-  freeze_manual: false, freeze_weeks: 2,
 }
 
 export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boolean }) {
@@ -53,14 +49,11 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
   function openEdit(emp: typeof employees[number]) {
     setEditingId(emp.id)
     setEditingPinIsSet((emp as { pin_is_set?: boolean }).pin_is_set ?? false)
-    const freeze = (emp as { schedule_freeze_weeks?: number | null }).schedule_freeze_weeks
     setForm({
       name: emp.name,
       color: emp.color,
       target_hours_per_month: emp.target_hours_per_month,
       weekly_schedule: emp.weekly_schedule ?? { ...DEFAULT_WEEKLY_SCHEDULE },
-      freeze_manual: freeze !== null && freeze !== undefined,
-      freeze_weeks: freeze ?? 2,
     })
     setDialogOpen(true)
   }
@@ -88,8 +81,6 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
           color: form.color,
           target_hours_per_month: form.target_hours_per_month,
           weekly_schedule: form.weekly_schedule,
-          // null = Standard-Sperre (2 Wochen), sonst Override-Wochen.
-          schedule_freeze_weeks: form.freeze_manual ? form.freeze_weeks : null,
         })
         toast.success('Mitarbeiter aktualisiert')
       } else {
@@ -273,55 +264,6 @@ export function MitarbeiterVerwaltung({ hideCreate = false }: { hideCreate?: boo
                 ))}
               </div>
             </div>
-            {editingId && (
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Planungssperre — manuell bearbeiten</Label>
-                    <p className="text-xs text-muted-foreground">
-                      {form.freeze_manual
-                        ? 'Eigener Sperr-Horizont für diesen Mitarbeiter.'
-                        : 'Standard: laufende + nächste Woche sind fixiert.'}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={form.freeze_manual}
-                    onCheckedChange={(checked) => setForm(f => ({ ...f, freeze_manual: checked }))}
-                  />
-                </div>
-                {form.freeze_manual && (
-                  <div className="flex items-center gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      disabled={form.freeze_weeks <= 0}
-                      onClick={() => setForm(f => ({ ...f, freeze_weeks: Math.max(0, f.freeze_weeks - 1) }))}
-                    >
-                      −
-                    </Button>
-                    <span className="flex-1 text-center text-sm font-semibold">
-                      {form.freeze_weeks === 0
-                        ? 'Keine Sperre'
-                        : form.freeze_weeks === 1
-                          ? 'Nur laufende Woche'
-                          : `${form.freeze_weeks} Wochen`}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      disabled={form.freeze_weeks >= 8}
-                      onClick={() => setForm(f => ({ ...f, freeze_weeks: Math.min(8, f.freeze_weeks + 1) }))}
-                    >
-                      +
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
