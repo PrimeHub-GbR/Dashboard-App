@@ -10,12 +10,13 @@ import { homeItem, visibleNavGroups } from '@/lib/nav-config'
 interface CommandPaletteProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  isAdmin?: boolean
+  /** user_roles.role: 'admin' | 'manager' | 'staff' | null */
+  role?: string | null
 }
 
-export function CommandPalette({ open, onOpenChange, isAdmin = false }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, role = null }: CommandPaletteProps) {
   const router = useRouter()
-  const navGroups = visibleNavGroups(isAdmin)
+  const navGroups = visibleNavGroups(role)
 
   // Globaler ⌘K / Strg+K Shortcut
   useEffect(() => {

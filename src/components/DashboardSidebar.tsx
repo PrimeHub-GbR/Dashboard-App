@@ -16,12 +16,13 @@ import { cn } from '@/lib/utils'
 
 interface DashboardSidebarProps {
   userEmail: string | null
-  isAdmin?: boolean
+  /** user_roles.role: 'admin' | 'manager' | 'staff' | null */
+  role?: string | null
 }
 
-export function DashboardSidebar({ userEmail, isAdmin = false }: DashboardSidebarProps) {
+export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarProps) {
   const pathname = usePathname()
-  const navGroups = visibleNavGroups(isAdmin)
+  const navGroups = visibleNavGroups(role)
   const [collapsed, setCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -265,7 +266,7 @@ export function DashboardSidebar({ userEmail, isAdmin = false }: DashboardSideba
         </button>
       </div>
 
-      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} isAdmin={isAdmin} />
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} role={role} />
     </aside>
   )
 }

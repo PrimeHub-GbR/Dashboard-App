@@ -7,7 +7,12 @@ import { ManagerReminders } from './ManagerReminders'
 import { ManagerCalendar } from './ManagerCalendar'
 import { ManagerCompanyInfo } from './ManagerCompanyInfo'
 
-export function ManagerClient() {
+interface ManagerClientProps {
+  /** true = GF: verwalten + Firmeninfos. false = Manager: read-only Termine. */
+  isAdmin: boolean
+}
+
+export function ManagerClient({ isAdmin }: ManagerClientProps) {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [info, setInfo] = useState<CompanyInfo[]>([])
   const [remindersLoading, setRemindersLoading] = useState(true)
@@ -37,21 +42,24 @@ export function ManagerClient() {
 
   useEffect(() => {
     loadReminders()
-    loadInfo()
-  }, [loadReminders, loadInfo])
+    if (isAdmin) loadInfo()
+  }, [loadReminders, loadInfo, isAdmin])
 
   return (
     <Tabs defaultValue="reminders" className="space-y-6">
       <TabsList>
-        <TabsTrigger value="reminders">Fristen</TabsTrigger>
+        <TabsTrigger value="reminders">
+          {isAdmin ? 'Fristen' : 'Termine'}
+        </TabsTrigger>
         <TabsTrigger value="calendar">Kalender</TabsTrigger>
-        <TabsTrigger value="company">Firmeninfos</TabsTrigger>
+        {isAdmin && <TabsTrigger value="company">Firmeninfos</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="reminders">
         <ManagerReminders
           reminders={reminders}
           loading={remindersLoading}
+          canManage={isAdmin}
           onChanged={loadReminders}
         />
       </TabsContent>
@@ -60,9 +68,11 @@ export function ManagerClient() {
         <ManagerCalendar reminders={reminders} loading={remindersLoading} />
       </TabsContent>
 
-      <TabsContent value="company">
-        <ManagerCompanyInfo info={info} loading={infoLoading} onChanged={loadInfo} />
-      </TabsContent>
+      {isAdmin && (
+        <TabsContent value="company">
+          <ManagerCompanyInfo info={info} loading={infoLoading} onChanged={loadInfo} />
+        </TabsContent>
+      )}
     </Tabs>
   )
 }

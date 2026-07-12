@@ -9,18 +9,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const { data: { user } } = await supabase.auth.getUser()
   const userEmail = user?.email ?? null
 
-  let isManagerOrAdmin = false
-  let isAdmin = false
+  let role: string | null = null
   if (user) {
     const { data: roleRow } = await supabase
       .from('user_roles').select('role').eq('user_id', user.id).single()
-    isAdmin = roleRow?.role === 'admin'
-    isManagerOrAdmin = roleRow?.role === 'admin' || roleRow?.role === 'manager'
+    role = roleRow?.role ?? null
   }
+  const isManagerOrAdmin = role === 'admin' || role === 'manager'
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <DashboardSidebar userEmail={userEmail} isAdmin={isAdmin} />
+      <DashboardSidebar userEmail={userEmail} role={role} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-background">
           {children}

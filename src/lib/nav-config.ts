@@ -13,6 +13,8 @@ export interface NavItem {
   icon: LucideIcon
   /** Nur für Geschäftsführung (user_roles.role === 'admin') sichtbar. */
   adminOnly?: boolean
+  /** Zusammen mit adminOnly: auch für role === 'manager' sichtbar (Inhalt rollenabhängig). */
+  managerAllowed?: boolean
 }
 
 export interface NavGroup {
@@ -60,7 +62,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Organisation', desc: 'Team · Hierarchie · Stammdaten', href: '/dashboard/organisation', icon: Building2 },
       { label: 'Skill-Matrix', desc: 'Kompetenzen · Wer kann was', href: '/dashboard/skill-matrix', icon: Grid3x3 },
       { label: 'Lager / Nachbestellung', desc: 'QR-Etiketten · Bestellliste', href: '/dashboard/lager', icon: Warehouse },
-      { label: 'Manager', desc: 'GF-Fristen · Firmeninfos', href: '/dashboard/manager', icon: ShieldCheck, adminOnly: true },
+      { label: 'Manager', desc: 'Fristen · Termine · Firmeninfos', href: '/dashboard/manager', icon: ShieldCheck, adminOnly: true, managerAllowed: true },
     ],
   },
   {
@@ -79,10 +81,20 @@ export const allNavItems: NavItem[] = [homeItem, ...navGroups.flatMap((g) => g.i
 
 /**
  * Filtert Nav-Gruppen nach Rolle. `adminOnly`-Items sind nur für 'admin' (GF)
- * sichtbar. Leere Gruppen (nach Filterung) werden entfernt.
+ * sichtbar — mit `managerAllowed` zusätzlich für 'manager' (Inhalt der Seite
+ * ist dann rollenabhängig, z.B. Manager-Termine read-only). Leere Gruppen
+ * (nach Filterung) werden entfernt.
  */
-export function visibleNavGroups(isAdmin: boolean): NavGroup[] {
+export function visibleNavGroups(role: string | null | undefined): NavGroup[] {
   return navGroups
-    .map((g) => ({ ...g, items: g.items.filter((i) => !i.adminOnly || isAdmin) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (i) =>
+          !i.adminOnly ||
+          role === 'admin' ||
+          (i.managerAllowed && role === 'manager')
+      ),
+    }))
     .filter((g) => g.items.length > 0)
 }

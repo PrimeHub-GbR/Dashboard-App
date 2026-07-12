@@ -18,6 +18,8 @@ import { ReminderDialog } from './ReminderDialog'
 interface ManagerRemindersProps {
   reminders: Reminder[]
   loading: boolean
+  /** true = GF: anlegen/bearbeiten/löschen. false = Manager: read-only + abhaken. */
+  canManage: boolean
   onChanged: () => void
 }
 
@@ -36,7 +38,7 @@ function StatusBadge({ r }: { r: Reminder }) {
   return <Badge variant={r.in_window ? 'default' : 'outline'}>{dueStatusText(r)}</Badge>
 }
 
-export function ManagerReminders({ reminders, loading, onChanged }: ManagerRemindersProps) {
+export function ManagerReminders({ reminders, loading, canManage, onChanged }: ManagerRemindersProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Reminder | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Reminder | null>(null)
@@ -90,10 +92,12 @@ export function ManagerReminders({ reminders, loading, onChanged }: ManagerRemin
         <p className="text-sm text-muted-foreground">
           {reminders.length} {reminders.length === 1 ? 'Frist' : 'Fristen'}
         </p>
-        <Button onClick={openNew} size="sm">
-          <Plus className="mr-1.5 h-4 w-4" />
-          Neue Frist
-        </Button>
+        {canManage && (
+          <Button onClick={openNew} size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Neue Frist
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -123,6 +127,12 @@ export function ManagerReminders({ reminders, loading, onChanged }: ManagerRemin
                   <span><span className="text-muted-foreground">Rhythmus:</span> {RECURRENCE_LABELS[r.recurrence]}</span>
                   <span><span className="text-muted-foreground">Erinnerung:</span> {r.remind_days_before} Tage vorher</span>
                 </div>
+                {(r.recipient_names?.length ?? 0) > 0 && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Empfänger:</span>{' '}
+                    {r.recipient_names!.join(', ')}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2 pt-1">
                   {!r.done && (
                     <Button
@@ -135,19 +145,23 @@ export function ManagerReminders({ reminders, loading, onChanged }: ManagerRemin
                       Als erledigt markieren
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
-                    <Pencil className="mr-1.5 h-4 w-4" />
-                    Bearbeiten
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setDeleteTarget(r)}
-                  >
-                    <Trash2 className="mr-1.5 h-4 w-4" />
-                    Löschen
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
+                        <Pencil className="mr-1.5 h-4 w-4" />
+                        Bearbeiten
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(r)}
+                      >
+                        <Trash2 className="mr-1.5 h-4 w-4" />
+                        Löschen
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

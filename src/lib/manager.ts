@@ -14,6 +14,19 @@ export interface Reminder {
   days_until: number
   in_window: boolean
   ack_key: string
+  /** Empfänger (employee-IDs) — Pflicht, nur GF/Manager. */
+  recipient_ids: string[]
+  /** Namen der Empfänger (zur Anzeige). */
+  recipient_names: string[] | null
+  /** true = Aufrufer ist GF und darf verwalten (Manager: read-only). */
+  can_manage: boolean
+}
+
+/** Wählbarer Frist-Empfänger (GF oder Manager). */
+export interface RecipientOption {
+  id: string
+  name: string
+  position: 'geschaeftsfuehrer' | 'manager' | string
 }
 
 export interface CompanyInfo {

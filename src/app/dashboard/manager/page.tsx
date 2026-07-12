@@ -20,18 +20,24 @@ export default async function ManagerPage() {
     .single()
 
   const role = roleData?.role as 'admin' | 'manager' | 'staff' | undefined
-  // Manager-Bereich ist GF-only — nur 'admin' darf rein.
-  if (role !== 'admin') redirect('/dashboard')
+  // GF (admin): voller Zugriff. Manager: read-only Terminliste der eigenen
+  // Termine (Empfänger). Alle anderen: kein Zugriff.
+  if (role !== 'admin' && role !== 'manager') redirect('/dashboard')
+  const isAdmin = role === 'admin'
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Manager</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {isAdmin ? 'Manager' : 'Termine'}
+        </h1>
         <p className="text-muted-foreground mt-1">
-          GF-Pflichtfristen &amp; Firmeninfos — nur für die Geschäftsführung
+          {isAdmin
+            ? 'GF-Pflichtfristen & Firmeninfos — nur für die Geschäftsführung'
+            : 'Deine Termine & Fristen — du bist als Empfänger eingetragen'}
         </p>
       </div>
-      <ManagerClient />
+      <ManagerClient isAdmin={isAdmin} />
     </div>
   )
 }

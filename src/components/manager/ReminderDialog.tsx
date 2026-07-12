@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -12,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Reminder, Recurrence, RECURRENCE_OPTIONS } from '@/lib/manager'
+import { Reminder, Recurrence, RecipientOption, RECURRENCE_OPTIONS } from '@/lib/manager'
 
 interface ReminderDialogProps {
   open: boolean
@@ -33,6 +34,9 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
   const [nextDueDate, setNextDueDate] = useState(todayIso())
   const [recurrence, setRecurrence] = useState<Recurrence>('monthly')
   const [remindDaysBefore, setRemindDaysBefore] = useState('7')
+  const [options, setOptions] = useState<RecipientOption[]>([])
+  const [optionsLoading, setOptionsLoading] = useState(false)
+  const [recipientIds, setRecipientIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -43,18 +47,47 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
       setNextDueDate(reminder.next_due_date)
       setRecurrence(reminder.recurrence)
       setRemindDaysBefore(String(reminder.remind_days_before))
+      setRecipientIds(reminder.recipient_ids ?? [])
     } else {
       setTitle('')
       setDescription('')
       setNextDueDate(todayIso())
       setRecurrence('monthly')
       setRemindDaysBefore('7')
+      setRecipientIds([])
     }
+    // Empfänger-Optionen (aktive GF + Manager) laden.
+    let cancelled = false
+    setOptionsLoading(true)
+    fetch('/api/manager/recipient-options')
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return
+        const opts = (json.options ?? []) as RecipientOption[]
+        setOptions(opts)
+        // Neu-Modus: alle GF vorauswählen (entspricht dem alten Verhalten).
+        if (!reminder) {
+          setRecipientIds(opts.filter((o) => o.position === 'geschaeftsfuehrer').map((o) => o.id))
+        }
+      })
+      .catch(() => { if (!cancelled) setOptions([]) })
+      .finally(() => { if (!cancelled) setOptionsLoading(false) })
+    return () => { cancelled = true }
   }, [open, reminder])
+
+  function toggleRecipient(id: string, checked: boolean) {
+    setRecipientIds((prev) =>
+      checked ? [...prev.filter((x) => x !== id), id] : prev.filter((x) => x !== id)
+    )
+  }
 
   async function handleSave() {
     if (!title.trim()) {
       toast.error('Bitte einen Titel eingeben')
+      return
+    }
+    if (recipientIds.length === 0) {
+      toast.error('Bitte mindestens einen Empfänger wählen')
       return
     }
     setSaving(true)
@@ -65,6 +98,7 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
         next_due_date: nextDueDate,
         recurrence,
         remind_days_before: Number(remindDaysBefore) || 0,
+        recipient_ids: recipientIds,
       }
       const url = isEdit ? `/api/manager/reminders/${reminder!.id}` : '/api/manager/reminders'
       const res = await fetch(url, {
@@ -90,7 +124,8 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Frist bearbeiten' : 'Neue Frist'}</DialogTitle>
           <DialogDescription>
-            Pflichtfristen der Geschäftsführung — geteilt für alle GF.
+            Pflichtfristen — Pop-up, Push &amp; WhatsApp gehen an die gewählten
+            Empfänger (GF/Manager). Abhaken gilt geteilt für alle Empfänger.
           </DialogDescription>
         </DialogHeader>
 
@@ -151,6 +186,35 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Empfänger (mindestens 1)</Label>
+            {optionsLoading ? (
+              <p className="text-sm text-muted-foreground">Lädt…</p>
+            ) : options.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine GF/Manager gefunden.</p>
+            ) : (
+              <div className="space-y-2 rounded-md border p-3">
+                {options.map((o) => (
+                  <label key={o.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={recipientIds.includes(o.id)}
+                      onCheckedChange={(checked) => toggleRecipient(o.id, checked === true)}
+                    />
+                    <span>
+                      {o.name}
+                      {o.position === 'geschaeftsfuehrer' && (
+                        <span className="text-muted-foreground"> (GF)</span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {recipientIds.length === 0 && !optionsLoading && (
+              <p className="text-xs text-destructive">Bitte mindestens einen Empfänger wählen.</p>
+            )}
           </div>
         </div>
 

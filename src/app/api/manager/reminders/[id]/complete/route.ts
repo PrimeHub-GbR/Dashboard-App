@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { requireAdmin } from '../../../_auth'
+import { requireAdminOrManager } from '../../../_auth'
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await requireAdmin()
-  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 })
+  // Abhaken darf jeder Empfänger (GF oder Manager) — die RPC prüft
+  // serverseitig, ob der Aufrufer GF oder eingetragener Empfänger ist.
+  const auth = await requireAdminOrManager()
+  if (!auth) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 })
 
   const { id } = await params
   const supabase = await createSupabaseServerClient()
