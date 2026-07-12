@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-// Pauschale Stunden (Migration 107). Eingabe nur in 30-Min-Schritten.
+// Pauschale Stunden (Migration 107/128). Eingabe minutengenau (> 0).
 // Die RPCs sind SECURITY DEFINER und gaten ueber auth.uid() (is_chef/is_gf),
 // daher werden sie ueber den User-Session-Client (Cookies) aufgerufen — NICHT
 // ueber Service-Role (dort waere auth.uid() null).
 
 const createSchema = z.object({
   employee_id: z.string().uuid(),
-  minutes: z.number().int().positive().refine((m) => m % 30 === 0, {
-    message: 'minutes muss ein Vielfaches von 30 sein',
-  }),
+  minutes: z.number().int().positive(),
   datum: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'datum muss YYYY-MM-DD sein'),
   grund: z.string().max(200).optional(),
 })

@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Plus, Minus, Check, X, Hourglass, CheckCircle2, XCircle } from 'lucide-react'
+import { Check, X, Hourglass, CheckCircle2, XCircle } from 'lucide-react'
 
 interface Employee { id: string; name: string }
 
@@ -53,9 +53,10 @@ export function PauschaleStunden() {
   const [loading, setLoading] = useState(true)
   const [isGF, setIsGF] = useState(false)
 
-  // Formular
+  // Formular — Dauer minutengenau (Stunden + Minuten getrennt)
   const [employeeId, setEmployeeId] = useState('')
-  const [minutes, setMinutes] = useState(60)
+  const [hoursStr, setHoursStr] = useState('1')
+  const [minutesStr, setMinutesStr] = useState('0')
   const [datum, setDatum] = useState(todayYmd())
   const [grund, setGrund] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -89,10 +90,17 @@ export function PauschaleStunden() {
 
   useEffect(() => { void load() }, [load])
 
-  const step = (delta: number) => setMinutes((m) => Math.min(24 * 60, Math.max(30, m + delta)))
+  const totalMinutes = () => {
+    const h = parseInt(hoursStr, 10)
+    const m = parseInt(minutesStr, 10)
+    return (Number.isNaN(h) ? 0 : h) * 60 + (Number.isNaN(m) ? 0 : m)
+  }
 
   const submit = async () => {
     if (!employeeId) { setError('Bitte Mitarbeiter wählen.'); return }
+    const minutes = totalMinutes()
+    if (minutes <= 0) { setError('Bitte eine Dauer größer 0 eingeben.'); return }
+    if (minutes > 24 * 60) { setError('Maximal 24 Stunden pro Eintrag.'); return }
     setSubmitting(true)
     setError(null)
     try {
@@ -132,7 +140,7 @@ export function PauschaleStunden() {
         <CardHeader>
           <CardTitle>Pauschale Stunden eintragen</CardTitle>
           <CardDescription>
-            Unabhängig von Tagen (z. B. Dienstreise). Eingabe in 30-Minuten-Schritten.
+            Unabhängig von Tagen (z. B. Dienstreise). Eingabe minutengenau.
             Wird erst nach Genehmigung durch die Geschäftsführung wirksam.
           </CardDescription>
         </CardHeader>
@@ -156,16 +164,31 @@ export function PauschaleStunden() {
           </div>
 
           <div className="space-y-2">
-            <Label>Dauer (30-Minuten-Schritte)</Label>
-            <div className="flex items-center gap-4">
-              <Button type="button" variant="outline" size="icon"
-                onClick={() => step(-30)} disabled={minutes <= 30}>
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="text-2xl font-bold tabular-nums w-28 text-center">{fmt(minutes)}</span>
-              <Button type="button" variant="outline" size="icon" onClick={() => step(30)}>
-                <Plus className="h-4 w-4" />
-              </Button>
+            <Label>Dauer</Label>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number" inputMode="numeric" min={0} max={24}
+                  className="w-20 text-right tabular-nums"
+                  aria-label="Stunden"
+                  value={hoursStr}
+                  onChange={(e) => setHoursStr(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">Std.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number" inputMode="numeric" min={0} max={59}
+                  className="w-20 text-right tabular-nums"
+                  aria-label="Minuten"
+                  value={minutesStr}
+                  onChange={(e) => setMinutesStr(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">Min.</span>
+              </div>
+              <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                = {fmt(Math.max(0, totalMinutes()))}
+              </span>
             </div>
           </div>
 
