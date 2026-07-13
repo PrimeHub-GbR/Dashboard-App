@@ -99,9 +99,15 @@ export function AufgabenClient() {
   const othersActive = myEmployeeId
     ? active.filter((t) => !t.assignees.some((a) => a.id === myEmployeeId))
     : active
+  // Erledigte: zuletzt erledigt zuerst (completed_at absteigend; ohne Datum ans Ende).
+  const byCompletedDesc = (a: Task, b: Task) => {
+    const ta = a.completed_at ? new Date(a.completed_at).getTime() : 0
+    const tb = b.completed_at ? new Date(b.completed_at).getTime() : 0
+    return tb - ta
+  }
   const doneAll = filtered.filter(isDone)
-  const archived = doneAll.filter(isArchived)
-  const doneRecent = doneAll.filter((t) => !isArchived(t))
+  const archived = doneAll.filter(isArchived).sort(byCompletedDesc)
+  const doneRecent = doneAll.filter((t) => !isArchived(t)).sort(byCompletedDesc)
 
   const openTask = (task: Task) => {
     setDetailTaskId(task.id)
