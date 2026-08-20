@@ -101,6 +101,12 @@
 |---------|--------|------|
 | Buchpreisbindungs-Prüfung — Amazon-Scraping + VLB-Abgleich + Excel-Archiv | Deployed | [buchpreisbindung/overview.md](buchpreisbindung/overview.md) |
 
+## PlentyONE-Migration `/dashboard/plentyone`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Amazon-Export -> VLB-Anreicherung + Cover, 2 parallele N8N-Straenge, Mapping-Tabelle | In Progress | [plentyone/overview.md](plentyone/overview.md) |
+
 ## CashFlow `/dashboard/cashflow`
 
 | Feature | Status | Spec |

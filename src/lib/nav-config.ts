@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
   RefreshCw, Package, BookOpen, Clock, CheckSquare, Building2,
   MessageCircle, BookCheck, Wallet, Cog, Boxes, Users, Banknote, Grid3x3,
-  Warehouse, Globe, PackageCheck, ShieldCheck,
+  Warehouse, Globe, PackageCheck, ShieldCheck, BookMarked,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -51,6 +51,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Preisdatenbank', desc: 'SKU, ASIN & EAN', href: '/dashboard/prices', icon: Database },
       { label: 'Rebuy Scraper', desc: 'Bücher · wöchentlich · Excel', href: '/dashboard/rebuy', icon: BookOpen },
       { label: 'Buchpreisbindung', desc: 'Preiskonformität · Amazon · VLB', href: '/dashboard/buchpreisbindung', icon: BookCheck },
+      { label: 'PlentyONE-Migration', desc: 'Amazon → PlentyONE · VLB · Cover', href: '/dashboard/plentyone', icon: BookMarked, adminOnly: true, managerAllowed: true },
     ],
   },
   {

@@ -71,7 +71,8 @@
       "Skill(ui-ux-pro-max:*)",
       "Skill(help)",
       "Skill(help:*)",
-      "WebFetch(domain:www.rebuy.de)"
+      "WebFetch(domain:www.rebuy.de)",
+      "Read(//c/Users/cetin/Downloads/plentyone-migration/plentyone-migration/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\cetin\\Dashboard v2\\supabase"
