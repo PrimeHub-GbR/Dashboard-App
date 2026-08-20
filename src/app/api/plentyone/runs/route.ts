@@ -139,10 +139,18 @@ export async function POST(request: NextRequest) {
     const sauber = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const inputPath = `plentyone/${run.id}/${sauber}`
 
+    // Ohne charset-Zusatz: Supabase vergleicht den Content-Type gegen die
+    // allowed_mime_types des Buckets und akzeptiert "text/plain; charset=utf-8" nicht.
+    const contentType = /\.csv$/i.test(file.name)
+      ? 'text/csv'
+      : /\.tsv$/i.test(file.name)
+        ? 'text/tab-separated-values'
+        : 'text/plain'
+
     const { error: uploadError } = await svc.storage
       .from(UPLOAD_BUCKET)
       .upload(inputPath, Buffer.from(await file.arrayBuffer()), {
-        contentType: 'text/plain; charset=utf-8',
+        contentType,
         upsert: true,
       })
 
