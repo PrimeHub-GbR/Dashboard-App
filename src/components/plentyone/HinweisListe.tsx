@@ -53,9 +53,9 @@ const ART: Record<string, { label: string; erklaerung: string; schwere: 'hoch' |
 }
 
 const SCHWERE_STIL = {
-  hoch: 'bg-red-500/15 text-red-300 border-red-500/30',
-  mittel: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  gering: 'bg-white/10 text-white/60 border-white/20',
+  hoch: 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
+  mittel: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  gering: 'bg-muted text-muted-foreground border-border',
 } as const
 
 export function HinweisListe({
@@ -92,7 +92,7 @@ export function HinweisListe({
   if (!hinweise.length) {
     return (
       <Card className="border-emerald-500/20 bg-emerald-500/5">
-        <CardContent className="py-5 text-sm text-emerald-200">
+        <CardContent className="py-5 text-sm text-emerald-800 dark:text-emerald-200">
           Keine Auffälligkeiten — zu allen Titeln sind die Daten vollständig.
         </CardContent>
       </Card>
@@ -100,10 +100,10 @@ export function HinweisListe({
   }
 
   return (
-    <Card className="border-white/10 bg-white/5">
+    <Card>
       <CardHeader className="gap-2">
-        <CardTitle className="text-white">Unvollständige Titel</CardTitle>
-        <p className="text-sm text-white/50">
+        <CardTitle className="text-foreground">Unvollständige Titel</CardTitle>
+        <p className="text-sm text-muted-foreground">
           {gesamt} von den verarbeiteten Titeln fehlt mindestens eine Angabe. Nach Art filtern
           oder nach ISBN suchen.
           {gesamt > hinweise.length && (
@@ -136,7 +136,7 @@ export function HinweisListe({
         </div>
 
         {aktiv && ART[aktiv] && (
-          <p className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs leading-relaxed text-white/60">
+          <p className="rounded-md border px-3 py-2 text-xs leading-relaxed text-muted-foreground">
             {ART[aktiv].erklaerung}
           </p>
         )}
@@ -145,14 +145,14 @@ export function HinweisListe({
           value={suche}
           onChange={(e) => setSuche(e.target.value)}
           placeholder="ISBN, Titel oder Variantennr. suchen…"
-          className="h-9 max-w-sm border-white/10 bg-white/5 text-white placeholder:text-white/30"
+          className="h-9 max-w-sm text-foreground placeholder:text-muted-foreground"
           aria-label="Hinweise durchsuchen"
         />
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
+              <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                 <th scope="col" className="w-36 py-2 pr-3 font-medium">ISBN</th>
                 <th scope="col" className="w-48 py-2 pr-3 font-medium">Variantennr.</th>
                 <th scope="col" className="py-2 pr-3 font-medium">Titel</th>
@@ -161,12 +161,12 @@ export function HinweisListe({
             </thead>
             <tbody>
               {sichtbar.map((h) => (
-                <tr key={h.variantennummer} className="border-b border-white/5 align-top">
-                  <td className="py-2.5 pr-3 font-mono text-[13px] text-white/80">{h.isbn}</td>
-                  <td className="py-2.5 pr-3 font-mono text-[12px] text-white/45">
+                <tr key={h.variantennummer} className="border-b border-border align-top">
+                  <td className="py-2.5 pr-3 font-mono text-[13px] text-foreground">{h.isbn}</td>
+                  <td className="py-2.5 pr-3 font-mono text-[12px] text-muted-foreground">
                     {h.variantennummer}
                   </td>
-                  <td className="py-2.5 pr-3 text-white/70">{h.titel}</td>
+                  <td className="py-2.5 pr-3 text-foreground">{h.titel}</td>
                   <td className="py-2.5">
                     <div className="flex flex-wrap gap-1">
                       {h.fehlt.map((f) => (
@@ -193,7 +193,7 @@ export function HinweisListe({
           </Button>
         )}
         {gefiltert.length === 0 && (
-          <p className="py-4 text-center text-sm text-white/40">Keine Treffer.</p>
+          <p className="py-4 text-center text-sm text-muted-foreground">Keine Treffer.</p>
         )}
       </CardContent>
     </Card>

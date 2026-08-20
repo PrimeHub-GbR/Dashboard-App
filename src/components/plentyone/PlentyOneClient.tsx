@@ -67,24 +67,24 @@ function StrangKarte({
       <CardHeader className="gap-1 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <Icon className="h-5 w-5 shrink-0 text-white/70" aria-hidden />
+            <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
             <div>
-              <CardTitle className="text-base text-white">{titel}</CardTitle>
-              <p className="mt-0.5 text-xs text-white/45">{untertitel}</p>
+              <CardTitle className="text-base text-foreground">{titel}</CardTitle>
+              <p className="mt-0.5 text-xs text-muted-foreground">{untertitel}</p>
             </div>
           </div>
           {status === 'running' && (
-            <span className="flex items-center gap-1.5 text-xs text-sky-300">
+            <span className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> läuft
             </span>
           )}
           {status === 'success' && (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-300">
+            <span className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> fertig
             </span>
           )}
           {status === 'failed' && (
-            <span className="flex items-center gap-1.5 text-xs text-red-300">
+            <span className="flex items-center gap-1.5 text-xs text-red-700 dark:text-red-300">
               <XCircle className="h-3.5 w-3.5" aria-hidden /> fehlgeschlagen
             </span>
           )}
@@ -92,7 +92,7 @@ function StrangKarte({
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
         {fehler && (
-          <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs leading-relaxed text-red-200">
+          <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs leading-relaxed text-red-800 dark:text-red-200">
             {fehler}
           </p>
         )}
@@ -164,19 +164,19 @@ export function PlentyOneClient() {
   return (
     <div className="space-y-6">
       {/* ---------------------------------------------------------- Schritt 1 */}
-      <Card className="border-white/10 bg-white/5">
+      <Card>
         <CardHeader className="gap-1">
-          <CardTitle className="text-white">1 · Amazon-Export hochladen</CardTitle>
-          <p className="text-sm text-white/50">
-            Seller Central » Lagerbestandsberichte » <strong className="text-white/70">Bericht zu
+          <CardTitle className="text-foreground">1 · Amazon-Export hochladen</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Seller Central » Lagerbestandsberichte » <strong className="text-foreground">Bericht zu
             allen Angeboten</strong> herunterladen und hier unverändert hochladen. Die Datei ist
-            Tab-getrennt und endet auf <code className="rounded bg-white/10 px-1">.txt</code>.
+            Tab-getrennt und endet auf <code className="rounded bg-muted px-1">.txt</code>.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <div className="space-y-1.5">
-              <Label htmlFor="amazon-datei" className="text-xs text-white/60">Datei</Label>
+              <Label htmlFor="amazon-datei" className="text-xs text-muted-foreground">Datei</Label>
               <Input
                 id="amazon-datei"
                 ref={inputRef}
@@ -184,11 +184,11 @@ export function PlentyOneClient() {
                 accept=".txt,.csv,.tsv,text/plain,text/csv"
                 disabled={starten || laeuft}
                 onChange={(e) => setDatei(e.target.files?.[0] ?? null)}
-                className="border-white/10 bg-white/5 text-white file:text-white/70"
+                className="text-foreground file:text-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="limit" className="text-xs text-white/60">
+              <Label htmlFor="limit" className="text-xs text-muted-foreground">
                 Testlauf (optional)
               </Label>
               <Input
@@ -199,7 +199,7 @@ export function PlentyOneClient() {
                 value={limit}
                 disabled={starten || laeuft}
                 onChange={(e) => setLimit(e.target.value)}
-                className="w-32 border-white/10 bg-white/5 text-white placeholder:text-white/30"
+                className="w-32 text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <Button onClick={start} disabled={!datei || starten || laeuft} className="gap-2">
@@ -209,13 +209,13 @@ export function PlentyOneClient() {
             </Button>
           </div>
 
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-muted-foreground">
             Der Testlauf begrenzt den Durchlauf auf die ersten N Titel — praktisch, um in einer
             halben Minute zu prüfen, ob alles sitzt, bevor der Vollauf startet.
           </p>
 
           {laeuft && (
-            <p className="flex items-start gap-2 rounded-md border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-200">
+            <p className="flex items-start gap-2 rounded-md border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-800 dark:text-sky-200">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               Es läuft gerade eine Migration. Die VLB erlaubt nur zwei gleichzeitige Sitzungen —
               ein Lauf belegt beide. Der nächste Start ist möglich, sobald beide Stränge fertig sind.
@@ -223,7 +223,7 @@ export function PlentyOneClient() {
           )}
 
           {fehler && (
-            <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            <p className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:text-red-200">
               {fehler}
             </p>
           )}
@@ -232,10 +232,10 @@ export function PlentyOneClient() {
 
       {/* ---------------------------------------------------------- Schritt 2 */}
       {laden ? (
-        <p className="py-8 text-center text-sm text-white/40">Lade…</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">Lade…</p>
       ) : !aktuell ? (
-        <Card className="border-white/10 bg-white/5">
-          <CardContent className="py-8 text-center text-sm text-white/40">
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
             Noch kein Lauf vorhanden. Lade oben den Amazon-Export hoch.
           </CardContent>
         </Card>
@@ -243,13 +243,13 @@ export function PlentyOneClient() {
         <>
           <section className="space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold text-white">2 · Verarbeitung</h2>
-              <p className="text-xs text-white/40">
+              <h2 className="text-lg font-semibold text-foreground">2 · Verarbeitung</h2>
+              <p className="text-xs text-muted-foreground">
                 {aktuell.input_name} · {datum(aktuell.created_at)}
                 {aktuell.zeilen_limit ? ` · Testlauf mit ${aktuell.zeilen_limit} Zeilen` : ''}
               </p>
             </div>
-            <p className="text-sm text-white/50">
+            <p className="text-sm text-muted-foreground">
               Beide Stränge laufen parallel gegen die VLB. Der CSV-Strang braucht etwa zwei Minuten,
               der Cover-Strang bei allen Titeln rund zwanzig — er lädt jedes Bild einzeln.
             </p>
@@ -277,14 +277,14 @@ export function PlentyOneClient() {
                       ] as const).map(([k, v]) =>
                         v === undefined ? null : (
                           <div key={k} className="flex justify-between gap-2">
-                            <dt className="text-white/45">{k}</dt>
-                            <dd className="tabular-nums text-white/80">{v}</dd>
+                            <dt className="text-muted-foreground">{k}</dt>
+                            <dd className="tabular-nums text-foreground">{v}</dd>
                           </div>
                         )
                       )}
                     </dl>
                     {Number(aktuell.stats.ust_19) > 0 && (
-                      <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                         {aktuell.stats.ust_19} Titel haben laut VLB 19 % Umsatzsteuer. Die CSV setzt
                         pauschal 7 % — vor dem Import prüfen.
                       </p>
@@ -298,7 +298,7 @@ export function PlentyOneClient() {
                   </>
                 )}
                 {aktuell.csv_status === 'running' && (
-                  <p className="text-xs text-white/45">
+                  <p className="text-xs text-muted-foreground">
                     Datei wird aufbereitet und gegen die VLB abgeglichen…
                   </p>
                 )}
@@ -315,12 +315,12 @@ export function PlentyOneClient() {
                   <>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                       <div className="flex justify-between gap-2">
-                        <dt className="text-white/45">gefunden</dt>
-                        <dd className="tabular-nums text-white/80">{aktuell.stats.cover_gefunden ?? 0}</dd>
+                        <dt className="text-muted-foreground">gefunden</dt>
+                        <dd className="tabular-nums text-foreground">{aktuell.stats.cover_gefunden ?? 0}</dd>
                       </div>
                       <div className="flex justify-between gap-2">
-                        <dt className="text-white/45">ohne Bild</dt>
-                        <dd className="tabular-nums text-white/80">{aktuell.stats.cover_fehlend ?? 0}</dd>
+                        <dt className="text-muted-foreground">ohne Bild</dt>
+                        <dd className="tabular-nums text-foreground">{aktuell.stats.cover_fehlend ?? 0}</dd>
                       </div>
                     </dl>
                     <ul className="space-y-1.5">
@@ -332,7 +332,7 @@ export function PlentyOneClient() {
                                 <Download className="h-3.5 w-3.5" aria-hidden />
                                 {p.name}
                               </span>
-                              <span className="text-xs text-white/50">
+                              <span className="text-xs text-muted-foreground">
                                 {p.gefunden} Bilder{p.fehlend ? ` · ${p.fehlend} fehlen` : ''}
                               </span>
                             </a>
@@ -343,7 +343,7 @@ export function PlentyOneClient() {
                   </>
                 )}
                 {aktuell.cover_status === 'running' && (
-                  <p className="text-xs text-white/45">
+                  <p className="text-xs text-muted-foreground">
                     Cover werden einzeln geladen und zu ZIP-Paketen gebündelt…
                   </p>
                 )}
@@ -354,28 +354,28 @@ export function PlentyOneClient() {
           {/* ------------------------------------------------------- Schritt 3 */}
           {aktuell.csv_status === 'success' && (
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-white">3 · Unvollständige Titel</h2>
+              <h2 className="text-lg font-semibold text-foreground">3 · Unvollständige Titel</h2>
               <HinweisListe hinweise={aktuell.hinweise ?? []} gesamt={aktuell.hinweise_gesamt} />
             </section>
           )}
 
           {/* ------------------------------------------------------- Schritt 4 */}
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold text-white">4 · Was du in PlentyONE tust</h2>
-            <Card className="border-white/10 bg-white/5">
+            <h2 className="text-lg font-semibold text-foreground">4 · Was du in PlentyONE tust</h2>
+            <Card>
               <CardContent className="py-5">
                 <ol className="space-y-4">
                   {IMPORT_SCHRITTE.map((s, i) => (
                     <li key={s.titel} className="flex gap-3">
                       <span
-                        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-white/70"
+                        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground"
                         aria-hidden
                       >
                         {i + 1}
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-white">{s.titel}</p>
-                        <p className="mt-0.5 text-sm leading-relaxed text-white/50">{s.text}</p>
+                        <p className="text-sm font-medium text-foreground">{s.titel}</p>
+                        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{s.text}</p>
                       </div>
                     </li>
                   ))}
@@ -390,17 +390,17 @@ export function PlentyOneClient() {
       {runs.length > 0 && (
         <section className="space-y-3">
           <div>
-            <h2 className="text-lg font-semibold text-white">Letzte Läufe</h2>
-            <p className="text-sm text-white/50">
+            <h2 className="text-lg font-semibold text-foreground">Letzte Läufe</h2>
+            <p className="text-sm text-muted-foreground">
               Es werden drei Läufe aufbewahrt. Beim Start eines neuen wird der älteste samt Dateien
               gelöscht. Jede Zeile ist ein Lauf — CSV und Cover darin gehören zusammen.
             </p>
           </div>
-          <Card className="border-white/10 bg-white/5">
+          <Card>
             <CardContent className="overflow-x-auto py-4">
               <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
+                  <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                     <th scope="col" className="py-2 pr-3 font-medium">Datum</th>
                     <th scope="col" className="py-2 pr-3 font-medium">Quelldatei</th>
                     <th scope="col" className="py-2 pr-3 font-medium">Status</th>
@@ -410,24 +410,24 @@ export function PlentyOneClient() {
                 </thead>
                 <tbody>
                   {runs.map((r) => (
-                    <tr key={r.id} className="border-b border-white/5 align-top">
-                      <td className="py-3 pr-3 whitespace-nowrap text-white/70">
+                    <tr key={r.id} className="border-b border-border align-top">
+                      <td className="py-3 pr-3 whitespace-nowrap text-foreground">
                         {datum(r.created_at)}
                         {r.zeilen_limit && (
-                          <span className="mt-0.5 block text-xs text-white/35">
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
                             Testlauf · {r.zeilen_limit} Zeilen
                           </span>
                         )}
                       </td>
-                      <td className="py-3 pr-3 text-white/55">{r.input_name}</td>
+                      <td className="py-3 pr-3 text-muted-foreground">{r.input_name}</td>
                       <td className="py-3 pr-3">
                         <Badge
                           variant="outline"
                           className={
-                            r.status === 'success' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
-                            : r.status === 'running' ? 'border-sky-500/30 bg-sky-500/15 text-sky-300'
-                            : r.status === 'partial' ? 'border-amber-500/30 bg-amber-500/15 text-amber-300'
-                            : 'border-red-500/30 bg-red-500/15 text-red-300'
+                            r.status === 'success' ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                            : r.status === 'running' ? 'border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                            : r.status === 'partial' ? 'border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                            : 'border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-300'
                           }
                         >
                           {r.status === 'success' ? 'vollständig'
@@ -440,31 +440,31 @@ export function PlentyOneClient() {
                         {r.csv_status === 'success' ? (
                           <a
                             href={dl(r.id, 'csv')}
-                            className="inline-flex items-center gap-1.5 text-sky-300 underline-offset-2 hover:underline"
+                            className="inline-flex items-center gap-1.5 text-sky-700 dark:text-sky-300 underline-offset-2 hover:underline"
                           >
                             <Download className="h-3.5 w-3.5" aria-hidden />
                             CSV
                           </a>
                         ) : (
-                          <span className="text-white/30">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </td>
                       <td className="py-3">
                         {r.cover_pakete?.length ? (
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <Link2 className="h-3.5 w-3.5 text-white/25" aria-hidden />
+                            <Link2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                             {r.cover_pakete.map((p) => (
                               <a
                                 key={p.name}
                                 href={dl(r.id, p.name)}
-                                className="text-xs text-sky-300 underline-offset-2 hover:underline"
+                                className="text-xs text-sky-700 dark:text-sky-300 underline-offset-2 hover:underline"
                               >
                                 {p.von}–{p.bis}
                               </a>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-white/30">—</span>
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </td>
                     </tr>
