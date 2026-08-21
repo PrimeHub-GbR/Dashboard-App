@@ -14,6 +14,7 @@ const callbackSchema = z.object({
   fehler: z.string().max(2000).optional(),
   // Strang csv
   datei: z.string().max(500).optional(),
+  eigenschaften_datei: z.string().max(500).optional(),
   stats: z.record(z.string(), z.unknown()).optional(),
   hinweise: z.array(z.record(z.string(), z.unknown())).optional(),
   hinweise_gesamt: z.number().int().nonnegative().optional(),
@@ -65,7 +66,9 @@ export async function POST(
     if (d.fehler) patch[`${d.strang}_error`] = d.fehler
 
     if (d.strang === 'csv') {
-      if (d.datei) patch.csv_path = d.datei.replace(/^\/*(workflow-results\/)?/, '')
+      const putzen = (v: string) => v.replace(/^\/*(workflow-results\/)?/, '')
+      if (d.datei) patch.csv_path = putzen(d.datei)
+      if (d.eigenschaften_datei) patch.eigenschaften_path = putzen(d.eigenschaften_datei)
       if (d.hinweise) patch.hinweise = d.hinweise
       if (typeof d.hinweise_gesamt === 'number') patch.hinweise_gesamt = d.hinweise_gesamt
     } else {

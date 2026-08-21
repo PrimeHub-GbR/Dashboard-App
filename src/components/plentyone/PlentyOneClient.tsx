@@ -32,6 +32,7 @@ interface Run {
   status: 'running' | 'success' | 'partial' | 'failed'
   csv_status: Strang
   csv_path: string | null
+  eigenschaften_path: string | null
   csv_error: string | null
   cover_status: Strang
   cover_error: string | null
@@ -289,12 +290,32 @@ export function PlentyOneClient() {
                         pauschal 7 % — vor dem Import prüfen.
                       </p>
                     )}
-                    <Button asChild size="sm" variant="secondary" className="w-full gap-2">
-                      <a href={dl(aktuell.id, 'csv')}>
-                        <Download className="h-4 w-4" aria-hidden />
-                        plentyONE_Import_final.csv
-                      </a>
-                    </Button>
+                    <div className="space-y-1.5">
+                      <Button asChild size="sm" variant="secondary" className="w-full gap-2">
+                        <a href={dl(aktuell.id, 'csv')}>
+                          <Download className="h-4 w-4" aria-hidden />
+                          plentyONE_Import_final.csv
+                        </a>
+                      </Button>
+                      {aktuell.eigenschaften_path && (
+                        <Button asChild size="sm" variant="secondary" className="w-full justify-between gap-2">
+                          <a href={dl(aktuell.id, 'eigenschaften')}>
+                            <span className="flex items-center gap-2">
+                              <Download className="h-4 w-4" aria-hidden />
+                              plentyONE_Eigenschaften.csv
+                            </span>
+                            {aktuell.stats.eigenschaften_zeilen && (
+                              <span className="text-xs text-muted-foreground">
+                                {aktuell.stats.eigenschaften_zeilen} Zeilen
+                              </span>
+                            )}
+                          </a>
+                        </Button>
+                      )}
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Zwei Dateien, zwei Importe: Artikel zuerst, danach die Eigenschaften.
+                      </p>
+                    </div>
                   </>
                 )}
                 {aktuell.csv_status === 'running' && (
@@ -438,13 +459,24 @@ export function PlentyOneClient() {
                       </td>
                       <td className="py-3 pr-3">
                         {r.csv_status === 'success' ? (
-                          <a
-                            href={dl(r.id, 'csv')}
-                            className="inline-flex items-center gap-1.5 text-sky-700 dark:text-sky-300 underline-offset-2 hover:underline"
-                          >
-                            <Download className="h-3.5 w-3.5" aria-hidden />
-                            CSV
-                          </a>
+                          <span className="flex flex-col gap-0.5">
+                            <a
+                              href={dl(r.id, 'csv')}
+                              className="inline-flex items-center gap-1.5 text-sky-700 dark:text-sky-300 underline-offset-2 hover:underline"
+                            >
+                              <Download className="h-3.5 w-3.5" aria-hidden />
+                              Artikel
+                            </a>
+                            {r.eigenschaften_path && (
+                              <a
+                                href={dl(r.id, 'eigenschaften')}
+                                className="inline-flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 underline-offset-2 hover:underline"
+                              >
+                                <Download className="h-3 w-3" aria-hidden />
+                                Eigenschaften
+                              </a>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
