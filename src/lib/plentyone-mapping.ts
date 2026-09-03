@@ -164,26 +164,29 @@ export const EIGENSCHAFTEN_IMPORT = {
   ],
 }
 
-/** Reihenfolge der Schritte in PlentyONE. */
+/**
+ * Einmalige Einrichtung in PlentyONE. Danach holt PlentyONE alles selbst per
+ * Zeitplan ab — je Lauf bleibt nur noch der Upload oben auf dieser Seite.
+ */
 export const IMPORT_SCHRITTE = [
   {
     titel: 'Cover hochladen',
-    text: 'ZIP-Pakete entpacken und alle .jpg in Shop » Dateimanager » Ordner „cover" hochladen. Dateinamen nicht ändern — die Bild-URL in Spalte 28 zeigt genau darauf.',
+    text: 'ZIP-Pakete entpacken und alle .jpg in Shop » Dateimanager » Ordner „cover" hochladen. Dateinamen nicht ändern — die Bild-URL in Spalte 28 zeigt genau darauf. Fällt weg, sobald die VLB die Cover-Nutzung für Marktplätze freigegeben hat und die Bilder direkt per URL kommen.',
   },
   {
     titel: 'Hersteller anlegen',
     text: 'Aus der Artikel-CSV die Spalten vlb_verlag und gpsr_* ziehen und als Import-Typ „Hersteller" anlegen. Erst danach lässt sich Spalte 33 auf die Hersteller-ID mappen. Ohne Hersteller lehnen Kaufland und eBay die Artikel ab.',
   },
   {
-    titel: 'Artikel importieren',
-    text: 'Daten » Import, Kopie von „Amazon Import 3.0". Trennzeichen ;, UTF-8, Abgleich über Variantennr. Mapping nach der Tabelle unten — die Spalten stehen in der Reihenfolge der Datei. Zeilenreihenfolge der CSV nicht verändern: die Hauptvariante muss vor ihren Geschwistervarianten stehen.',
+    titel: 'Artikelimport anlegen und auf URL umstellen',
+    text: 'Daten » Import, Kopie von „Amazon Import 3.0". Trennzeichen ;, UTF-8, Abgleich über Variantennr. Mapping nach der Tabelle unten — die Spalten stehen in der Reihenfolge der Datei. Zeilenreihenfolge der CSV nicht verändern: die Hauptvariante muss vor ihren Geschwistervarianten stehen. Datenquelle danach auf „HTTPS / URL" umstellen (Adresse siehe Abschnitt 5).',
   },
   {
-    titel: 'Eigenschaften importieren',
-    text: 'Zweiter Import mit plentyONE_Eigenschaften.csv, ebenfalls Abgleich über Variantennr. Sechs Mappings, siehe eigener Abschnitt unten.',
+    titel: 'Eigenschaftsimport anlegen und auf URL umstellen',
+    text: 'Zweiter Import mit plentyONE_Eigenschaften.csv, ebenfalls Abgleich über Variantennr. Sieben Mappings, siehe eigener Abschnitt unten. Auch hier Datenquelle „HTTPS / URL".',
   },
   {
     titel: 'Erst mit wenigen Zeilen testen',
-    text: 'Import-Intervall zuletzt setzen. Prüfen: entsteht ein Artikel mit mehreren Varianten oder mehrere Artikel? Kommen Sprache und Bindung als Auswahlwert an?',
+    text: 'Zeitplan zuletzt setzen. Prüfen: entsteht ein Artikel mit mehreren Varianten oder mehrere Artikel? Kommen Sprache und Bindung als Auswahlwert an?',
   },
 ]

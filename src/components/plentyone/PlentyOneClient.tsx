@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { MappingTabelle } from './MappingTabelle'
 import { HinweisListe, type Hinweis } from './HinweisListe'
+import { EbayKette } from './EbayKette'
 import { IMPORT_SCHRITTE } from '@/lib/plentyone-mapping'
 
 type Strang = 'running' | 'success' | 'failed'
@@ -41,6 +42,9 @@ interface Run {
   hinweise: Hinweis[]
   hinweise_gesamt: number
   created_at: string
+  export_freigabe: boolean
+  export_abrufe: number
+  export_zuletzt: string | null
 }
 
 const datum = (iso: string) =>
@@ -382,7 +386,9 @@ export function PlentyOneClient() {
 
           {/* ------------------------------------------------------- Schritt 4 */}
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">4 · Was du in PlentyONE tust</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              4 · Einmalige Einrichtung in PlentyONE
+            </h2>
             <Card>
               <CardContent className="py-5">
                 <ol className="space-y-4">
@@ -406,6 +412,18 @@ export function PlentyOneClient() {
           </section>
         </>
       )}
+
+      {/* ------------------------------------------------------------ Schritt 5 */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">5 · Weiter zu eBay</h2>
+        <EbayKette
+          runId={aktuell?.id ?? null}
+          freigabe={aktuell?.export_freigabe ?? true}
+          abrufe={aktuell?.export_abrufe ?? 0}
+          zuletzt={aktuell?.export_zuletzt ?? null}
+          onFreigabe={() => { void holen() }}
+        />
+      </section>
 
       {/* ------------------------------------------------------------ Historie */}
       {runs.length > 0 && (

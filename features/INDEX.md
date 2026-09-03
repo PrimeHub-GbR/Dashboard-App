@@ -36,6 +36,18 @@
 |---------|--------|------|
 | Palettenannahme (Blank: AB→Lieferschein→Empfang, N8N-Mail-Erkennung) | Deployed | [wareneingang/overview.md](wareneingang/overview.md) |
 
+## Lager `/dashboard/lager`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Nachbestellung per QR-Etikett (Dashboard druckt, App scannt) | Deployed | — |
+
+## Lieferantenlisten `/dashboard/lieferantenlisten`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Bezugsquellen je Artikel pflegen | Deployed | — |
+
 ## Preisdatenbank `/dashboard/prices`
 
 | Feature | Status | Spec |
@@ -106,6 +118,19 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | Amazon-Export -> VLB-Anreicherung + Cover, 2 parallele N8N-Straenge, Mapping-Tabelle | In Progress | [plentyone/overview.md](plentyone/overview.md) |
+| eBay-Vollautomatisierung (Abhol-URLs, Import 22/23, Preis-Guard, Statusbericht) | In Progress | [plentyone/ebay-vollautomatisierung.md](plentyone/ebay-vollautomatisierung.md) |
+
+## Manager (GF) `/dashboard/manager`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| GF-Pflichtfristen + Firmeninfos (nur Geschaeftsfuehrung) | Deployed | — |
+
+## Webseite `/dashboard/website`
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Oeffentliche Landingpage primehubgbr.com an/aus | Deployed | — |
 
 ## CashFlow `/dashboard/cashflow`
 
