@@ -221,7 +221,7 @@ for (const it of items) {
 // Listings MLID 1 (Dirty Diana), von dem sie abgelesen sind.
 const ZUSATZ = [
   ['kategorie_id',     cfg.kategorieId     || '261186'], // Kategorie-ID 1
-  ['versandprofil_id', cfg.versandprofilId || '6'],      // Versandprofil-ID (Frontend "Buecher DE")
+  ['versandprofil_id', cfg.versandprofilId || '1'],      // eBay-Versandprofil "Buecher DE" (eigener Zahlenraum!)
   ['zustand_id',       cfg.zustandId       || '1'],      // eBay-Zustands-ID ("Neu")
   ['layout_id',        cfg.layoutId        || '1'],      // Layout-Vorlagen-ID ("Buecher")
   ['lager_id',         cfg.lagerId         || '2'],      // Lager-ID (FBA)
@@ -348,7 +348,12 @@ KONFIG = {
         # Sicher: Kategorie, Versandprofil, Layout, Lager, Preisbindung.
         # Noch zu bestaetigen: zustandId, mwst, spracheCode (siehe Spec, offene Punkte).
         {"id": "b01", "name": "kategorieId", "value": "261186", "type": "string"},
-        {"id": "b02", "name": "versandprofilId", "value": "6", "type": "string"},
+        # ACHTUNG: eBay-Versandprofile haben einen EIGENEN Zahlenraum, nicht den der
+        # PlentyONE-Versandprofile (dort: 6 Standardpaket, 7 Selbstabholer).
+        # "Buecher DE" = ID 1, zu finden unter Einrichtung >> Maerkte >> eBay >>
+        # Konto primehub_gbr >> Versandprofile. Die 6 quittierte die Oberflaeche
+        # mit "Ungueltige Auswahl (6)".
+        {"id": "b02", "name": "versandprofilId", "value": "1", "type": "string"},
         {"id": "b03", "name": "zustandId", "value": "1", "type": "string"},
         {"id": "b04", "name": "layoutId", "value": "1", "type": "string"},
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},

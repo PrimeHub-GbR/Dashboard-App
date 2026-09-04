@@ -213,7 +213,7 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 | Mehrwertsteuersatz | `7` | ✅ **bestätigt** — UI zeigt „Deutschland / 7 %" |
 | Sprache | `de` | ✅ **bestätigt** — UI zeigt „Deutsch" |
 | **An Artikelpreis binden** | `1` (Ja/Nein!) | ⚠️ korrigiert, **noch nicht getestet** |
-| **Versandprofil-ID** | `6` ist **FALSCH** | ❌ richtige ID unbekannt |
+| **Versandprofil-ID** | `1` — **eBay-Versandprofil, eigener Zahlenraum!** | ✅ gefunden, Mapping-Test offen |
 | UVP übertragen / Preisvorschlag / Anzahl Bilder | `0` / `0` / `1` | ❔ noch nicht zugeordnet |
 
 ### Import-Lauf 45 und 46 (04.09.2026, entscheidendes Testergebnis)
@@ -228,8 +228,11 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 - **Schaden:** `versandprofil_id = 6` hat alle 11 Listings auf
   „**Ungültige Auswahl (6)**" gesetzt. Vorher stand dort „Bücher DE".
   → Reparatur: Vorlage „Bücher (1)" erneut auf alle 11 anwenden.
-  Die `6` stammt aus `/rest/orders/shipping/presets` (Plenty-Versandprofil), das
-  eBay-Market-Listing erwartet aber offenbar eine **andere ID** (eBay-Versandrichtlinie).
+  Die `6` stammt aus `/rest/orders/shipping/presets` (Plenty-Versandprofile: 6 =
+  Standardpaket/DHL, 7 = Selbstabholer). **Das eBay-Market-Listing benutzt einen
+  voellig anderen Zahlenraum:** Einrichtung >> Maerkte >> eBay >> Konto
+  `primehub_gbr` >> Reiter **Versandprofile** listet **ID 1 = „Buecher DE"**
+  (Standard-Profil = Y). Am 04.09.2026 auf `1` korrigiert, live in der CSV geprueft.
 
 Weitere REST-Fakten: Versandprofile gibt es nur **zwei** (id 6 „Standardpaket",
 id 7 „Selbstabholer"). Lager: id 1 „Sales", id 2 „Amazon FBA-Lager BuchDepot24"
