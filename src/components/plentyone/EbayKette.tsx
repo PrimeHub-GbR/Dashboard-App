@@ -55,6 +55,7 @@ const ZAHL_LABEL: Record<string, string> = {
   listings: 'eBay-Listings',
   geprueft_ok: 'Prüfung bestanden',
   geprueft_fehler: 'Prüfung fehlgeschlagen',
+  nicht_geprueft: 'noch nicht geprüft',
   merkmale: 'Merkmale gesetzt',
   ohne_bpb_preis: 'ohne Buchpreisbindungspreis',
 }
@@ -249,7 +250,7 @@ export function EbayKette({
                 <div className="space-y-1.5">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-red-300">
                     <XCircle className="h-3.5 w-3.5" aria-hidden />
-                    Prüfung fehlgeschlagen ({aktuell.probleme.length})
+                    Nicht startklar ({aktuell.probleme.length})
                   </p>
                   <ul className="space-y-1">
                     {aktuell.probleme.slice(0, 25).map((p, i) => (

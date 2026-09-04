@@ -245,6 +245,7 @@ const probleme = [];
 let bCount = 0;
 let geprueftOk = 0;
 let geprueftFehler = 0;
+let nichtGeprueft = 0;
 let buchListings = 0;
 
 for (const ml of marketListings) {
@@ -258,6 +259,14 @@ for (const ml of marketListings) {
     geprueftFehler++;
     probleme.push({ mlid: ml.id, item_id: itemId, titel: String(titelRoh || '').slice(0, 90),
                     grund: 'Pruefung in PlentyONE fehlgeschlagen' });
+  }
+  else {
+    // Weder bestanden noch fehlgeschlagen: dieses Listing wurde NIE geprueft.
+    // Frueher lief das unter "kein Fehler" und der Bericht wurde faelschlich gruen -
+    // ein vergessenes "Market-Listings pruefen" waere unbemerkt geblieben.
+    nichtGeprueft++;
+    probleme.push({ mlid: ml.id, item_id: itemId, titel: String(titelRoh || '').slice(0, 90),
+                    grund: 'noch nicht geprueft - "Market-Listings pruefen" ausfuehren' });
   }
 
   const autor = autorUmformen(autorByVar[ml.variationId]);
@@ -279,6 +288,7 @@ const zahlen = {
   listings: buchListings,
   geprueft_ok: geprueftOk,
   geprueft_fehler: geprueftFehler,
+  nicht_geprueft: nichtGeprueft,
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
 };
@@ -294,7 +304,8 @@ const text = [
   '',
   'Artikel in PlentyONE: ' + zahlen.artikel,
   'Buch-Artikel ohne Listing (Import 23): ' + zahlen.ohne_listing,
-  'eBay-Listings gesamt: ' + zahlen.listings + '  (geprueft ok ' + geprueftOk + ', fehlgeschlagen ' + geprueftFehler + ')',
+  'eBay-Listings gesamt: ' + zahlen.listings + '  (geprueft ok ' + geprueftOk
+    + ', fehlgeschlagen ' + geprueftFehler + ', noch nicht geprueft ' + nichtGeprueft + ')',
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
   preisHinweis ? '' : null,
@@ -304,7 +315,10 @@ const text = [
   ...uebersprungen.slice(0, 100).map(u => '  MLID ' + u.mlid + ' (Artikel ' + u.item_id + '): ' + u.grund),
 ].filter(x => x !== null).join('\n');
 
-const ok = geprueftFehler === 0 && ohnePreis.length === 0 && preisPruefung === 'ok';
+// Gruen heisst: jedes Buch-Listing ist geprueft UND bestanden. Ein ungeprueftes
+// Listing zaehlt ausdruecklich NICHT als in Ordnung.
+const ok = geprueftFehler === 0 && nichtGeprueft === 0
+        && ohnePreis.length === 0 && preisPruefung === 'ok';
 
 const koerper = JSON.stringify({
   ok,

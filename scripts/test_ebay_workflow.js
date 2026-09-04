@@ -36,7 +36,7 @@ const BUECHER = [
   { nr: 'APR-13375-11-06-2026', titel: 'Sonne, Glück und Blaubeerduft: Die schönsten Geschichten von Astrid Lindgren, Sven Nordqvist u.a.', autor: 'Kutsch, Angelika; Lindgren, Astrid; Engelking, Katrin; Peters, Karl Kurt; Wikland, Ilon; Dohrenburg, Thyra; Nordqvist, Sven; Wieslander, Jujja; Heinig, Cäcilie and Bergström, Gunilla' },
 ]
 
-function baueStand({ mitListings, ohnePreis = [], ohneAutor = [], verifiedFehler = 0, preisFehler = false }) {
+function baueStand({ mitListings, ohnePreis = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = []
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
@@ -52,7 +52,11 @@ function baueStand({ mitListings, ohnePreis = [], ohneAutor = [], verifiedFehler
       listings.push({ id: 500 + i, itemId })
       markets.push({
         id: 900 + i, listingId: 500 + i, referrerId: 2.08, variationId: varId,
-        verified: i < verifiedFehler ? 'failed' : 'succeeded', enabled: 'Y', duration: 'GTC',
+        // ohnePruefung: verified fehlt ganz - so sieht ein Listing aus, das nach der
+        // Anlage nie durch "Market-Listings pruefen" gelaufen ist.
+        verified: i < verifiedFehler ? 'failed'
+          : i < verifiedFehler + ohnePruefung ? undefined : 'succeeded',
+        enabled: 'Y', duration: 'GTC',
       })
     }
   })
@@ -156,6 +160,15 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(ber.zahlen.geprueft_fehler === 2, 'verified=failed wird gezaehlt (AK3)')
   pruefe(ber.probleme.length === 2, 'fehlgeschlagene Listings mit MLID benannt (AK3/AK7)')
   pruefe(ber.ok === false, 'Bericht nicht gruen, solange Pruefungen offen sind')
+
+  console.log('\n=== Listing, das nie geprueft wurde ===')
+  const ungeprueft = baueStand({ mitListings: true, ohnePruefung: 5 })
+  const b5 = JSON.parse((await lauf(ungeprueft, 'bericht')).koerper)
+  pruefe(b5.zahlen.nicht_geprueft === 5, `5 ungepruefte Listings gezaehlt, erhalten ${b5.zahlen.nicht_geprueft}`)
+  pruefe(b5.zahlen.geprueft_fehler === 0, 'ungeprueft ist NICHT dasselbe wie fehlgeschlagen')
+  pruefe(b5.ok === false, 'Bericht ist ROT, solange Listings ungeprueft sind (vergessene Pruefung faellt auf)')
+  pruefe(b5.probleme.some((p) => /noch nicht geprueft/.test(String(p.grund))),
+    'jedes ungepruefte Listing wird mit MLID benannt')
 
   console.log('\n=== Buch ohne Autor ===')
   const ohne = baueStand({ mitListings: true, ohneAutor: [4] })
