@@ -141,7 +141,24 @@ Reiter Versandprofile** → dort **ID 1 = „Buecher DE"**, Standard-Profil = Y.
 Die PlentyONE-Versandprofile unter Einrichtung >> Auftraege >> Versand (6 =
 Standardpaket/DHL, 7 = Selbstabholer) sind ein **anderer Zahlenraum** und hier falsch.
 
-### 17. Offen geblieben: „An Artikelpreis binden"
+### 18. Lauf 49 — „An Artikelpreis binden" = `Y`, gelöst
+Dieser Import-Typ nimmt Ja/Nein durchgängig als **Buchstabe** (vgl. „Freigeschaltet" = `Y`
+und „Dauer" = `GTC` in Import 23). Lauf 49 lief sauber durch. Listing MLID 1 zeigt danach
+**Preis-ID 7**, **Festpreis 16,00 €** und **Versandprofil „Bücher DE"** — alles vom Import
+gesetzt, nicht mehr von der Vorlage.
+
+Ebenfalls in Lauf 49 aufgefallen: `zustand_id`, `mwst` und `sprache_code` waren **nie
+zugeordnet**. Was in Abschnitt 15 als „im Import-Lauf 46 bestätigt" stand, war ein
+Fehlschluss — die Werte kamen von der Vorlage. Korrigiert.
+
+### 19. Bericht-Lücke geschlossen (Commit `f9983dc`)
+Der 05:00-Bericht meldete `ok: true`, obwohl nur 6 von 11 Listings geprüft waren: die
+5 neuen hatten weder `succeeded` noch `failed`, sondern **gar keinen** Prüfstatus.
+Damit wäre ein vergessenes „Market-Listings prüfen" unbemerkt grün gewesen. Jetzt zählt
+der Bericht `nicht_geprueft` getrennt, nennt jedes betroffene Listing mit MLID und ist
+erst grün, wenn jedes Buch-Listing geprüft **und** bestanden ist.
+
+### 17. Zwischenstand (überholt durch 18): „An Artikelpreis binden"
 Weder `7` (die Verkaufspreis-ID) noch `1` werden akzeptiert, beide Male wortgleich
 `Use Item Price invalid. | ( UpdateListingMarket )`. Die Zuordnung ist deshalb in
 Import 22 **deaktiviert**; alle anderen laufen sauber.
@@ -245,12 +262,18 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 | Lager-ID | `2` (Amazon FBA-Lager BuchDepot24) | ✅ |
 | Verzeichnis / Dauer / Menge | Bücher (1) / GTC / 1 | ✅ setzt Import 23 |
 | Auftragsstatus | `3` (Warten auf Zahlung) | ✅ abgelesen |
-| eBay-Zustands-ID | `1` | ✅ **im Import-Lauf 46 bestätigt** — UI zeigt „Neu" |
-| Mehrwertsteuersatz | `7` | ✅ **bestätigt** — UI zeigt „Deutschland / 7 %" |
-| Sprache | `de` | ✅ **bestätigt** — UI zeigt „Deutsch" |
-| **An Artikelpreis binden** | `7` und `1` **beide abgewiesen** — naechster Kandidat `Y`, ungetestet | ❌ **einziger offener Wert** |
-| Versandprofil-ID | `1` — **eBay-Versandprofil, eigener Zahlenraum!** | ✅ Lauf 48 ohne Fehler importiert |
+| Versandprofil-ID | `1` — **eBay-Versandprofil, eigener Zahlenraum!** | ✅ Lauf 49: Listing zeigt „Bücher DE" |
+| An Artikelpreis binden | **`Y`** — nicht `7`, nicht `1` | ✅ Lauf 49: Listing zeigt Preis-ID 7 |
+| eBay-Zustands-ID | `1` | ❔ **noch nicht zugeordnet** — Wert im Listing stammt von der Vorlage |
+| Mehrwertsteuersatz | `7` | ❔ **noch nicht zugeordnet** — dito |
+| Sprache | `de` | ❔ **noch nicht zugeordnet** — dito |
 | UVP übertragen / Preisvorschlag / Anzahl Bilder | `0` / `0` / `1` | ❔ noch nicht zugeordnet |
+
+**Aktiv zugeordnet in Import 22 (Stand Lauf 49): acht Spalten** — `MLID`, `Name`,
+`Wert`, `kategorie_id`, `versandprofil_id`, `layout_id`, `lager_id`, `preisbindung`.
+**Nicht zugeordnet:** `zustand_id`, `mwst`, `sprache_code`, `uvp`, `preisvorschlag`,
+`bilder`. Deren Werte stehen in den Listings nur, weil die **Vorlage** sie gesetzt hat —
+sie sind also weiterhin unbestätigt.
 
 ### Import-Lauf 45 und 46 (04.09.2026, entscheidendes Testergebnis)
 - **Lauf 45** mit `preisbindung = 7`: **0 importiert, 11 Fehler**, wörtlich:
@@ -340,7 +363,29 @@ enthalten Klartext-Passwörter).
 
 ## Offene TODOs (priorisiert)
 
-- [ ] **1. Den Wert fuer „An Artikelpreis binden" finden — HIER WEITERMACHEN**
+- [ ] **1. Die sechs fehlenden Zuordnungen ergänzen — HIER WEITERMACHEN**
+
+  In Import 22 (Daten » Import » „eBay-Merkmale Bücher" » Zuordnung) fehlen noch:
+
+  | Quellspalte | Zielfeld | Eigenschaft rechts | Wert in der CSV |
+  |---|---|---|---|
+  | `zustand_id` | Market-Listing-Eigenschaft » Wert | eBay-Zustands-ID | `1` |
+  | `mwst` | Market-Listing-Eigenschaft » Wert | Mehrwertsteuersatz | `7` |
+  | `sprache_code` | Market-Listing-Eigenschaft » Wert | Sprache | `de` |
+  | `uvp` | Market-Listing-Eigenschaft » Wert | eBay UVP übertragen | `0` |
+  | `preisvorschlag` | Market-Listing-Eigenschaft » Wert | eBay-Preisvorschlag | `0` |
+  | `bilder` | Market-Listing-Eigenschaft » Wert | Anzahl der Bilder | `1` |
+
+  **In zwei Wellen**, sonst weiß man bei einem Fehler nicht, welcher Wert schuld ist:
+  erst die oberen drei, Import starten, MLID 1 prüfen; dann die unteren drei.
+  Bei `Use ... invalid`-Fehlern gilt die Erfahrung aus Lauf 45/47/49: dieser Import-Typ
+  will Ja/Nein als **`Y`/`N`**, nicht als `0`/`1`. Also bei `uvp` und `preisvorschlag`
+  zuerst `N` probieren (Wert im Generator ändern, Live-Workflow nachziehen).
+  Ein fehlerhafter Lauf schreibt **nichts** — er ist ungefährlich.
+
+- [ ] ~~Den Wert für „An Artikelpreis binden" finden~~ *(erledigt: `Y`, Lauf 49)*
+
+  <!-- alter Eintrag, zur Nachvollziehbarkeit behalten: -->
 
   **Das ist der einzige noch fehlende Wert.** Alles andere laeuft.
 
