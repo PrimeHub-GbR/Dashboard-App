@@ -209,11 +209,27 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 | Lager-ID | `2` (Amazon FBA-Lager BuchDepot24) | ✅ |
 | Verzeichnis / Dauer / Menge | Bücher (1) / GTC / 1 | ✅ setzt Import 23 |
 | Auftragsstatus | `3` (Warten auf Zahlung) | ✅ abgelesen |
-| **eBay-Zustands-ID** | `1` eingetragen — **geraten**, UI zeigt nur „Neu" | ❌ unbestätigt |
-| **Mehrwertsteuersatz** | `7` eingetragen; UI zeigt „Deutschland / 7 %"; REST kennt für DE `vatRates` id 0 = 19 %, **id 1 = 7 %** → Format offen | ❌ unbestätigt |
-| **Sprache** | `de` eingetragen; UI zeigt „Deutsch" | ❌ unbestätigt |
-| UVP übertragen / Preisvorschlag / Galerie | Nein / aus / Keine → `0`,`0` | ❌ Format unbestätigt |
-| Anzahl der Bilder | `1` | ❌ Format unbestätigt |
+| eBay-Zustands-ID | `1` | ✅ **im Import-Lauf 46 bestätigt** — UI zeigt „Neu" |
+| Mehrwertsteuersatz | `7` | ✅ **bestätigt** — UI zeigt „Deutschland / 7 %" |
+| Sprache | `de` | ✅ **bestätigt** — UI zeigt „Deutsch" |
+| **An Artikelpreis binden** | `1` (Ja/Nein!) | ⚠️ korrigiert, **noch nicht getestet** |
+| **Versandprofil-ID** | `6` ist **FALSCH** | ❌ richtige ID unbekannt |
+| UVP übertragen / Preisvorschlag / Anzahl Bilder | `0` / `0` / `1` | ❔ noch nicht zugeordnet |
+
+### Import-Lauf 45 und 46 (04.09.2026, entscheidendes Testergebnis)
+- **Lauf 45** mit `preisbindung = 7`: **0 importiert, 11 Fehler**, wörtlich:
+  `Use Item Price invalid. | ( UpdateListingMarket )`
+  → „An Artikelpreis binden" ist ein **Ja/Nein-Feld**, nicht die Verkaufspreis-ID.
+  Korrigiert auf `1` (neuer Konfigurationsschlüssel `preisbindungWert`).
+  **`cfg.bpbPreisId` (=7) bleibt dem Preis-Guard vorbehalten, nicht wiederverwenden.**
+- **Lauf 46** ohne dieses Mapping: **11 importiert, 0 Fehler.** Kategorie, Layout,
+  Zustand, Sprache, Lager und MwSt standen danach korrekt im Listing, die Merkmale
+  (Autor/Buchtitel/Sprache) ebenfalls.
+- **Schaden:** `versandprofil_id = 6` hat alle 11 Listings auf
+  „**Ungültige Auswahl (6)**" gesetzt. Vorher stand dort „Bücher DE".
+  → Reparatur: Vorlage „Bücher (1)" erneut auf alle 11 anwenden.
+  Die `6` stammt aus `/rest/orders/shipping/presets` (Plenty-Versandprofil), das
+  eBay-Market-Listing erwartet aber offenbar eine **andere ID** (eBay-Versandrichtlinie).
 
 Weitere REST-Fakten: Versandprofile gibt es nur **zwei** (id 6 „Standardpaket",
 id 7 „Selbstabholer"). Lager: id 1 „Sales", id 2 „Amazon FBA-Lager BuchDepot24"
@@ -285,7 +301,32 @@ enthalten Klartext-Passwörter).
 
 ## Offene TODOs (priorisiert)
 
-- [ ] **1. Die fünf sicheren Zuordnungen in Import 22 anlegen — HIER WEITERMACHEN**
+- [ ] **1. Versandprofil reparieren und die richtige ID finden — HIER WEITERMACHEN**
+
+  **Stand:** Die Zuordnungen sind angelegt und funktionieren — bis auf zwei.
+  `versandprofil_id = 6` hat alle 11 Listings auf „Ungültige Auswahl (6)" gesetzt.
+
+  1. PlentyONE → eBay » Listings » Stapelverarbeitung → Vorlage **„Bücher (1)"** auf
+     alle 11 Listings anwenden. Damit steht das Versandprofil wieder auf „Bücher DE".
+  2. In Import 22 die Zuordnung **`versandprofil_id` deaktiviert lassen**,
+     die Zuordnung **`preisbindung` wieder aktivieren** (die CSV liefert jetzt `1`
+     statt `7` — live geprüft am 04.09.2026).
+  3. Import starten → es müssen **11 importiert, 0 Fehler** herauskommen.
+  4. Listing MLID 1 prüfen: Versandprofil „Bücher DE", Preis-ID 7, Kategorie 261186.
+  5. **Richtige Versandprofil-ID besorgen:** Auf der Listing-Seite F12 → Konsole:
+     ```js
+     [...document.querySelectorAll('option')]
+       .filter(o => /B(ü|ue)cher DE/i.test(o.text))
+       .map(o => o.value + ' = ' + o.text)
+     ```
+     Den Wert dann in `scripts/gen_ebay_workflow.py` bei `versandprofilId` eintragen,
+     neu generieren, den Live-Workflow `HYDRm1e5J5nIvJce` per `patchNodeField` am
+     Knoten „Daten holen" nachziehen und die Zuordnung wieder aktivieren.
+
+- [ ] **1b. Rest-Zuordnungen ergänzen:** `uvp`, `preisvorschlag`, `bilder`
+  (Werte `0`, `0`, `1`) — Format noch unbestätigt, einzeln testen.
+
+- [ ] ~~**Die fünf sicheren Zuordnungen in Import 22 anlegen**~~ *(erledigt, Lauf 46)*
 
   **Wo:** PlentyONE → Daten » Import → **„eBay-Merkmale Bücher"** → Reiter **Zuordnung**
   → je Zeile über **„ZUORDNUNG HINZUFÜGEN"**.
