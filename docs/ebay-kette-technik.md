@@ -837,6 +837,22 @@ curl "https://dashboard.primehubgbr.com/api/plentyone/export/ebay-merkmale.csv?t
 Zuordnung erst die Datei einmal abrufen lassen, damit PlentyONE die
 Spaltennamen kennt.
 
+**7b · Voraussetzungen an jede Variante** — ohne diese drei Punkte kommt kein
+Listing zustande. Der Artikelimport liefert sie **nicht** mit; bis das behoben ist,
+nach jedem Artikelimport per Varianten-Gruppenfunktion nachziehen:
+
+| Voraussetzung | Wo | Fehlt sie, kommt |
+|---|---|---|
+| Verkaufskanal **2.00 Ebay** | Variante » Verkaufskanäle | „Es wurden keine Varianten für den Export freigeschaltet.(eBay)“ bei Import 23 |
+| Verkaufskanal **2.08 eBay Germany** | dito | dito |
+| **Variante aktiv** | Variante » Allgemein » Verfügbarkeit und Sichtbarkeit | derselbe Text — aber erst bei *Market-Listings prüfen*, nicht beim Import |
+
+> Die Artikel-CSV setzt `aktiv = 0` und nur `marktplatz_id = 4.01` (Amazon). Die
+> beiden eBay-Kanäle und das Aktiv-Flag fehlen deshalb bei jedem frisch
+> importierten Buch. Tückisch ist, dass **dieselbe Meldung** an zwei verschiedenen
+> Stellen auftaucht: fehlt der Kanal, scheitert Import 23; fehlt nur das
+> Aktiv-Flag, läuft der Import sauber durch und erst die Prüfung meckert.
+
 **8 · Erster Durchlauf** — Import 23, dann Import 22, dann Market-Listings
 prüfen, dann Bericht im Dashboard lesen.
 
@@ -1010,6 +1026,7 @@ Ohne diese Erlaubnis gilt: Anleitung schreiben, nicht selbst schreiben.
 
 | Punkt | Stand |
 |---|---|
+| **Artikelimport: `aktiv = 1` und die zwei eBay-Kanäle** | höchste Priorität — solange sie fehlen, bleibt nach jedem Import Handarbeit (Gruppenfunktion). Erst prüfen, ob die Zuordnung feste Werte erlaubt; sonst Spalten in der Migrations-CSV |
 | **Vollimport ~2.000 Bücher** | bisher nur 11 Listings gebaut und geprüft |
 | **Lager-ID 2** | zeigt laut API auf „Amazon FBA-Lager BuchDepot24"; prüfen, ob das für eBay-Versand richtig ist oder Lager 1 („Sales") gehört |
 | **Cover-Pfad** | Bildzuordnung für eBay noch nicht durchgängig belegt |
