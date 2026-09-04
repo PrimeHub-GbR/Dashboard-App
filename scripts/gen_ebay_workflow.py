@@ -222,7 +222,7 @@ for (const it of items) {
 const ZUSATZ = [
   ['kategorie_id',     cfg.kategorieId     || '261186'], // Kategorie-ID 1
   ['versandprofil_id', cfg.versandprofilId || '1'],      // eBay-Versandprofil "Buecher DE" (eigener Zahlenraum!)
-  ['zustand_id',       cfg.zustandId       || '1'],      // eBay-Zustands-ID ("Neu")
+  ['zustand_id',       cfg.zustandId       || '1000'],   // eBay-Zustands-ID: 1000 = Neu (eBay-Standardcode)
   ['layout_id',        cfg.layoutId        || '1'],      // Layout-Vorlagen-ID ("Buecher")
   ['lager_id',         cfg.lagerId         || '2'],      // Lager-ID (FBA)
   ['mwst',             cfg.mwst            || '7'],      // Mehrwertsteuersatz
@@ -365,7 +365,8 @@ KONFIG = {
         # --- Werte, die bisher die Stapel-Vorlage "Buecher (1)" gesetzt hat.
         # Am 04.09.2026 vom fertigen Listing MLID 1 (Dirty Diana) abgelesen.
         # Sicher: Kategorie, Versandprofil, Layout, Lager, Preisbindung.
-        # Noch zu bestaetigen: zustandId, mwst, spracheCode (siehe Spec, offene Punkte).
+        # Bestaetigt: mwst=7 und spracheCode=de (Lauf 50). zustandId: 1 war ungueltig,
+        # eBay-Standardcode fuer "Neu" ist 1000.
         {"id": "b01", "name": "kategorieId", "value": "261186", "type": "string"},
         # ACHTUNG: eBay-Versandprofile haben einen EIGENEN Zahlenraum, nicht den der
         # PlentyONE-Versandprofile (dort: 6 Standardpaket, 7 Selbstabholer).
@@ -373,7 +374,7 @@ KONFIG = {
         # Konto primehub_gbr >> Versandprofile. Die 6 quittierte die Oberflaeche
         # mit "Ungueltige Auswahl (6)".
         {"id": "b02", "name": "versandprofilId", "value": "1", "type": "string"},
-        {"id": "b03", "name": "zustandId", "value": "1", "type": "string"},
+        {"id": "b03", "name": "zustandId", "value": "1000", "type": "string"},
         {"id": "b04", "name": "layoutId", "value": "1", "type": "string"},
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
         {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
