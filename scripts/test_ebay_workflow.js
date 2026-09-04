@@ -21,7 +21,7 @@ for (const a of WF.nodes.find((n) => n.name === 'Konfiguration').parameters.assi
 }
 // Im Live-Workflow steht uvpPreisId leer, bis die richtige Verkaufspreis-ID
 // feststeht. Der Test faehrt den eingeschalteten Zustand.
-CFG.uvpPreisId = '2'
+CFG.ersatzPreisId = '8'
 
 // variantennummer = Amazon seller-sku, autor = aus dem Amazon-Titel geloester Autor
 const BUECHER = [
@@ -61,7 +61,7 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
     preise.push({
       id: varId, itemId,
       variationSalesPrices: ohnePreis.includes(i) ? []
-        : nurUvp.includes(i) ? [{ salesPriceId: 2, price: 15.99 }]
+        : nurUvp.includes(i) ? [{ salesPriceId: 8, price: 15.99 }]
         : [{ salesPriceId: 7, price: 19.9 }],
     })
     if (mitListings) {
@@ -146,7 +146,7 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const b = r2.inhalt.split('\n')
   const kopf = b[0].split('\t')
   pruefe(kopf.slice(0, 3).join('\t') === 'MLID\tName\tWert', 'Kopfzeile beginnt mit MLID/Name/Wert')
-  pruefe(kopf.length === 17, `17 Spalten: 3 Merkmale + 12 Konfigurationswerte + eBay-Titel + Festpreis, erhalten ${kopf.length}`)
+  pruefe(kopf.length === 16, `16 Spalten: 3 Merkmale + 12 Konfigurationswerte + eBay-Titel, erhalten ${kopf.length}`)
   pruefe(b.slice(1).every((z) => z.split('\t').length === kopf.length), 'jede Zeile hat gleich viele Spalten')
   const spalte = (name) => kopf.indexOf(name)
   const erste = b[1].split('\t')
@@ -225,22 +225,28 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(deutsch[2].split(',')[2] === 'Deutsch' && deutsch[spalte('sprache_code')] === 'de',
          'ein 978-3-Buch bleibt Deutsch/de')
 
-  console.log('\n=== Kein gebundener Ladenpreis: UVP greift ===')
-  const uvpStand = baueStand({ mitListings: true, nurUvp: [0, 1] })
-  const rUvp = await lauf(uvpStand, 'merkmale')
-  const bUvp = rUvp.inhalt.split('\n')
-  const kUvp = bUvp[0].split('\t')
-  const sp = (n) => kUvp.indexOf(n)
-  const z0 = bUvp[1].split('\t')
-  pruefe(z0[sp('preisbindung')] === 'N', `ohne Preisbindung wird nicht an den Artikelpreis gebunden, erhalten ${z0[sp('preisbindung')]}`)
-  pruefe(z0[sp('festpreis')] === '15.99', `stattdessen steht der UVP als Festpreis, erhalten ${z0[sp('festpreis')]}`)
-  pruefe(rUvp.zahlen.mit_uvp_preis === 2, `mit_uvp_preis zaehlt 2, erhalten ${rUvp.zahlen.mit_uvp_preis}`)
-  const z2 = bUvp[3].split('\t')
-  pruefe(z2[sp('preisbindung')] === 'Y' && z2[sp('festpreis')] === '',
-         'gebundene Buecher bleiben an den Artikelpreis gebunden, ohne eigenen Festpreis')
-  const aUvp = (await lauf(baueStand({ mitListings: false, nurUvp: [0, 1] }), 'listings')).inhalt.split('\n')
-  pruefe(aUvp.length - 1 === BUECHER.length,
-         `Buecher mit UVP werden nicht mehr zurueckgehalten, erhalten ${aUvp.length - 1} von ${BUECHER.length}`)
+  console.log('\n=== Kein gebundener Ladenpreis: Verkaufspreis 8 traegt ===')
+  // PlentyONE waehlt selbst zwischen Preis 7 (Position 2) und 8 (Position 3).
+  // Die Kette muss nur wissen, ob ueberhaupt einer da ist - gebunden wird immer.
+  const ersatzStand = baueStand({ mitListings: true, nurUvp: [0, 1] })
+  const rErs = await lauf(ersatzStand, 'merkmale')
+  const bErs = rErs.inhalt.split('\n')
+  const kErs = bErs[0].split('\t')
+  const sp = (n) => kErs.indexOf(n)
+  pruefe(!kErs.includes('festpreis'), 'die festpreis-Spalte ist raus')
+  pruefe(bErs.slice(1).every((z) => z.split('\t')[sp('preisbindung')] === 'Y'),
+         'jede Zeile bindet an den Artikelpreis - PlentyONE waehlt den richtigen')
+  pruefe(rErs.zahlen.mit_ersatzpreis === 2,
+         `mit_ersatzpreis zaehlt 2, erhalten ${rErs.zahlen.mit_ersatzpreis}`)
+  const aErs = (await lauf(baueStand({ mitListings: false, nurUvp: [0, 1] }), 'listings')).inhalt.split('\n')
+  pruefe(aErs.length - 1 === BUECHER.length,
+         `Buecher mit Verkaufspreis 8 werden nicht zurueckgehalten, erhalten ${aErs.length - 1} von ${BUECHER.length}`)
+  // Der Klartext nennt nur die Zahl - die Begruendung je Buch steht im Koerper,
+  // den das Dashboard anzeigt.
+  const bericht = await lauf(baueStand({ mitListings: false, ohnePreis: [0] }), 'bericht')
+  const ohneAlles = JSON.parse(bericht.koerper).uebersprungen.map((u) => u.grund || '').join(' | ')
+  pruefe(/weder Verkaufspreis 7 \(Buchpreisbindung\) noch 8 \(eBay-Preis\)/.test(ohneAlles),
+         'ohne beide Preise nennt der Bericht beide IDs')
 
   console.log('\n=== Listing ohne Market-Listing (Import 23 auf halbem Weg) ===')
   const halb = baueStand({ mitListings: true, ohneMarketListing: 3 })

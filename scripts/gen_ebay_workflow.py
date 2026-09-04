@@ -122,7 +122,7 @@ for (const rel of relations) {
 //    stattdessen sagt der Bericht, dass die Pruefung nicht moeglich war.
 let preisPruefung = 'ok';
 const preisByVar = {};   // gebundener Ladenpreis (Verkaufspreis 7)
-const uvpByVar = {};     // Rueckfall fuer Titel ohne Preisbindung
+const ersatzByVar = {};  // Verkaufspreis 8 'eBay-Preis' fuer freie Titel
 const allePreiseByVar = {};  // nur fuer den Bericht: was liegt ueberhaupt an?
 try {
   const mitPreis = await pageAll('/rest/items/variations?with=variationSalesPrices');
@@ -139,27 +139,31 @@ try {
       gefunden++;
     }
     // Nicht jedes Buch ist preisgebunden: Importtitel und Baende, deren Bindung
-    // aufgehoben wurde, haben keinen Verkaufspreis 7. Fuer sie darf der Preis frei
-    // gesetzt werden - dafuer dient cfg.uvpPreisId. Bleibt sie leer, aendert sich
-    // nichts am bisherigen Verhalten und die Buecher werden zurueckgehalten.
-    if (cfg.uvpPreisId) {
-      const uvp = liste.find(p => Number(p.salesPriceId) === Number(cfg.uvpPreisId));
-      if (uvp && Number(uvp.price) > 0) uvpByVar[v.id] = Number(uvp.price);
+    // aufgehoben wurde, haben keinen Verkaufspreis 7. Fuer sie gibt es in
+    // PlentyONE den Verkaufspreis 8 'eBay-Preis' (Position 3, nur eBay-Konten).
+    // PlentyONE waehlt selbst: Preis 7 wenn vorhanden (Position 2), sonst 8.
+    // Deshalb bleibt 'An Artikelpreis binden' immer Y - die Kette muss nur
+    // wissen, ob ueberhaupt ein Preis da ist.
+    if (cfg.ersatzPreisId) {
+      const ers = liste.find(p => Number(p.salesPriceId) === Number(cfg.ersatzPreisId));
+      if (ers && Number(ers.price) > 0) ersatzByVar[v.id] = Number(ers.price);
     }
   }
   if (!gefunden) preisPruefung = 'keine_preise_gefunden';
 } catch (e) {
   preisPruefung = 'nicht_moeglich';
 }
-// gebunden -> Listing bindet an den Artikelpreis (preisbindung Y)
-// uvp      -> Listing bekommt einen eigenen Festpreis (preisbindung N)
-// keiner   -> Buch wird zurueckgehalten und im Bericht genannt
-const preisArt = (variationId) => {
-  if (preisPruefung !== 'ok') return 'gebunden';    // nicht pruefbar -> nicht blockieren, aber melden
-  if (Number(preisByVar[variationId] || 0) > 0) return 'gebunden';
-  if (Number(uvpByVar[variationId] || 0) > 0) return 'uvp';
-  return 'keiner';
+// Ohne Preis entsteht kein Listing: PlentyONE meldet dann 'Es wurden keine
+// Varianten fuer den Export freigeschaltet.(eBay)' - dieselbe Meldung wie bei
+// fehlendem Verkaufskanal und bei inaktiver Variante (04.09.2026, Laeufe 66-70).
+const preisOk = (variationId) => {
+  if (preisPruefung !== 'ok') return true;          // nicht pruefbar -> nicht blockieren, aber melden
+  return Number(preisByVar[variationId] || 0) > 0
+      || Number(ersatzByVar[variationId] || 0) > 0;
 };
+// nur fuer den Bericht: laeuft das Buch ueber den freien eBay-Preis?
+const ueberErsatzpreis = (variationId) =>
+  Number(preisByVar[variationId] || 0) <= 0 && Number(ersatzByVar[variationId] || 0) > 0;
 
 // 6) Barcodes - fuer die Sprache. Die ISBN-Gruppe hinter dem 978er-Praefix nennt
 //    den Sprachraum. Das ist die einzige verlaessliche Quelle: Titel ohne
@@ -337,12 +341,12 @@ for (const it of items) {
   if (!istBuch(it.id)) continue;
   if (itemsMitMarketListing.has(it.id)) continue;
   const v = varByItem[it.id];
-  if (preisArt(v.variationId) === 'keiner') {
-    // Weder gebundener Ladenpreis noch UVP: ohne Preis entsteht kein Listing.
+  if (!preisOk(v.variationId)) {
+    // Weder gebundener Ladenpreis noch freier eBay-Preis - ohne Preis kein Listing.
     const vorhanden = allePreiseByVar[v.variationId] || [];
     ohnePreis.push({ item_id: it.id, titel: String(titelByItem[it.id] || '').slice(0, 90),
-                     grund: 'kein Verkaufspreis ' + cfg.bpbPreisId
-                            + (cfg.uvpPreisId ? ' und kein UVP (Verkaufspreis ' + cfg.uvpPreisId + ')' : ' und keine UVP-Preis-ID konfiguriert')
+                     grund: 'weder Verkaufspreis ' + cfg.bpbPreisId + ' (Buchpreisbindung) noch '
+                            + cfg.ersatzPreisId + ' (eBay-Preis)'
                             + ' | vorhandene Verkaufspreise: ' + (vorhanden.join(', ') || 'keine') });
     continue;
   }
@@ -382,19 +386,19 @@ const ZUSATZ = [
   // Dieser Import-Typ nimmt Ja/Nein durchgaengig als Buchstabe - vgl. "Freigeschaltet"
   // (Y) und "Dauer" (GTC) in Import 23.
   // cfg.bpbPreisId (7) bleibt dem Preis-Guard vorbehalten - nicht wiederverwenden.
-  ['preisbindung',     cfg.preisbindungWert || 'Y'],   // je Zeile: Y gebunden, N mit UVP
+  ['preisbindung',     cfg.preisbindungWert || 'Y'],
 ];
 
-// Die meisten Zusatzspalten sind fuer alle Zeilen gleich. Sprache und
-// Preisbindung haengen am einzelnen Buch - sie werden hier ueberschrieben.
+// Die Zusatzspalten sind fuer alle Zeilen gleich - bis auf die Sprache, die am
+// einzelnen Buch haengt und hier ueberschrieben wird.
 const zusatzWerte = (o) => ZUSATZ.map(([name, wert]) => (name in o ? o[name] : wert));
 
 const bRows = [['MLID', 'Name', 'Wert'].concat(ZUSATZ.map(z => z[0]))
-  .concat(['titel_ebay', 'festpreis']).join('\t')];
+  .concat(['titel_ebay']).join('\t')];
 const uebersprungen = [];
 const probleme = [];
 let bCount = 0;
-let mitUvp = 0;
+let mitErsatzpreis = 0;
 let geprueftOk = 0;
 let geprueftFehler = 0;
 let nichtGeprueft = 0;
@@ -430,13 +434,11 @@ for (const ml of marketListings) {
   }
 
   const [spracheName, spracheCode] = spracheZu(ml.variationId);
-  const art = preisArt(ml.variationId);
-  if (art === 'uvp') mitUvp++;
+  if (ueberErsatzpreis(ml.variationId)) mitErsatzpreis++;
 
   bRows.push([ml.id, 'Autor,Buchtitel,Sprache', autor + ',' + titel + ',' + spracheName]
-    .concat(zusatzWerte({ sprache_code: spracheCode, preisbindung: art === 'uvp' ? 'N' : 'Y' }))
-    .concat([ebayTitel(titelRoh),
-             art === 'uvp' ? String(uvpByVar[ml.variationId].toFixed(2)) : ''])
+    .concat(zusatzWerte({ sprache_code: spracheCode }))
+    .concat([ebayTitel(titelRoh)])
     .join('\t'));
   bCount++;
 }
@@ -451,7 +453,7 @@ const zahlen = {
   nicht_geprueft: nichtGeprueft,
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
-  mit_uvp_preis: mitUvp,
+  mit_ersatzpreis: mitErsatzpreis,
   verwaiste_listings: verwaiste.length,
 };
 
@@ -470,7 +472,7 @@ const text = [
     + ', fehlgeschlagen ' + geprueftFehler + ', noch nicht geprueft ' + nichtGeprueft + ')',
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
-  'Mit UVP statt gebundenem Ladenpreis: ' + zahlen.mit_uvp_preis,
+  'Ueber den freien eBay-Preis statt der Buchpreisbindung: ' + zahlen.mit_ersatzpreis,
   verwaiste.length ? '' : null,
   verwaiste.length ? 'ACHTUNG: ' + verwaiste.length + ' Listing(s) ohne Market-Listing - Import 23 ist auf halbem Weg stehengeblieben:' : null,
   ...verwaiste.slice(0, 100).map(v => '  Artikel ' + v.item_id + ': ' + v.titel),
@@ -543,7 +545,7 @@ KONFIG = {
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
         {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
         {"id": "b12", "name": "mwstLand", "value": "1", "type": "string"},
-        {"id": "a10b", "name": "uvpPreisId", "value": "1", "type": "string"},
+        {"id": "a10b", "name": "ersatzPreisId", "value": "8", "type": "string"},
         {"id": "b07", "name": "spracheCode", "value": "de", "type": "string"},
         {"id": "b08", "name": "uvpUebertragen", "value": "N", "type": "string"},
         {"id": "b09", "name": "preisvorschlag", "value": "N", "type": "string"},
