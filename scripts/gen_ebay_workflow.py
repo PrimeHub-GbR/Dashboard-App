@@ -214,7 +214,25 @@ for (const it of items) {
 
 // --- CSV B: Merkmale je Market-Listing (Import 22) ---------------------------
 // Eine Zeile pro MLID - jede Zeile ersetzt den KOMPLETTEN Merkmalsatz des Listings.
-const bRows = ['MLID\tName\tWert'];
+// Zusatzspalten: das, was bisher die Stapel-Vorlage gesetzt hat. Jede Spalte wird in
+// Import 22 auf "Market-Listing-Eigenschaft >> Wert" (bzw. Listing-Eigenschaft)
+// gemappt, rechts daneben die passende Eigenschaft. Die Werte sind fuer alle Zeilen
+// gleich und stehen im Knoten "Konfiguration" - siehe Screenshot des fertigen
+// Listings MLID 1 (Dirty Diana), von dem sie abgelesen sind.
+const ZUSATZ = [
+  ['kategorie_id',     cfg.kategorieId     || '261186'], // Kategorie-ID 1
+  ['versandprofil_id', cfg.versandprofilId || '6'],      // Versandprofil-ID (Frontend "Buecher DE")
+  ['zustand_id',       cfg.zustandId       || '1'],      // eBay-Zustands-ID ("Neu")
+  ['layout_id',        cfg.layoutId        || '1'],      // Layout-Vorlagen-ID ("Buecher")
+  ['lager_id',         cfg.lagerId         || '2'],      // Lager-ID (FBA)
+  ['mwst',             cfg.mwst            || '7'],      // Mehrwertsteuersatz
+  ['sprache_code',     cfg.spracheCode     || 'de'],     // Sprache
+  ['uvp',              cfg.uvpUebertragen  || '0'],      // eBay UVP uebertragen
+  ['preisvorschlag',   cfg.preisvorschlag  || '0'],      // eBay-Preisvorschlag
+  ['bilder',           cfg.anzahlBilder    || '1'],      // Anzahl der Bilder
+  ['preisbindung',     cfg.bpbPreisId      || '7'],      // An Artikelpreis binden
+];
+const bRows = [['MLID', 'Name', 'Wert'].concat(ZUSATZ.map(z => z[0])).join('\t')];
 const uebersprungen = [];
 const probleme = [];
 let bCount = 0;
@@ -242,7 +260,8 @@ for (const ml of marketListings) {
                          grund: [!autor ? 'kein Autor' : null, !titel ? 'kein Titel' : null].filter(Boolean).join(', ') });
     continue;
   }
-  bRows.push([ml.id, 'Autor,Buchtitel,Sprache', autor + ',' + titel + ',' + cfg.sprache].join('\t'));
+  bRows.push([ml.id, 'Autor,Buchtitel,Sprache', autor + ',' + titel + ',' + cfg.sprache]
+    .concat(ZUSATZ.map(z => z[1])).join('\t'));
   bCount++;
 }
 
@@ -320,6 +339,20 @@ KONFIG = {
         {"id": "a16", "name": "directoryId", "value": "1", "type": "string"},
         {"id": "a17", "name": "enabled", "value": "Y", "type": "string"},
         {"id": "a18", "name": "duration", "value": "GTC", "type": "string"},
+        # --- Werte, die bisher die Stapel-Vorlage "Buecher (1)" gesetzt hat.
+        # Am 04.09.2026 vom fertigen Listing MLID 1 (Dirty Diana) abgelesen.
+        # Sicher: Kategorie, Versandprofil, Layout, Lager, Preisbindung.
+        # Noch zu bestaetigen: zustandId, mwst, spracheCode (siehe Spec, offene Punkte).
+        {"id": "b01", "name": "kategorieId", "value": "261186", "type": "string"},
+        {"id": "b02", "name": "versandprofilId", "value": "6", "type": "string"},
+        {"id": "b03", "name": "zustandId", "value": "1", "type": "string"},
+        {"id": "b04", "name": "layoutId", "value": "1", "type": "string"},
+        {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
+        {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
+        {"id": "b07", "name": "spracheCode", "value": "de", "type": "string"},
+        {"id": "b08", "name": "uvpUebertragen", "value": "0", "type": "string"},
+        {"id": "b09", "name": "preisvorschlag", "value": "0", "type": "string"},
+        {"id": "b10", "name": "anzahlBilder", "value": "1", "type": "string"},
     ]},
     "includeOtherFields": True,
     "options": {},

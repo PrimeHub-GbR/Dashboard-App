@@ -120,13 +120,21 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   console.log('\n=== Import 22: Merkmale ===')
   const r2 = await lauf(voll, 'merkmale')
   const b = r2.inhalt.split('\n')
-  pruefe(b[0] === 'MLID\tName\tWert', 'Kopfzeile stimmt')
+  const kopf = b[0].split('\t')
+  pruefe(kopf.slice(0, 3).join('\t') === 'MLID\tName\tWert', 'Kopfzeile beginnt mit MLID/Name/Wert')
+  pruefe(kopf.length === 14, `14 Spalten: 3 Merkmale + 11 Konfigurationswerte, erhalten ${kopf.length}`)
+  pruefe(b.slice(1).every((z) => z.split('\t').length === kopf.length), 'jede Zeile hat gleich viele Spalten')
+  const spalte = (name) => kopf.indexOf(name)
+  const erste = b[1].split('\t')
+  pruefe(erste[spalte('kategorie_id')] === '261186', 'Kategorie 261186 steht in jeder Zeile')
+  pruefe(erste[spalte('preisbindung')] === '7', 'Preisbindung an Verkaufspreis 7 (AK4)')
+  pruefe(erste[spalte('lager_id')] === '2', 'Lager 2 (FBA)')
   const mlids = b.slice(1).map((z) => z.split('\t')[0])
   pruefe(new Set(mlids).size === mlids.length, 'genau eine Zeile je MLID (E7)')
   let lang = 0, spalten = 0, paare = 0
   for (const z of b.slice(1)) {
     const t = z.split('\t')
-    if (t.length !== 3) { spalten++; continue }
+    if (t.length !== kopf.length) { spalten++; continue }
     const namen = t[1].split(','), werte = t[2].split(',')
     if (namen.length !== werte.length) paare++
     for (const w of werte) if (w.length > 65) lang++
