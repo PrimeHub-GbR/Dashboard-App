@@ -846,6 +846,23 @@ nach jedem Artikelimport per Varianten-Gruppenfunktion nachziehen:
 | Verkaufskanal **2.00 Ebay** | Variante » Verkaufskanäle | „Es wurden keine Varianten für den Export freigeschaltet.(eBay)“ bei Import 23 |
 | Verkaufskanal **2.08 eBay Germany** | dito | dito |
 | **Variante aktiv** | Variante » Allgemein » Verfügbarkeit und Sichtbarkeit | derselbe Text — aber erst bei *Market-Listings prüfen*, nicht beim Import |
+| **Verkaufspreis 7 „Buchpreisbindung“** | Variante » Preise | wieder derselbe Text, wieder bei Import 23 — das eBay-Konto zieht seinen Preis aus ID 7 |
+
+### Die Verkaufspreise dieses PlentyONE
+
+| ID | Name | Inhalt |
+|---|---|---|
+| 1 | Preis | Amazon-Preis aus dem Bestandsbericht |
+| 2 | UVP | ungenutzt, steht auf 0 |
+| **7** | **Buchpreisbindung** | gebundener Ladenpreis aus dem VLB — **hieraus nimmt eBay den Preis** |
+| – | B2B-Preis | ungenutzt |
+
+> **Ein Satz, drei Ursachen.** „Es wurden keine Varianten für den Export
+> freigeschaltet.(eBay)“ bedeutete am 04.09.2026 nacheinander: fehlender
+> Verkaufskanal (Lauf 59, 37 Zeilen), inaktive Variante (bei der Prüfung, MLID 45),
+> und fehlender Verkaufspreis 7 (Läufe 66–69, 4 Zeilen). Bewiesen wurde das
+> letzte mit einem Einzeltest: Verkaufspreis 7 nur bei Artikel 205 gesetzt →
+> Lauf 70 meldete **1 importiert, 3 Fehler**.
 
 > Die Artikel-CSV setzt `aktiv = 0` und nur `marktplatz_id = 4.01` (Amazon). Die
 > beiden eBay-Kanäle und das Aktiv-Flag fehlen deshalb bei jedem frisch
