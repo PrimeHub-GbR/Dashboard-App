@@ -997,6 +997,7 @@ Damit die nächste Sitzung sie nicht noch einmal findet:
 | PlentyONE-Dropdowns | keine `<option>`-Elemente, nicht in `.cdk-overlay-container` | Werte vom Bildschirm ablesen |
 | `n8n_update_partial_workflow` | ein fehlender `find` lässt alles scheitern | vorher Live-Stand holen |
 | Konsolenausgabe unter Windows | `cp1252` zerstört Umlaute in `print` | in Datei schreiben, dann `cat` |
+| **Offener n8n-Tab beim MCP-Patch** | "Test Workflow" führt die im Browser geladene Fassung aus, nicht die gespeicherte — der Lauf rechnet mit altem Code, und ein Klick auf Save überschreibt den Patch | **Nach jedem MCP-Patch: n8n-Tab neu laden**, vor dem Testen im Code-Knoten stichprobenartig nachsehen |
 
 **Projektregel:** Claude liest n8n-Workflows normalerweise nur. Für dieses
 Projekt hat der Nutzer ausdrücklich Schreibrechte erteilt
