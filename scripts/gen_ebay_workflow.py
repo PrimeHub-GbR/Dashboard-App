@@ -178,6 +178,37 @@ const autorUmformen = (roh) => {
 
 const titelKuerzen = (roh) => aufMaxKuerzen(roh);
 
+// eBay-Angebotstitel: hartes Limit 80 Zeichen. Der Artikelname kommt aus Amazon und
+// traegt dort fast immer einen Marketing-Anhang hinter " | " oder " - "
+// ("Schmerz: Ein Fall fuer Dora und Rado | Der fesselnde Island-Krimi des Jahres ...",
+// 185 Zeichen). Ohne Kuerzung laesst PlentyONE das Listing gar nicht erst speichern:
+// "Titel enthaelt zu viele Zeichen." (MLID 12, 04.09.2026, -105 Zeichen).
+// Zuerst faellt der Anhang weg - das ergibt einen sauberen Titel statt eines
+// mitten im Satz abgeschnittenen. Erst wenn das nicht reicht, wird hart gekuerzt.
+// Kommas bleiben hier stehen: anders als bei den Merkmalen ist das eine eigene
+// Tab-Spalte, kein kommagetrennter Sammelwert.
+const EBAY_TITEL_MAX = 80;
+const ebayTitel = (roh) => {
+  let t = String(roh || '').replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+  if (t.length > EBAY_TITEL_MAX) {
+    const anhang = t.search(/\s[|\u2013\u2014]\s|\s-\s/);
+    if (anhang > 20) t = t.slice(0, anhang);
+  }
+  if (t.length > EBAY_TITEL_MAX) {
+    // Lieber am Satzende kappen als mitten im Satz: aus
+    // "Aufklaerung jetzt: Fuer Vernunft, Wissenschaft, Humanismus und Fortschritt. Eine"
+    // wird so ein abgeschlossener Titel statt eines haengenden "Eine".
+    const cut = t.slice(0, EBAY_TITEL_MAX + 1);
+    const satz = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '),
+                          cut.lastIndexOf('? '), cut.lastIndexOf('; '));
+    const wort = cut.lastIndexOf(' ');
+    t = satz >= 55 ? cut.slice(0, satz + 1) : cut.slice(0, wort > 40 ? wort : EBAY_TITEL_MAX);
+    // Ein gekappter Titel soll nicht auf einem Fuellwort enden ("... und", "... Eine").
+    t = t.replace(/\s+(und|oder|mit|f\u00fcr|von|der|die|das|dem|den|des|ein|eine|einen|im|am|in|zu|auf|aus|bei|als|wie)$/i, '');
+  }
+  return t.replace(/[\s|,;:\-\u2013\u2014\u00b7]+$/, '').trim();
+};
+
 // Buch-Artikel erkennen: Die Migration vergibt Variantennummern nach dem Schema
 // <PREFIX>-<nr>-<tt-mm-jjjj>. Der Prefix ist NICHT immer "APR-" - im Amazon-Bestand
 // kommen APR, MAR, PH, FE, BL, JA, SC, SM, MB und MAE vor. Ein reiner APR-Filter
@@ -225,6 +256,10 @@ const ZUSATZ = [
   ['zustand_id',       cfg.zustandId       || '1000'],   // eBay-Zustands-ID: 1000 = Neu (eBay-Standardcode)
   ['layout_id',        cfg.layoutId        || '1'],      // Layout-Vorlagen-ID ("Buecher")
   ['lager_id',         cfg.lagerId         || '2'],      // Lager-ID (FBA)
+  // Der Base-Reiter hat ZWEI Steuerfelder. Bei MLID 1 standen beide gefuellt, aber
+  // das kam von der Stapel-Vorlage. Die vorlagenfreien Listings (MLID 12-21,
+  // 04.09.2026) zeigen: mit 'mwst' allein bleiben Satz UND Land leer.
+  ['mwst_land',        cfg.mwstLand        || '1'],      // MwSt.-Land (1 = Deutschland)
   ['mwst',             cfg.mwst            || '7'],      // Mehrwertsteuersatz
   ['sprache_code',     cfg.spracheCode     || 'de'],     // Sprache
   // Ja/Nein durchgaengig als Buchstabe - siehe "An Artikelpreis binden" (Lauf 45/47/49):
@@ -241,7 +276,8 @@ const ZUSATZ = [
   // cfg.bpbPreisId (7) bleibt dem Preis-Guard vorbehalten - nicht wiederverwenden.
   ['preisbindung',     cfg.preisbindungWert || 'Y'],
 ];
-const bRows = [['MLID', 'Name', 'Wert'].concat(ZUSATZ.map(z => z[0])).join('\t')];
+const bRows = [['MLID', 'Name', 'Wert'].concat(ZUSATZ.map(z => z[0]))
+  .concat(['titel_ebay']).join('\t')];
 const uebersprungen = [];
 const probleme = [];
 let bCount = 0;
@@ -279,7 +315,8 @@ for (const ml of marketListings) {
     continue;
   }
   bRows.push([ml.id, 'Autor,Buchtitel,Sprache', autor + ',' + titel + ',' + cfg.sprache]
-    .concat(ZUSATZ.map(z => z[1])).join('\t'));
+    .concat(ZUSATZ.map(z => z[1]))
+    .concat([ebayTitel(titelRoh)]).join('\t'));
   bCount++;
 }
 
@@ -378,6 +415,7 @@ KONFIG = {
         {"id": "b04", "name": "layoutId", "value": "1", "type": "string"},
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
         {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
+        {"id": "b12", "name": "mwstLand", "value": "1", "type": "string"},
         {"id": "b07", "name": "spracheCode", "value": "de", "type": "string"},
         {"id": "b08", "name": "uvpUebertragen", "value": "N", "type": "string"},
         {"id": "b09", "name": "preisvorschlag", "value": "N", "type": "string"},

@@ -33,6 +33,7 @@ const BUECHER = [
   { nr: 'SM-0000032-13-08-2025', titel: 'Skogland 1: Jugendthriller ab 12 Jahren', autor: 'Boie, Kirsten' },
   { nr: 'MAE-5111-12-03-2026', titel: '111 Orte in Zeeland, die man gesehen haben muss', autor: 'Roos, Dr. Martin' },
   { nr: 'PH-4439-08-12-2025', titel: 'Myrrhe, Mord und Marzipan: 24 Weihnachtskrimis von Hohwacht bis St. Moritz', autor: 'Gramoschke, Miriam; Achilles; Winkelmann, Andreas; Verhoeven, Anne; Bernard, Carine; Franke, Christiane; Kuhnert, Cornelia; Dieckerhoff, Christiane; Bardilac, Eleanor; Völler, Eva; Schwiecker, Florian; Pauly, Gisa; Lorentz, Iny; Pust, Justine; Kästner & Kästner; Bohnet, Katja; Rubel, Kerstin; Hofmann, Marc; Heitz, Markus; Kölpin, Regine; Ammer, Simon; Rüther, Sonja; Weinert, Steffen; Turhan, Su; Kastura, Thomas and Eckardt, Tilo' },
+  { nr: 'MAR-0025-04-09-2026', titel: 'Schmerz: Ein Fall für Dora und Rado | Der fesselnde Island-Krimi des Jahres - spannendes Ermittler-Duo, dunkle Geheimnisse und ein Fall, der unter die Haut geht', autor: 'Jónasson, Ragnar' },
   { nr: 'APR-13375-11-06-2026', titel: 'Sonne, Glück und Blaubeerduft: Die schönsten Geschichten von Astrid Lindgren, Sven Nordqvist u.a.', autor: 'Kutsch, Angelika; Lindgren, Astrid; Engelking, Katrin; Peters, Karl Kurt; Wikland, Ilon; Dohrenburg, Thyra; Nordqvist, Sven; Wieslander, Jujja; Heinig, Cäcilie and Bergström, Gunilla' },
 ]
 
@@ -126,7 +127,7 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const b = r2.inhalt.split('\n')
   const kopf = b[0].split('\t')
   pruefe(kopf.slice(0, 3).join('\t') === 'MLID\tName\tWert', 'Kopfzeile beginnt mit MLID/Name/Wert')
-  pruefe(kopf.length === 14, `14 Spalten: 3 Merkmale + 11 Konfigurationswerte, erhalten ${kopf.length}`)
+  pruefe(kopf.length === 16, `16 Spalten: 3 Merkmale + 12 Konfigurationswerte + eBay-Titel, erhalten ${kopf.length}`)
   pruefe(b.slice(1).every((z) => z.split('\t').length === kopf.length), 'jede Zeile hat gleich viele Spalten')
   const spalte = (name) => kopf.indexOf(name)
   const erste = b[1].split('\t')
@@ -135,6 +136,18 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   // PlentyONE auf jede Zeile mit "Use Item Price invalid." (Import-Lauf 45).
   pruefe(erste[spalte('preisbindung')] === 'Y', 'An Artikelpreis binden = Y (7 und 1 wurden abgewiesen)')
   pruefe(erste[spalte('lager_id')] === '2', 'Lager 2 (FBA)')
+  pruefe(erste[spalte('mwst_land')] === '1' && erste[spalte('mwst')] === '7',
+         'Steuer vollstaendig: Land 1 (DE) + Satz 7 - der Satz allein bleibt leer')
+
+  // eBay laesst hoechstens 80 Zeichen im Angebotstitel zu. PlentyONE verweigert sonst
+  // schon das Speichern ("Titel enthaelt zu viele Zeichen", MLID 12).
+  const titel = b.slice(1).map(z => z.split('\t')[spalte('titel_ebay')])
+  pruefe(titel.every(t => t && t.length <= 80),
+         `jeder eBay-Titel <= 80 Zeichen, laengster ${Math.max(...titel.map(t => (t||'').length))}`)
+  pruefe(titel.every(t => !/[|\u2013\u2014]\s*$/.test(t) && !/\s$/.test(t)),
+         'kein Titel endet auf einem Trennzeichen')
+  const anhangWeg = b.slice(1).find(z => z.split('\t')[spalte('titel_ebay')] === 'Schmerz: Ein Fall für Dora und Rado')
+  pruefe(!!anhangWeg, 'Marketing-Anhang hinter " | " faellt weg statt mitten im Wort zu kappen')
   const mlids = b.slice(1).map((z) => z.split('\t')[0])
   pruefe(new Set(mlids).size === mlids.length, 'genau eine Zeile je MLID (E7)')
   let lang = 0, spalten = 0, paare = 0
