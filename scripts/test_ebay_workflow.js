@@ -129,7 +129,7 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(erste[spalte('kategorie_id')] === '261186', 'Kategorie 261186 steht in jeder Zeile')
   // "An Artikelpreis binden" ist Ja/Nein. Mit der Verkaufspreis-ID 7 antwortete
   // PlentyONE auf jede Zeile mit "Use Item Price invalid." (Import-Lauf 45).
-  pruefe(erste[spalte('preisbindung')] === '1', 'An Artikelpreis binden = Ja (nicht die Preis-ID!)')
+  pruefe(erste[spalte('preisbindung')] === 'Y', 'An Artikelpreis binden = Y (7 und 1 wurden abgewiesen)')
   pruefe(erste[spalte('lager_id')] === '2', 'Lager 2 (FBA)')
   const mlids = b.slice(1).map((z) => z.split('\t')[0])
   pruefe(new Set(mlids).size === mlids.length, 'genau eine Zeile je MLID (E7)')

@@ -230,11 +230,14 @@ const ZUSATZ = [
   ['uvp',              cfg.uvpUebertragen  || '0'],      // eBay UVP uebertragen
   ['preisvorschlag',   cfg.preisvorschlag  || '0'],      // eBay-Preisvorschlag
   ['bilder',           cfg.anzahlBilder    || '1'],      // Anzahl der Bilder
-  // "An Artikelpreis binden" ist ein JA/NEIN-Feld, NICHT die Verkaufspreis-ID.
-  // Mit '7' quittiert PlentyONE jede Zeile mit
-  //   "Use Item Price invalid. | ( UpdateListingMarket )"  (Import-Lauf 45, 11 Fehler).
+  // "An Artikelpreis binden": Wert bis heute NICHT gefunden.
+  //   '7' -> "Use Item Price invalid. | ( UpdateListingMarket )"  (Lauf 45, 11 Fehler)
+  //   '1' -> derselbe Fehler                                      (Lauf 47, 11 Fehler)
+  // Naechster Kandidat 'Y': Import 23 benutzt fuer "Freigeschaltet" ebenfalls Y/N,
+  // dieser Import-Typ erwartet Ja/Nein offenbar als Buchstabe. UNGETESTET.
+  // Solange unbestaetigt: die Zuordnung in Import 22 DEAKTIVIERT lassen.
   // cfg.bpbPreisId (7) bleibt dem Preis-Guard vorbehalten - nicht wiederverwenden.
-  ['preisbindung',     cfg.preisbindungWert || '1'],
+  ['preisbindung',     cfg.preisbindungWert || 'Y'],
 ];
 const bRows = [['MLID', 'Name', 'Wert'].concat(ZUSATZ.map(z => z[0])).join('\t')];
 const uebersprungen = [];
@@ -363,7 +366,7 @@ KONFIG = {
         {"id": "b09", "name": "preisvorschlag", "value": "0", "type": "string"},
         {"id": "b10", "name": "anzahlBilder", "value": "1", "type": "string"},
         # "An Artikelpreis binden" = Ja/Nein. Die Verkaufspreis-ID 7 steckt in bpbPreisId.
-        {"id": "b11", "name": "preisbindungWert", "value": "1", "type": "string"},
+        {"id": "b11", "name": "preisbindungWert", "value": "Y", "type": "string"},
     ]},
     "includeOtherFields": True,
     "options": {},

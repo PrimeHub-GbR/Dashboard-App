@@ -1,4 +1,4 @@
-# Session-Status (Stand: 04.09.2026, ca. 04:00 Uhr)
+# Session-Status (Stand: 04.09.2026, ca. 05:00 Uhr)
 
 ## Auftrag & Ziel
 
@@ -114,6 +114,43 @@ Generator, Regressionstest und der **laufende** n8n-Workflow sind angepasst.
 Live verifiziert. Der Import ignoriert die neuen Spalten, solange sie nicht
 zugeordnet sind — es ist nichts kaputtgegangen.
 
+### 15. Zuordnungen in Import 22 angelegt und getestet (04.09.2026)
+Der Nutzer hat die Zuordnungen `kategorie_id`, `versandprofil_id`, `zustand_id`,
+`layout_id`, `lager_id`, `mwst`, `sprache_code` und `preisbindung` angelegt
+(Zielfeld `Market-Listing-Eigenschaft >> Wert` bzw. bei `preisbindung`
+`Listing-Eigenschaft >> Wert · An Artikelpreis binden`).
+
+| Lauf | Konfiguration | Ergebnis |
+|---|---|---|
+| 45 | `preisbindung = 7` | **0 importiert, 11 Fehler**: `Use Item Price invalid. \| ( UpdateListingMarket )` |
+| 46 | `preisbindung`-Zuordnung deaktiviert | **11 importiert, 0 Fehler** |
+| 47 | `preisbindung = 1` | **11 Fehler, identische Meldung** |
+| 48 | `preisbindung`-Zuordnung wieder deaktiviert, `versandprofil_id = 1` aktiv | **11 importiert, Erfolg** |
+
+**Bestaetigt durch Sichtung an Listing MLID 1:** Kategorie 261186, Layout „Buecher",
+Zustand „Neu", Sprache „Deutsch", Lager „Amazon FBA-Lager BuchDepot24", MwSt 7 %,
+Merkmale (Autor/Buchtitel/Sprache) unveraendert vorhanden, Preis-ID weiterhin 7.
+
+### 16. Versandprofil — die 6 war der falsche Zahlenraum
+`versandprofil_id = 6` erzeugte in der Oberflaeche „**Ungueltige Auswahl (6)**" und
+ueberschrieb bei allen 11 Listings das vorher korrekte „Buecher DE". Reparatur durch
+erneutes Anwenden der Vorlage „Buecher (1)" — hat funktioniert, damit ist der
+Ruecknahmeweg praktisch erprobt.
+Die richtige Quelle: **Einrichtung >> Maerkte >> eBay >> Konto `primehub_gbr` >>
+Reiter Versandprofile** → dort **ID 1 = „Buecher DE"**, Standard-Profil = Y.
+Die PlentyONE-Versandprofile unter Einrichtung >> Auftraege >> Versand (6 =
+Standardpaket/DHL, 7 = Selbstabholer) sind ein **anderer Zahlenraum** und hier falsch.
+
+### 17. Offen geblieben: „An Artikelpreis binden"
+Weder `7` (die Verkaufspreis-ID) noch `1` werden akzeptiert, beide Male wortgleich
+`Use Item Price invalid. | ( UpdateListingMarket )`. Die Zuordnung ist deshalb in
+Import 22 **deaktiviert**; alle anderen laufen sauber.
+Naechster Kandidat: **`Y`** — Import 23 uebertraegt „Freigeschaltet" ebenfalls als
+`Y` und die Dauer als `GTC`, dieser Import-Typ erwartet Ja/Nein also offenbar als
+Buchstabe. Im Generator und im Live-Workflow bereits auf `Y` gesetzt, **ungetestet**.
+Falls `Y` scheitert, sind die naechsten Versuche `1`/`0` als Zahl in einer anderen
+Spalte, `true`, `Ja` — oder das Feld bleibt der Vorlage ueberlassen.
+
 ---
 
 ## Wichtigste Erkenntnisse
@@ -212,8 +249,8 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 | eBay-Zustands-ID | `1` | ✅ **im Import-Lauf 46 bestätigt** — UI zeigt „Neu" |
 | Mehrwertsteuersatz | `7` | ✅ **bestätigt** — UI zeigt „Deutschland / 7 %" |
 | Sprache | `de` | ✅ **bestätigt** — UI zeigt „Deutsch" |
-| **An Artikelpreis binden** | `1` (Ja/Nein!) | ⚠️ korrigiert, **noch nicht getestet** |
-| **Versandprofil-ID** | `1` — **eBay-Versandprofil, eigener Zahlenraum!** | ✅ gefunden, Mapping-Test offen |
+| **An Artikelpreis binden** | `7` und `1` **beide abgewiesen** — naechster Kandidat `Y`, ungetestet | ❌ **einziger offener Wert** |
+| Versandprofil-ID | `1` — **eBay-Versandprofil, eigener Zahlenraum!** | ✅ Lauf 48 ohne Fehler importiert |
 | UVP übertragen / Preisvorschlag / Anzahl Bilder | `0` / `0` / `1` | ❔ noch nicht zugeordnet |
 
 ### Import-Lauf 45 und 46 (04.09.2026, entscheidendes Testergebnis)
@@ -304,32 +341,44 @@ enthalten Klartext-Passwörter).
 
 ## Offene TODOs (priorisiert)
 
-- [ ] **1. Versandprofil reparieren und die richtige ID finden — HIER WEITERMACHEN**
+- [ ] **1. Den Wert fuer „An Artikelpreis binden" finden — HIER WEITERMACHEN**
 
-  **Stand:** Die Zuordnungen sind angelegt und funktionieren — bis auf zwei.
-  `versandprofil_id = 6` hat alle 11 Listings auf „Ungültige Auswahl (6)" gesetzt.
+  **Das ist der einzige noch fehlende Wert.** Alles andere laeuft.
 
-  1. PlentyONE → eBay » Listings » Stapelverarbeitung → Vorlage **„Bücher (1)"** auf
-     alle 11 Listings anwenden. Damit steht das Versandprofil wieder auf „Bücher DE".
-  2. In Import 22 die Zuordnung **`versandprofil_id` deaktiviert lassen**,
-     die Zuordnung **`preisbindung` wieder aktivieren** (die CSV liefert jetzt `1`
-     statt `7` — live geprüft am 04.09.2026).
-  3. Import starten → es müssen **11 importiert, 0 Fehler** herauskommen.
-  4. Listing MLID 1 prüfen: Versandprofil „Bücher DE", Preis-ID 7, Kategorie 261186.
-  5. **Richtige Versandprofil-ID besorgen:** Auf der Listing-Seite F12 → Konsole:
-     ```js
-     [...document.querySelectorAll('option')]
-       .filter(o => /B(ü|ue)cher DE/i.test(o.text))
-       .map(o => o.value + ' = ' + o.text)
-     ```
-     Den Wert dann in `scripts/gen_ebay_workflow.py` bei `versandprofilId` eintragen,
-     neu generieren, den Live-Workflow `HYDRm1e5J5nIvJce` per `patchNodeField` am
-     Knoten „Daten holen" nachziehen und die Zuordnung wieder aktivieren.
+  1. In Import 22 (Daten » Import » „eBay-Merkmale Buecher" » Zuordnung) die
+     **letzte Zuordnung `preisbindung` wieder aktivieren**.
+     Zielfeld: `Listing-Eigenschaft >> Wert`, Eigenschaft: `An Artikelpreis binden`.
+     Die CSV liefert jetzt **`Y`** (Generator und Live-Workflow stehen bereits darauf).
+  2. **Import starten.**
+     - **11 importiert, 0 Fehler** → gefunden. Wert im Generator festschreiben,
+       Zuordnung aktiv lassen, weiter mit TODO 2.
+     - Wieder `Use Item Price invalid.` → Zuordnung sofort deaktivieren, Import
+       nochmal laufen lassen (dann sind es wieder 11 sauber), und den naechsten
+       Kandidaten setzen: `1`/`0` in getrennten Spalten, `true`, `Ja`, oder leer.
+  3. Wert aendern an **zwei** Stellen:
+     - `scripts/gen_ebay_workflow.py`, Liste `ZUSATZ`, Zeile `['preisbindung', ...]`
+       (und der Konfigurationsschluessel `preisbindungWert`), danach
+       `python scripts/gen_ebay_workflow.py && node scripts/test_ebay_workflow.js`
+     - Live-Workflow `HYDRm1e5J5nIvJce`, Knoten „Daten holen", per
+       `n8n_update_partial_workflow` → `patchNodeField` auf `parameters.jsCode`
+  4. Danach live gegenpruefen:
+     `curl "https://dashboard.primehubgbr.com/api/plentyone/export/ebay-merkmale.csv?t=<TOKEN>"`
 
-- [ ] **1b. Rest-Zuordnungen ergänzen:** `uvp`, `preisvorschlag`, `bilder`
-  (Werte `0`, `0`, `1`) — Format noch unbestätigt, einzeln testen.
+  **Faellt der Wert nicht:** Kein Beinbruch. Dann bleibt genau dieses eine Feld der
+  Vorlage „Buecher (1)" ueberlassen — der manuelle Schritt bliebe bestehen, aber alle
+  anderen zehn Einstellungen kaemen weiterhin aus dem Import.
 
-- [ ] ~~**Die fünf sicheren Zuordnungen in Import 22 anlegen**~~ *(erledigt, Lauf 46)*
+- [ ] **2. Rest-Zuordnungen ergänzen:** `uvp`, `preisvorschlag`, `bilder`
+  (Werte `0`, `0`, `1`) — Format unbestätigt. Angesichts der Erfahrung mit
+  „An Artikelpreis binden" zuerst einzeln testen, nicht alle drei auf einmal.
+
+- [ ] **3. Prüfen, ob die Vorlage jetzt entbehrlich ist.** Ein Listing anlegen lassen,
+  das die Vorlage **nie** gesehen hat (kommt beim nächsten Amazon-Export von selbst),
+  danach „Market-Listings prüfen" und den Statusbericht im Dashboard ansehen. Erst
+  wenn der grün ist, den Vorlage-Schritt aus der Doku streichen.
+
+- [ ] ~~Die fünf sicheren Zuordnungen in Import 22 anlegen~~ *(erledigt, Läufe 46/48)*
+- [ ] ~~Versandprofil-ID ermitteln~~ *(erledigt: ID 1 aus den eBay-Kontoeinstellungen)*
 
   **Wo:** PlentyONE → Daten » Import → **„eBay-Merkmale Bücher"** → Reiter **Zuordnung**
   → je Zeile über **„ZUORDNUNG HINZUFÜGEN"**.
@@ -354,17 +403,6 @@ enthalten Klartext-Passwörter).
      die CSV müsste in `scripts/gen_ebay_workflow.py` entsprechend umgebaut werden.
   b) Sieht hinterher etwas falsch aus: kein Drama, die Listings sind nicht gestartet.
      Einmal die Vorlage „Bücher (1)" drüberlaufen lassen stellt alles wieder her.
-
-- [ ] **2. Runde 2 der Zuordnungen** — `zustand_id`, `mwst`, `sprache_code`, `uvp`,
-  `preisvorschlag`, `bilder`. Werte sind unbestätigt (siehe „Wichtige Werte"). Einzeln
-  zuordnen, importieren, an MLID 1 gegenprüfen. Falls falsch: Wert im n8n-Knoten
-  „Konfiguration" von `HYDRm1e5J5nIvJce` korrigieren (Felder `zustandId`, `mwst`,
-  `spracheCode`, …) — der Code nimmt sonst die Standardwerte aus `ZUSATZ`.
-
-- [ ] **3. Wenn Runde 1 + 2 sitzen: Vorlage-Schritt aus der Doku streichen.**
-  Betrifft `features/plentyone/ebay-vollautomatisierung.md` (Abschnitt 2.8 und 3.6),
-  `docs/n8n-plentyone-ebay-anleitung.md` (Schritt 5) und den Hinweistext in
-  `src/components/plentyone/EbayKette.tsx`.
 
 - [ ] **4. Artikel- und Eigenschaftsimport auf „HTTPS/URL" umstellen** (02:00 / 02:30).
   Erst sinnvoll, wenn ein frischer Amazon-Export hochgeladen wurde — sonst liefern die
@@ -392,15 +430,15 @@ enthalten Klartext-Passwörter).
 
 ## Blocker & offene Fragen
 
-1. **Unbeantwortet: Erlaubt PlentyONE mehrere Zuordnungen auf
-   „Market-Listing-Eigenschaft » Wert" in einem Import?** Beim Artikelimport ging das
-   nachweislich nicht (deshalb existiert die separate Eigenschaften-CSV). Falls hier
-   dieselbe Beschränkung gilt, muss die Merkmale-CSV von „eine Spalte je Eigenschaft"
-   auf „eine Zeile je Eigenschaft" umgebaut werden. **Das entscheidet TODO 1.**
+1. **Beantwortet:** PlentyONE erlaubt **mehrere** Zuordnungen auf
+   „Market-Listing-Eigenschaft » Wert" in einem Import — sieben Stück laufen sauber
+   nebeneinander. Die Beschränkung des Artikelimports (siehe Kommentar in
+   `supabase/migrations/138_plentyone_eigenschaften.sql`) gilt hier **nicht**.
+   Der Aufbau „eine Spalte je Eigenschaft" trägt.
 
-2. **Drei Werte unbestätigt:** eBay-Zustands-ID, Format des Mehrwertsteuersatzes
-   (`7` oder vatRate-id `1`) und der Sprache (`de` oder `Deutsch`). Nur durch
-   Ausprobieren zu klären.
+2. **Offen: der Wert für „An Artikelpreis binden".** `7` und `1` werden beide mit
+   `Use Item Price invalid. | ( UpdateListingMarket )` abgewiesen. Nächster Versuch
+   `Y`. Solange unbestätigt bleibt genau dieses eine Feld Sache der Vorlage.
 
 3. **Bewusst nicht automatisiert:** Amazon-Export ziehen (Nutzerentscheidung, keine
    SP-API) und der Live-Start der Listings (AK9, Freigabe-Schalter).
