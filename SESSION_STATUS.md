@@ -240,8 +240,7 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 | Einstellung | Wert | Sicherheit |
 |---|---|---|
 | Kategorie 1 ID | `261186` (Bücher & Zeitschriften » Bücher) | ✅ direkt abgelesen |
-| Preis-ID / An Artikelpreis binden | `7` | ✅ stand im UI-Feld „Preis-ID" |
-| Versandprofil-ID | `6` — intern „Standardpaket", Frontend **„Bücher DE"** | ✅ |
+| Preis-ID (Anzeigefeld im Listing) | `7` — **nicht** der Wert für „An Artikelpreis binden", siehe unten | ℹ️ |
 | Layout-Vorlagen-ID | `1` („Bücher") | ✅ vom Nutzer bestätigt |
 | Lager-ID | `2` (Amazon FBA-Lager BuchDepot24) | ✅ |
 | Verzeichnis / Dauer / Menge | Bücher (1) / GTC / 1 | ✅ setzt Import 23 |
