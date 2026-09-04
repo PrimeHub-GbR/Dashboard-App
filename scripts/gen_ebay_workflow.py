@@ -543,7 +543,7 @@ KONFIG = {
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
         {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
         {"id": "b12", "name": "mwstLand", "value": "1", "type": "string"},
-        {"id": "a10b", "name": "uvpPreisId", "value": "", "type": "string"},
+        {"id": "a10b", "name": "uvpPreisId", "value": "1", "type": "string"},
         {"id": "b07", "name": "spracheCode", "value": "de", "type": "string"},
         {"id": "b08", "name": "uvpUebertragen", "value": "N", "type": "string"},
         {"id": "b09", "name": "preisvorschlag", "value": "N", "type": "string"},

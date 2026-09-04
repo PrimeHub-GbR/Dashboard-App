@@ -58,6 +58,7 @@ const ZAHL_LABEL: Record<string, string> = {
   nicht_geprueft: 'noch nicht geprüft',
   merkmale: 'Merkmale gesetzt',
   ohne_bpb_preis: 'ohne Buchpreisbindungspreis',
+  mit_uvp_preis: 'mit UVP statt Preisbindung',
   verwaiste_listings: 'Listing ohne Market-Listing',
 }
 
