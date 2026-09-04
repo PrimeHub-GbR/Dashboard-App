@@ -264,16 +264,31 @@ rotieren** (Vercel + n8n-Knoten „Konfiguration" + die vier PlentyONE-URLs).
 | Auftragsstatus | `3` (Warten auf Zahlung) | ✅ abgelesen |
 | Versandprofil-ID | `1` — **eBay-Versandprofil, eigener Zahlenraum!** | ✅ Lauf 49: Listing zeigt „Bücher DE" |
 | An Artikelpreis binden | **`Y`** — nicht `7`, nicht `1` | ✅ Lauf 49: Listing zeigt Preis-ID 7 |
-| eBay-Zustands-ID | `1` | ❔ **noch nicht zugeordnet** — Wert im Listing stammt von der Vorlage |
-| Mehrwertsteuersatz | `7` | ❔ **noch nicht zugeordnet** — dito |
-| Sprache | `de` | ❔ **noch nicht zugeordnet** — dito |
-| UVP übertragen / Preisvorschlag / Anzahl Bilder | `0` / `0` / `1` | ❔ noch nicht zugeordnet |
+| eBay-Zustands-ID | **`1000`** = Neu (eBay-Standardcode) | ✅ Lauf 51 bestätigt |
+| Mehrwertsteuersatz | `7` | ✅ Lauf 50 bestätigt |
+| Sprache | `de` | ✅ Lauf 50 bestätigt |
+| UVP übertragen / Preisvorschlag | `N` / `N` | ❔ noch nicht zugeordnet |
+| Anzahl Bilder | `1` | ❔ noch nicht zugeordnet |
 
-**Aktiv zugeordnet in Import 22 (Stand Lauf 49): acht Spalten** — `MLID`, `Name`,
-`Wert`, `kategorie_id`, `versandprofil_id`, `layout_id`, `lager_id`, `preisbindung`.
-**Nicht zugeordnet:** `zustand_id`, `mwst`, `sprache_code`, `uvp`, `preisvorschlag`,
-`bilder`. Deren Werte stehen in den Listings nur, weil die **Vorlage** sie gesetzt hat —
-sie sind also weiterhin unbestätigt.
+**Aktiv zugeordnet in Import 22 (Stand Lauf 51): elf Spalten** — `MLID`, `Name`, `Wert`,
+`kategorie_id`, `versandprofil_id`, `layout_id`, `lager_id`, `preisbindung`,
+`zustand_id`, `mwst`, `sprache_code`.
+**Noch offen:** `uvp`, `preisvorschlag`, `bilder`.
+
+### Wertformate, die dieser Import erwartet (teuer erkauft)
+| Feldtyp | Format | Belege |
+|---|---|---|
+| Ja/Nein | **`Y` / `N`** — niemals `0`/`1` | „An Artikelpreis binden": `7` und `1` abgewiesen, `Y` lief; „Freigeschaltet" = `Y`, „Dauer" = `GTC` in Import 23 |
+| Auswahl-IDs | reine Zahl | Kategorie `261186`, Lager `2`, Layout `1` |
+| eBay-Zustand | **eBay-Standardcode**, nicht PlentyONE-ID | `1000` = Neu (`1` erzeugte „ungültiger Eintrag") |
+| eBay-Versandprofil | **eigener Zahlenraum** je eBay-Konto | `1` = „Bücher DE" (`6` aus den PlentyONE-Versandprofilen war falsch) |
+| Sprache | Kürzel | `de` |
+
+⚠️ **Ein fehlerhafter Wert erzeugt nicht zwingend einen Import-Fehler.** Sowohl
+`versandprofil_id = 6` als auch `zustand_id = 1` liefen mit „0 Fehler" durch und
+standen danach als „ungültige Auswahl" im Listing. **Nach jeder neuen Zuordnung muss
+ins Listing geschaut werden** — der Import allein ist kein Beweis. Aufgefangen wird
+so etwas erst durch „Market-Listings prüfen" und den roten Bericht im Dashboard.
 
 ### Import-Lauf 45 und 46 (04.09.2026, entscheidendes Testergebnis)
 - **Lauf 45** mit `preisbindung = 7`: **0 importiert, 11 Fehler**, wörtlich:
@@ -363,25 +378,22 @@ enthalten Klartext-Passwörter).
 
 ## Offene TODOs (priorisiert)
 
-- [ ] **1. Die sechs fehlenden Zuordnungen ergänzen — HIER WEITERMACHEN**
+- [ ] **1. Welle 2 der Zuordnungen ergänzen — HIER WEITERMACHEN**
 
-  In Import 22 (Daten » Import » „eBay-Merkmale Bücher" » Zuordnung) fehlen noch:
+  Welle 1 (`zustand_id`, `mwst`, `sprache_code`) ist ✅ erledigt und im Listing geprüft
+  (Läufe 50/51). In Import 22 (Daten » Import » „eBay-Merkmale Bücher" » Zuordnung)
+  fehlen noch drei:
 
   | Quellspalte | Zielfeld | Eigenschaft rechts | Wert in der CSV |
   |---|---|---|---|
-  | `zustand_id` | Market-Listing-Eigenschaft » Wert | eBay-Zustands-ID | `1` |
-  | `mwst` | Market-Listing-Eigenschaft » Wert | Mehrwertsteuersatz | `7` |
-  | `sprache_code` | Market-Listing-Eigenschaft » Wert | Sprache | `de` |
-  | `uvp` | Market-Listing-Eigenschaft » Wert | eBay UVP übertragen | `0` |
-  | `preisvorschlag` | Market-Listing-Eigenschaft » Wert | eBay-Preisvorschlag | `0` |
+  | `uvp` | Market-Listing-Eigenschaft » Wert | eBay UVP übertragen | `N` |
+  | `preisvorschlag` | Market-Listing-Eigenschaft » Wert | eBay-Preisvorschlag | `N` |
   | `bilder` | Market-Listing-Eigenschaft » Wert | Anzahl der Bilder | `1` |
 
-  **In zwei Wellen**, sonst weiß man bei einem Fehler nicht, welcher Wert schuld ist:
-  erst die oberen drei, Import starten, MLID 1 prüfen; dann die unteren drei.
-  Bei `Use ... invalid`-Fehlern gilt die Erfahrung aus Lauf 45/47/49: dieser Import-Typ
-  will Ja/Nein als **`Y`/`N`**, nicht als `0`/`1`. Also bei `uvp` und `preisvorschlag`
-  zuerst `N` probieren (Wert im Generator ändern, Live-Workflow nachziehen).
-  Ein fehlerhafter Lauf schreibt **nichts** — er ist ungefährlich.
+  Danach Import 22 starten und **MLID 1 → Marktplatz** ansehen: UVP und Preisvorschlag
+  müssen „Nein" sein, Bilder `1`. Ein fehlerhafter Lauf schreibt **nichts** — er ist
+  ungefährlich; ein *fehlerfreier* Lauf kann trotzdem Unsinn schreiben (siehe
+  Wertformat-Tabelle oben), deshalb immer ins Listing schauen.
 
 - [ ] ~~Den Wert für „An Artikelpreis binden" finden~~ *(erledigt: `Y`, Lauf 49)*
 
