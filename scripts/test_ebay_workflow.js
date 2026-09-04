@@ -37,7 +37,7 @@ const BUECHER = [
   { nr: 'APR-13375-11-06-2026', titel: 'Sonne, Glück und Blaubeerduft: Die schönsten Geschichten von Astrid Lindgren, Sven Nordqvist u.a.', autor: 'Kutsch, Angelika; Lindgren, Astrid; Engelking, Katrin; Peters, Karl Kurt; Wikland, Ilon; Dohrenburg, Thyra; Nordqvist, Sven; Wieslander, Jujja; Heinig, Cäcilie and Bergström, Gunilla' },
 ]
 
-function baueStand({ mitListings, ohnePreis = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = []
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
@@ -51,6 +51,9 @@ function baueStand({ mitListings, ohnePreis = [], ohneAutor = [], verifiedFehler
     })
     if (mitListings) {
       listings.push({ id: 500 + i, itemId })
+      // Import 23 legt Listing und Market-Listing nacheinander an. Bricht er
+      // dazwischen ab, bleibt das Listing allein zurueck.
+      if (i < ohneMarketListing) return
       markets.push({
         id: 900 + i, listingId: 500 + i, referrerId: 2.08, variationId: varId,
         // ohnePruefung: verified fehlt ganz - so sieht ein Listing aus, das nach der
@@ -182,6 +185,18 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(b5.ok === false, 'Bericht ist ROT, solange Listings ungeprueft sind (vergessene Pruefung faellt auf)')
   pruefe(b5.probleme.some((p) => /noch nicht geprueft/.test(String(p.grund))),
     'jedes ungepruefte Listing wird mit MLID benannt')
+
+  console.log('\n=== Listing ohne Market-Listing (Import 23 auf halbem Weg) ===')
+  const halb = baueStand({ mitListings: true, ohneMarketListing: 3 })
+  const rHalb = await lauf(halb, 'listings')
+  const aHalb = rHalb.inhalt.split('\n')
+  pruefe(aHalb.length - 1 === 3,
+         `die 3 halb angelegten Buecher stehen wieder in CSV A, erhalten ${aHalb.length - 1}`)
+  pruefe(rHalb.zahlen.verwaiste_listings === 3,
+         `verwaiste_listings zaehlt 3, erhalten ${rHalb.zahlen.verwaiste_listings}`)
+  pruefe(rHalb.ok === false, 'Bericht ist ROT, solange ein Listing ohne Market-Listing dasteht')
+  const bHalb = await lauf(halb, 'bericht')
+  pruefe(/Listing\(s\) ohne Market-Listing/.test(bHalb.inhalt), 'der Bericht benennt den halben Zustand')
 
   console.log('\n=== Buch ohne Autor ===')
   const ohne = baueStand({ mitListings: true, ohneAutor: [4] })

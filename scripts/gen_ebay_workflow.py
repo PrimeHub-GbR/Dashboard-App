@@ -244,16 +244,19 @@ for (const it of items) {
   if (!itemsMitListing.has(it.id)) continue;
   if (itemsMitMarketListing.has(it.id)) continue;
   verwaiste.push({ item_id: it.id, titel: String(titelByItem[it.id] || '').slice(0, 90),
-                   grund: 'Listing ohne Market-Listing - in PlentyONE loeschen, dann Import 23 erneut' });
+                   grund: 'Listing ohne Market-Listing - steht wieder in CSV A, Import 23 holt den zweiten Schritt nach' });
 }
 
 // --- CSV A: Buch-Artikel OHNE Listing (Import 23) ----------------------------
 const aRows = ['ItemID\tMarketID\tUserID\tTypeID\tStockDependenceTypeID\tUnitCombinationID\tDirectoryID\tEnabled\tDuration'];
 const ohnePreis = [];
 let aCount = 0;
+// Entscheidend ist das MARKET-Listing, nicht das Listing. Wer nur auf
+// itemsMitListing prueft, haelt einen halb angelegten Artikel fuer erledigt und
+// bietet ihn nie wieder an - die Kette steht dann still, ohne dass es auffaellt.
 for (const it of items) {
   if (!istBuch(it.id)) continue;
-  if (itemsMitListing.has(it.id)) continue;
+  if (itemsMitMarketListing.has(it.id)) continue;
   const v = varByItem[it.id];
   if (!preisOk(v.variationId)) {
     // Buchpreisbindung: ohne gebundenen Ladenpreis entsteht erst gar kein Listing.
