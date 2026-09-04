@@ -230,12 +230,12 @@ const ZUSATZ = [
   ['uvp',              cfg.uvpUebertragen  || '0'],      // eBay UVP uebertragen
   ['preisvorschlag',   cfg.preisvorschlag  || '0'],      // eBay-Preisvorschlag
   ['bilder',           cfg.anzahlBilder    || '1'],      // Anzahl der Bilder
-  // "An Artikelpreis binden": Wert bis heute NICHT gefunden.
+  // "An Artikelpreis binden" erwartet 'Y'/'N', nicht 0/1 und erst recht keine Preis-ID:
   //   '7' -> "Use Item Price invalid. | ( UpdateListingMarket )"  (Lauf 45, 11 Fehler)
   //   '1' -> derselbe Fehler                                      (Lauf 47, 11 Fehler)
-  // Naechster Kandidat 'Y': Import 23 benutzt fuer "Freigeschaltet" ebenfalls Y/N,
-  // dieser Import-Typ erwartet Ja/Nein offenbar als Buchstabe. UNGETESTET.
-  // Solange unbestaetigt: die Zuordnung in Import 22 DEAKTIVIERT lassen.
+  //   'Y' -> sauber durchgelaufen, Listing zeigt danach Preis-ID 7 (Lauf 49) ✓
+  // Dieser Import-Typ nimmt Ja/Nein durchgaengig als Buchstabe - vgl. "Freigeschaltet"
+  // (Y) und "Dauer" (GTC) in Import 23.
   // cfg.bpbPreisId (7) bleibt dem Preis-Guard vorbehalten - nicht wiederverwenden.
   ['preisbindung',     cfg.preisbindungWert || 'Y'],
 ];
