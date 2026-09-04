@@ -121,26 +121,79 @@ for (const rel of relations) {
 //    Laesst sich die Preisliste nicht lesen, wird NICHT stillschweigend gefiltert -
 //    stattdessen sagt der Bericht, dass die Pruefung nicht moeglich war.
 let preisPruefung = 'ok';
-const preisByVar = {};
+const preisByVar = {};   // gebundener Ladenpreis (Verkaufspreis 7)
+const uvpByVar = {};     // Rueckfall fuer Titel ohne Preisbindung
+const allePreiseByVar = {};  // nur fuer den Bericht: was liegt ueberhaupt an?
 try {
   const mitPreis = await pageAll('/rest/items/variations?with=variationSalesPrices');
   let gefunden = 0;
   for (const v of mitPreis) {
     const liste = v.variationSalesPrices || v.salesPrices || [];
     if (!Array.isArray(liste)) continue;
+    // Damit der Bericht sagen kann, welche Verkaufspreis-ID der UVP ist -
+    // sonst muesste man sie in PlentyONE suchen.
+    allePreiseByVar[v.id] = liste.map(p => Number(p.salesPriceId) + ': ' + Number(p.price).toFixed(2));
     const treffer = liste.find(p => Number(p.salesPriceId) === Number(cfg.bpbPreisId));
     if (treffer) {
       preisByVar[v.id] = Number(treffer.price) || 0;
       gefunden++;
+    }
+    // Nicht jedes Buch ist preisgebunden: Importtitel und Baende, deren Bindung
+    // aufgehoben wurde, haben keinen Verkaufspreis 7. Fuer sie darf der Preis frei
+    // gesetzt werden - dafuer dient cfg.uvpPreisId. Bleibt sie leer, aendert sich
+    // nichts am bisherigen Verhalten und die Buecher werden zurueckgehalten.
+    if (cfg.uvpPreisId) {
+      const uvp = liste.find(p => Number(p.salesPriceId) === Number(cfg.uvpPreisId));
+      if (uvp && Number(uvp.price) > 0) uvpByVar[v.id] = Number(uvp.price);
     }
   }
   if (!gefunden) preisPruefung = 'keine_preise_gefunden';
 } catch (e) {
   preisPruefung = 'nicht_moeglich';
 }
-const preisOk = (variationId) => {
-  if (preisPruefung !== 'ok') return true;          // nicht pruefbar -> nicht blockieren, aber melden
-  return Number(preisByVar[variationId] || 0) > 0;
+// gebunden -> Listing bindet an den Artikelpreis (preisbindung Y)
+// uvp      -> Listing bekommt einen eigenen Festpreis (preisbindung N)
+// keiner   -> Buch wird zurueckgehalten und im Bericht genannt
+const preisArt = (variationId) => {
+  if (preisPruefung !== 'ok') return 'gebunden';    // nicht pruefbar -> nicht blockieren, aber melden
+  if (Number(preisByVar[variationId] || 0) > 0) return 'gebunden';
+  if (Number(uvpByVar[variationId] || 0) > 0) return 'uvp';
+  return 'keiner';
+};
+
+// 6) Barcodes - fuer die Sprache. Die ISBN-Gruppe hinter dem 978er-Praefix nennt
+//    den Sprachraum. Das ist die einzige verlaessliche Quelle: Titel ohne
+//    VLB-Treffer bekommen von der Migration "Deutsch" als Vorgabe eingetragen
+//    (vlb_status = KEIN_TREFFER, z. B. APR-13092 'Twelve and a Half',
+//    EAN 9780063143791 - eindeutig englisch, im Export aber als Deutsch gefuehrt).
+const eanByVar = {};
+try {
+  const mitBarcode = await pageAll('/rest/items/variations?with=variationBarcodes');
+  for (const v of mitBarcode) {
+    const liste = v.variationBarcodes || v.barcodes || [];
+    if (!Array.isArray(liste)) continue;
+    const code = liste.map(b => String(b.code || b.barcode || ''))
+                      .find(c => /^97[89][0-9]{10}$/.test(c));
+    if (code) eanByVar[v.id] = code;
+  }
+} catch (e) {
+  // Ohne Barcodes bleibt es bei der Vorgabesprache - kein Grund abzubrechen.
+}
+
+const SPRACHEN = [
+  [/^978[01]/, 'Englisch', 'en'],
+  [/^9782/,    'Französisch', 'fr'],
+  [/^9783/,    'Deutsch', 'de'],
+  [/^97884/,   'Spanisch', 'es'],
+  [/^97888/,   'Italienisch', 'it'],
+  [/^97890/,   'Niederländisch', 'nl'],
+];
+const spracheZu = (variationId) => {
+  const ean = String(eanByVar[variationId] || '');
+  for (const [muster, name, code] of SPRACHEN) {
+    if (muster.test(ean)) return [name, code];
+  }
+  return [cfg.sprache || 'Deutsch', cfg.spracheCode || 'de'];
 };
 
 // --- Textregeln des Import 22 (empirisch ermittelt, verbindlich) -------------
@@ -284,10 +337,13 @@ for (const it of items) {
   if (!istBuch(it.id)) continue;
   if (itemsMitMarketListing.has(it.id)) continue;
   const v = varByItem[it.id];
-  if (!preisOk(v.variationId)) {
-    // Buchpreisbindung: ohne gebundenen Ladenpreis entsteht erst gar kein Listing.
+  if (preisArt(v.variationId) === 'keiner') {
+    // Weder gebundener Ladenpreis noch UVP: ohne Preis entsteht kein Listing.
+    const vorhanden = allePreiseByVar[v.variationId] || [];
     ohnePreis.push({ item_id: it.id, titel: String(titelByItem[it.id] || '').slice(0, 90),
-                     grund: 'kein Buchpreisbindungspreis (Verkaufspreis ' + cfg.bpbPreisId + ')' });
+                     grund: 'kein Verkaufspreis ' + cfg.bpbPreisId
+                            + (cfg.uvpPreisId ? ' und kein UVP (Verkaufspreis ' + cfg.uvpPreisId + ')' : ' und keine UVP-Preis-ID konfiguriert')
+                            + ' | vorhandene Verkaufspreise: ' + (vorhanden.join(', ') || 'keine') });
     continue;
   }
   aRows.push([it.id, cfg.marketId, cfg.userId, cfg.typeId, cfg.stockDependenceTypeId,
@@ -313,7 +369,7 @@ const ZUSATZ = [
   // 04.09.2026) zeigen: mit 'mwst' allein bleiben Satz UND Land leer.
   ['mwst_land',        cfg.mwstLand        || '1'],      // MwSt.-Land (1 = Deutschland)
   ['mwst',             cfg.mwst            || '7'],      // Mehrwertsteuersatz
-  ['sprache_code',     cfg.spracheCode     || 'de'],     // Sprache
+  ['sprache_code',     cfg.spracheCode     || 'de'],   // je Zeile aus der ISBN     // Sprache
   // Ja/Nein durchgaengig als Buchstabe - siehe "An Artikelpreis binden" (Lauf 45/47/49):
   // 0 und 1 wurden abgewiesen, Y lief durch. Beide Felder stehen im Listing auf "Nein".
   ['uvp',              cfg.uvpUebertragen  || 'N'],      // eBay UVP uebertragen
@@ -326,13 +382,19 @@ const ZUSATZ = [
   // Dieser Import-Typ nimmt Ja/Nein durchgaengig als Buchstabe - vgl. "Freigeschaltet"
   // (Y) und "Dauer" (GTC) in Import 23.
   // cfg.bpbPreisId (7) bleibt dem Preis-Guard vorbehalten - nicht wiederverwenden.
-  ['preisbindung',     cfg.preisbindungWert || 'Y'],
+  ['preisbindung',     cfg.preisbindungWert || 'Y'],   // je Zeile: Y gebunden, N mit UVP
 ];
+
+// Die meisten Zusatzspalten sind fuer alle Zeilen gleich. Sprache und
+// Preisbindung haengen am einzelnen Buch - sie werden hier ueberschrieben.
+const zusatzWerte = (o) => ZUSATZ.map(([name, wert]) => (name in o ? o[name] : wert));
+
 const bRows = [['MLID', 'Name', 'Wert'].concat(ZUSATZ.map(z => z[0]))
-  .concat(['titel_ebay']).join('\t')];
+  .concat(['titel_ebay', 'festpreis']).join('\t')];
 const uebersprungen = [];
 const probleme = [];
 let bCount = 0;
+let mitUvp = 0;
 let geprueftOk = 0;
 let geprueftFehler = 0;
 let nichtGeprueft = 0;
@@ -366,9 +428,16 @@ for (const ml of marketListings) {
                          grund: [!autor ? 'kein Autor' : null, !titel ? 'kein Titel' : null].filter(Boolean).join(', ') });
     continue;
   }
-  bRows.push([ml.id, 'Autor,Buchtitel,Sprache', autor + ',' + titel + ',' + cfg.sprache]
-    .concat(ZUSATZ.map(z => z[1]))
-    .concat([ebayTitel(titelRoh)]).join('\t'));
+
+  const [spracheName, spracheCode] = spracheZu(ml.variationId);
+  const art = preisArt(ml.variationId);
+  if (art === 'uvp') mitUvp++;
+
+  bRows.push([ml.id, 'Autor,Buchtitel,Sprache', autor + ',' + titel + ',' + spracheName]
+    .concat(zusatzWerte({ sprache_code: spracheCode, preisbindung: art === 'uvp' ? 'N' : 'Y' }))
+    .concat([ebayTitel(titelRoh),
+             art === 'uvp' ? String(uvpByVar[ml.variationId].toFixed(2)) : ''])
+    .join('\t'));
   bCount++;
 }
 
@@ -382,6 +451,7 @@ const zahlen = {
   nicht_geprueft: nichtGeprueft,
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
+  mit_uvp_preis: mitUvp,
   verwaiste_listings: verwaiste.length,
 };
 
@@ -400,6 +470,7 @@ const text = [
     + ', fehlgeschlagen ' + geprueftFehler + ', noch nicht geprueft ' + nichtGeprueft + ')',
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
+  'Mit UVP statt gebundenem Ladenpreis: ' + zahlen.mit_uvp_preis,
   verwaiste.length ? '' : null,
   verwaiste.length ? 'ACHTUNG: ' + verwaiste.length + ' Listing(s) ohne Market-Listing - Import 23 ist auf halbem Weg stehengeblieben:' : null,
   ...verwaiste.slice(0, 100).map(v => '  Artikel ' + v.item_id + ': ' + v.titel),
@@ -472,6 +543,7 @@ KONFIG = {
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
         {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
         {"id": "b12", "name": "mwstLand", "value": "1", "type": "string"},
+        {"id": "a10b", "name": "uvpPreisId", "value": "", "type": "string"},
         {"id": "b07", "name": "spracheCode", "value": "de", "type": "string"},
         {"id": "b08", "name": "uvpUebertragen", "value": "N", "type": "string"},
         {"id": "b09", "name": "preisvorschlag", "value": "N", "type": "string"},

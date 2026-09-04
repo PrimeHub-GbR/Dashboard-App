@@ -19,6 +19,9 @@ const CFG = {}
 for (const a of WF.nodes.find((n) => n.name === 'Konfiguration').parameters.assignments.assignments) {
   CFG[a.name] = a.value
 }
+// Im Live-Workflow steht uvpPreisId leer, bis die richtige Verkaufspreis-ID
+// feststeht. Der Test faehrt den eingeschalteten Zustand.
+CFG.uvpPreisId = '2'
 
 // variantennummer = Amazon seller-sku, autor = aus dem Amazon-Titel geloester Autor
 const BUECHER = [
@@ -33,6 +36,7 @@ const BUECHER = [
   { nr: 'SM-0000032-13-08-2025', titel: 'Skogland 1: Jugendthriller ab 12 Jahren', autor: 'Boie, Kirsten' },
   { nr: 'MAE-5111-12-03-2026', titel: '111 Orte in Zeeland, die man gesehen haben muss', autor: 'Roos, Dr. Martin' },
   { nr: 'PH-4439-08-12-2025', titel: 'Myrrhe, Mord und Marzipan: 24 Weihnachtskrimis von Hohwacht bis St. Moritz', autor: 'Gramoschke, Miriam; Achilles; Winkelmann, Andreas; Verhoeven, Anne; Bernard, Carine; Franke, Christiane; Kuhnert, Cornelia; Dieckerhoff, Christiane; Bardilac, Eleanor; Völler, Eva; Schwiecker, Florian; Pauly, Gisa; Lorentz, Iny; Pust, Justine; Kästner & Kästner; Bohnet, Katja; Rubel, Kerstin; Hofmann, Marc; Heitz, Markus; Kölpin, Regine; Ammer, Simon; Rüther, Sonja; Weinert, Steffen; Turhan, Su; Kastura, Thomas and Eckardt, Tilo' },
+  { nr: 'APR-13092-10-06-2026', titel: 'Twelve and a Half: Leveraging the Emotional Ingredients Necessary for Business Success', autor: 'Vaynerchuk, Gary', ean: '9780063143791' },
   { nr: 'APR-13170-11-06-2026', titel: 'Windstärke 17: Der Roman nach ›22 Bahnen‹ | Nominiert für das Lieblingsbuch der Unabhängigen 2024 (Shortlist)', autor: 'Wahl, Caroline' },
   { nr: 'MAR-0025-04-09-2026', titel: 'Schmerz: Ein Fall für Dora und Rado | Der fesselnde Island-Krimi des Jahres - spannendes Ermittler-Duo, dunkle Geheimnisse und ein Fall, der unter die Haut geht', autor: 'Jónasson, Ragnar' },
   { nr: 'APR-13375-11-06-2026', titel: 'Sonne, Glück und Blaubeerduft: Die schönsten Geschichten von Astrid Lindgren, Sven Nordqvist u.a.', autor: 'Kutsch, Angelika; Lindgren, Astrid; Engelking, Katrin; Peters, Karl Kurt; Wikland, Ilon; Dohrenburg, Thyra; Nordqvist, Sven; Wieslander, Jujja; Heinig, Cäcilie and Bergström, Gunilla' },
@@ -42,17 +46,23 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
-  const items = [], variations = [], listings = [], markets = [], relations = [], preise = []
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
+  const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = []
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
     const varId = 1200 + i
     items.push({ id: itemId, texts: [{ lang: 'de', name1: b.titel }] })
     variations.push({ id: varId, itemId, number: b.nr, isMain: true })
     relations.push({ propertyId: 10, targetId: varId, values: [{ value: ohneAutor.includes(i) ? '' : b.autor }] })
+    // 978-3 = deutscher Sprachraum, sofern die Fixture nichts anderes sagt
+    barcodes.push({ id: varId, itemId, variationBarcodes: [{ code: b.ean || ('9783' + String(100000000 + i)) }] })
+    // nurUvp: kein gebundener Ladenpreis (7), aber ein UVP (2) - der Fall
+    // 'Buch ohne Preisbindung', z. B. Importtitel.
     preise.push({
       id: varId, itemId,
-      variationSalesPrices: ohnePreis.includes(i) ? [] : [{ salesPriceId: 7, price: 19.9 }],
+      variationSalesPrices: ohnePreis.includes(i) ? []
+        : nurUvp.includes(i) ? [{ salesPriceId: 2, price: 15.99 }]
+        : [{ salesPriceId: 7, price: 19.9 }],
     })
     if (mitListings) {
       listings.push({ id: 500 + i, itemId })
@@ -74,7 +84,7 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], ohneAut
   variations.push({ id: 1999, itemId: 999, number: 'MANUELL-1', isMain: true })
   preise.push({ id: 1999, itemId: 999, variationSalesPrices: [{ salesPriceId: 7, price: 12 }] })
 
-  const stand = { items, variations, listings, markets, relations }
+  const stand = { items, variations, listings, markets, relations, barcodes }
   if (preisFehler) Object.defineProperty(stand, 'preise', { get() { throw new Error('500 undefined relationship') } })
   else stand.preise = preise
   return stand
@@ -90,6 +100,7 @@ async function lauf(stand, modus) {
       httpRequest: async ({ url }) => {
         if (url.includes('/rest/items?with=texts')) return seite(stand.items, url)
         if (url.includes('/rest/items/variations?with=variationSalesPrices')) return seite(stand.preise, url)
+        if (url.includes('/rest/items/variations?with=variationBarcodes')) return seite(stand.barcodes, url)
         if (url.includes('/rest/items/variations')) return seite(stand.variations, url)
         if (url.includes('/rest/listings/markets')) return seite(stand.markets, url)
         if (url.includes('/rest/listings')) return seite(stand.listings, url)
@@ -135,7 +146,7 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const b = r2.inhalt.split('\n')
   const kopf = b[0].split('\t')
   pruefe(kopf.slice(0, 3).join('\t') === 'MLID\tName\tWert', 'Kopfzeile beginnt mit MLID/Name/Wert')
-  pruefe(kopf.length === 16, `16 Spalten: 3 Merkmale + 12 Konfigurationswerte + eBay-Titel, erhalten ${kopf.length}`)
+  pruefe(kopf.length === 17, `17 Spalten: 3 Merkmale + 12 Konfigurationswerte + eBay-Titel + Festpreis, erhalten ${kopf.length}`)
   pruefe(b.slice(1).every((z) => z.split('\t').length === kopf.length), 'jede Zeile hat gleich viele Spalten')
   const spalte = (name) => kopf.indexOf(name)
   const erste = b[1].split('\t')
@@ -199,6 +210,37 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(b5.ok === false, 'Bericht ist ROT, solange Listings ungeprueft sind (vergessene Pruefung faellt auf)')
   pruefe(b5.probleme.some((p) => /noch nicht geprueft/.test(String(p.grund))),
     'jedes ungepruefte Listing wird mit MLID benannt')
+
+  console.log('\n=== Sprache aus der ISBN-Gruppe ===')
+  const englisch = b.slice(1).find((z) => z.split('\t')[2].includes('Twelve and a Half'))
+  pruefe(!!englisch, 'das englische Buch steht in der Datei')
+  if (englisch) {
+    const t = englisch.split('\t')
+    pruefe(t[2].split(',')[2] === 'Englisch',
+           `EAN 978-0... ergibt Merkmal Sprache=Englisch, erhalten ${t[2].split(',')[2]}`)
+    pruefe(t[spalte('sprache_code')] === 'en',
+           `und sprache_code=en, erhalten ${t[spalte('sprache_code')]}`)
+  }
+  const deutsch = b[1].split('\t')
+  pruefe(deutsch[2].split(',')[2] === 'Deutsch' && deutsch[spalte('sprache_code')] === 'de',
+         'ein 978-3-Buch bleibt Deutsch/de')
+
+  console.log('\n=== Kein gebundener Ladenpreis: UVP greift ===')
+  const uvpStand = baueStand({ mitListings: true, nurUvp: [0, 1] })
+  const rUvp = await lauf(uvpStand, 'merkmale')
+  const bUvp = rUvp.inhalt.split('\n')
+  const kUvp = bUvp[0].split('\t')
+  const sp = (n) => kUvp.indexOf(n)
+  const z0 = bUvp[1].split('\t')
+  pruefe(z0[sp('preisbindung')] === 'N', `ohne Preisbindung wird nicht an den Artikelpreis gebunden, erhalten ${z0[sp('preisbindung')]}`)
+  pruefe(z0[sp('festpreis')] === '15.99', `stattdessen steht der UVP als Festpreis, erhalten ${z0[sp('festpreis')]}`)
+  pruefe(rUvp.zahlen.mit_uvp_preis === 2, `mit_uvp_preis zaehlt 2, erhalten ${rUvp.zahlen.mit_uvp_preis}`)
+  const z2 = bUvp[3].split('\t')
+  pruefe(z2[sp('preisbindung')] === 'Y' && z2[sp('festpreis')] === '',
+         'gebundene Buecher bleiben an den Artikelpreis gebunden, ohne eigenen Festpreis')
+  const aUvp = (await lauf(baueStand({ mitListings: false, nurUvp: [0, 1] }), 'listings')).inhalt.split('\n')
+  pruefe(aUvp.length - 1 === BUECHER.length,
+         `Buecher mit UVP werden nicht mehr zurueckgehalten, erhalten ${aUvp.length - 1} von ${BUECHER.length}`)
 
   console.log('\n=== Listing ohne Market-Listing (Import 23 auf halbem Weg) ===')
   const halb = baueStand({ mitListings: true, ohneMarketListing: 3 })
