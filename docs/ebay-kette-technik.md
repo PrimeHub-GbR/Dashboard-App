@@ -846,23 +846,53 @@ nach jedem Artikelimport per Varianten-Gruppenfunktion nachziehen:
 | Verkaufskanal **2.00 Ebay** | Variante » Verkaufskanäle | „Es wurden keine Varianten für den Export freigeschaltet.(eBay)“ bei Import 23 |
 | Verkaufskanal **2.08 eBay Germany** | dito | dito |
 | **Variante aktiv** | Variante » Allgemein » Verfügbarkeit und Sichtbarkeit | derselbe Text — aber erst bei *Market-Listings prüfen*, nicht beim Import |
-| **Verkaufspreis 7 „Buchpreisbindung“** | Variante » Preise | wieder derselbe Text, wieder bei Import 23 — das eBay-Konto zieht seinen Preis aus ID 7 |
+| **ein Verkaufspreis, den das eBay-Konto sehen darf** | Einstellungen » Verkaufspreise | wieder derselbe Text, wieder bei Import 23 — siehe den Preis-Abschnitt unten |
 
 ### Die Verkaufspreise dieses PlentyONE
 
-| ID | Name | Inhalt |
-|---|---|---|
-| 1 | Preis | Amazon-Preis aus dem Bestandsbericht |
-| 2 | UVP | ungenutzt, steht auf 0 |
-| **7** | **Buchpreisbindung** | gebundener Ladenpreis aus dem VLB — **hieraus nimmt eBay den Preis** |
-| – | B2B-Preis | ungenutzt |
+| ID | Name | Preistyp | Position | eBay-Konten | Inhalt |
+|---|---|---|---|---|---|
+| 1 | Preis | Standard | 0 | **nein** | Amazon-Preis aus dem Bestandsbericht |
+| 2 | UVP | **UVP (RRP)** | 0 | – | steht auf 0. Ein UVP-Preis ist der Streichpreis und **nie** ein Verkaufspreis |
+| 4 | B2B-Preis | Standard | – | nein | ungenutzt |
+| **7** | **Buchpreisbindung** | Standard | **2** | ja | gebundener Ladenpreis aus dem VLB |
+| **8** | **eBay-Preis** | Standard | **3** | ja | freier Preis für Bücher **ohne** Preisbindung |
 
-> **Ein Satz, drei Ursachen.** „Es wurden keine Varianten für den Export
-> freigeschaltet.(eBay)“ bedeutete am 04.09.2026 nacheinander: fehlender
-> Verkaufskanal (Lauf 59, 37 Zeilen), inaktive Variante (bei der Prüfung, MLID 45),
-> und fehlender Verkaufspreis 7 (Läufe 66–69, 4 Zeilen). Bewiesen wurde das
-> letzte mit einem Einzeltest: Verkaufspreis 7 nur bei Artikel 205 gesetzt →
-> Lauf 70 meldete **1 importiert, 3 Fehler**.
+**Wie PlentyONE den Listing-Preis wählt.** Aus den Verkaufspreisen *der Variante*
+bleiben die übrig, die für das eBay-Konto freigegeben sind; davon gewinnt der mit
+der **niedrigsten Position**. Deshalb 7 vor 8: ein gebundener Ladenpreis schlägt
+immer den freien Preis. Der Festpreis im Market-Listing wird dabei von PlentyONE
+gefüllt, nicht von Import 22 — im Mapping von Import 22 steht kein einziger Betrag.
+Die Spalte `uvp` ist der Ja/Nein-Schalter „eBay UVP anzeigen“, kein Preis.
+
+> **Position ist global.** Am 04.09.2026 18:47 bekam Verkaufspreis 1 versuchsweise
+> die eBay-Konten. Weil er Position 0 hat, gewann er sofort gegen die
+> Buchpreisbindung — Artikel 211 wurde mit dem Amazon-Preis gelistet. Bei einem
+> preisgebundenen Buch wäre das ein Verstoß gewesen. **Verkaufspreis 1 darf keine
+> eBay-Konten haben.** Der Auffang-Preis ist ID 8, weil seine Position hinter 7 liegt.
+
+**Ein Verkaufspreis muss pro Variante einen Wert bekommen.** Ihn in den
+Einstellungen anzulegen macht ihn nur auswählbar. Verkaufspreis 7 bekommt seinen
+Wert aus dem **Artikelimport**, Spalte `vlb_bpb_preis`. Für ID 8 muss dort die
+Amazon-Preisspalte `preis` ein **zweites Mal** gemappt werden, mit dem Zusatz
+*Verkaufspreis: eBay-Preis*. Dann trägt jedes Buch beides — und bei gebundenen
+Büchern bleibt der Amazon-Preis wirkungslos, weil Position 3 hinter 2 liegt.
+Die Kette selbst schreibt **keine** Preise, sie liest sie nur.
+
+> **Was die Fehlermeldung wirklich heißt.** „Es wurden keine Varianten für den
+> Export freigeschaltet.(eBay)“ stand am 04.09.2026 für drei verschiedene Dinge:
+> fehlender Verkaufskanal (Lauf 59, 37 Zeilen), inaktive Variante (bei der Prüfung,
+> MLID 45) und — die Läufe 66–69 mit 4 Zeilen — etwas am Preis.
+>
+> Was am Preis, ist **nicht abschließend geklärt**. Die naheliegende Erklärung „die
+> Variante braucht einen Preis*wert*“ ist widerlegt: Artikel 211 (Variante 1176) hat
+> weder Verkaufspreis 7 noch 8, wurde in Lauf 71 aber angelegt — und die Variante
+> war seit 16:50 unverändert, also schon während der gescheiterten Läufe im selben
+> Zustand. Geändert hatte sich nur eins: um ~18:10 wurde Verkaufspreis 8 als
+> **Definition** angelegt, mit eBay-Konten und „Für neue Artikel immer anzeigen“.
+> Der Verdacht ist deshalb, dass diese Option der Variante formal eine Preiszeile
+> verschafft. Belegt ist das nicht — wer es sauber wissen will, nimmt die Option
+> testweise heraus und startet Import 23 für ein Buch ohne Preis.
 
 > Die Artikel-CSV setzt `aktiv = 0` und nur `marktplatz_id = 4.01` (Amazon). Die
 > beiden eBay-Kanäle und das Aktiv-Flag fehlen deshalb bei jedem frisch
