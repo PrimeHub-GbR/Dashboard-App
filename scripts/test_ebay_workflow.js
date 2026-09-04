@@ -33,9 +33,14 @@ const BUECHER = [
   { nr: 'SM-0000032-13-08-2025', titel: 'Skogland 1: Jugendthriller ab 12 Jahren', autor: 'Boie, Kirsten' },
   { nr: 'MAE-5111-12-03-2026', titel: '111 Orte in Zeeland, die man gesehen haben muss', autor: 'Roos, Dr. Martin' },
   { nr: 'PH-4439-08-12-2025', titel: 'Myrrhe, Mord und Marzipan: 24 Weihnachtskrimis von Hohwacht bis St. Moritz', autor: 'Gramoschke, Miriam; Achilles; Winkelmann, Andreas; Verhoeven, Anne; Bernard, Carine; Franke, Christiane; Kuhnert, Cornelia; Dieckerhoff, Christiane; Bardilac, Eleanor; Völler, Eva; Schwiecker, Florian; Pauly, Gisa; Lorentz, Iny; Pust, Justine; Kästner & Kästner; Bohnet, Katja; Rubel, Kerstin; Hofmann, Marc; Heitz, Markus; Kölpin, Regine; Ammer, Simon; Rüther, Sonja; Weinert, Steffen; Turhan, Su; Kastura, Thomas and Eckardt, Tilo' },
+  { nr: 'APR-13170-11-06-2026', titel: 'Windstärke 17: Der Roman nach ›22 Bahnen‹ | Nominiert für das Lieblingsbuch der Unabhängigen 2024 (Shortlist)', autor: 'Wahl, Caroline' },
   { nr: 'MAR-0025-04-09-2026', titel: 'Schmerz: Ein Fall für Dora und Rado | Der fesselnde Island-Krimi des Jahres - spannendes Ermittler-Duo, dunkle Geheimnisse und ein Fall, der unter die Haut geht', autor: 'Jónasson, Ragnar' },
   { nr: 'APR-13375-11-06-2026', titel: 'Sonne, Glück und Blaubeerduft: Die schönsten Geschichten von Astrid Lindgren, Sven Nordqvist u.a.', autor: 'Kutsch, Angelika; Lindgren, Astrid; Engelking, Katrin; Peters, Karl Kurt; Wikland, Ilon; Dohrenburg, Thyra; Nordqvist, Sven; Wieslander, Jujja; Heinig, Cäcilie and Bergström, Gunilla' },
 ]
+
+// eBay zaehlt Bytes. Der Test muss genauso messen wie der Workflow, sonst
+// laesst er genau die Titel durch, an denen eBay scheitert.
+const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
 function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = []
@@ -145,8 +150,8 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   // eBay laesst hoechstens 80 Zeichen im Angebotstitel zu. PlentyONE verweigert sonst
   // schon das Speichern ("Titel enthaelt zu viele Zeichen", MLID 12).
   const titel = b.slice(1).map(z => z.split('\t')[spalte('titel_ebay')])
-  pruefe(titel.every(t => t && t.length <= 80),
-         `jeder eBay-Titel <= 80 Zeichen, laengster ${Math.max(...titel.map(t => (t||'').length))}`)
+  pruefe(titel.every(t => t && bytes(t) <= 80),
+         `jeder eBay-Titel <= 80 BYTES, laengster ${Math.max(...titel.map(t => bytes(t || '')))}`)
   pruefe(titel.every(t => !/[|\u2013\u2014]\s*$/.test(t) && !/\s$/.test(t)),
          'kein Titel endet auf einem Trennzeichen')
   const anhangWeg = b.slice(1).find(z => z.split('\t')[spalte('titel_ebay')] === 'Schmerz: Ein Fall für Dora und Rado')
@@ -159,11 +164,20 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
     if (t.length !== kopf.length) { spalten++; continue }
     const namen = t[1].split(','), werte = t[2].split(',')
     if (namen.length !== werte.length) paare++
-    for (const w of werte) if (w.length > 65) lang++
+    for (const w of werte) if (bytes(w) > 65) lang++
   }
   pruefe(spalten === 0, 'keine zusaetzlichen Tabs in den Werten (E5)')
   pruefe(paare === 0, 'Anzahl Namen == Anzahl Werte je Zeile')
-  pruefe(lang === 0, `jeder Merkmalswert <= 65 Zeichen — auch der Autor (E4/K2), ${lang} zu lang`)
+  pruefe(lang === 0, `jeder Merkmalswert <= 65 BYTES — auch der Autor (E4/K2), ${lang} zu lang`)
+  // Der reale Fehlerfall: 61 Zeichen, aber 67 Bytes. Vor der Umstellung auf
+  // Byte-Zaehlung rutschte genau dieser Titel durch und eBay wies ihn ab.
+  const windstaerke = b.slice(1).find((z) => z.split('\t')[2].includes('Windst'))
+  pruefe(!!windstaerke, 'der Windstaerke-Titel ist in der Datei')
+  if (windstaerke) {
+    const wert = windstaerke.split('\t')[2].split(',')[1]
+    pruefe(bytes(wert) <= 65 && wert.length < 61,
+           `Windstaerke-Buchtitel: ${wert.length} Zeichen / ${bytes(wert)} Bytes (Grenze 65 Bytes)`)
+  }
   const sammelband = b.find((z) => z.startsWith('910\t'))
   pruefe(!!sammelband && !sammelband.includes('Kästner & Kästner'),
     'der 26-Autoren-Sammelband wird an der Autorengrenze gekappt')

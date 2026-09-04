@@ -148,12 +148,38 @@ const preisOk = (variationId) => {
 // Ein Sammelband mit 25 Uebersetzern sprengt das Autorenfeld sonst sofort.
 const MAX = 65;
 
+// eBay zaehlt BYTES, nicht Zeichen. Ein Umlaut sind zwei, die typografischen
+// Anfuehrungszeichen drei. Der Buchtitel
+//   "Windstaerke 17: Der Roman nach ›22 Bahnen‹ | Nominiert fuer das"
+// hat 61 Zeichen, aber 67 Bytes - eBay wies ihn ab (MLID 31, Fehler 21919308,
+// "maximal 65 Zeichen", 04.09.2026). Deutsche Buchtitel liegen fast immer ueber
+// ihrer Zeichenzahl, deshalb wird durchgaengig in Bytes gemessen und geschnitten.
+const bytes = (s) => {
+  let n = 0;
+  for (const c of s) {
+    const p = c.codePointAt(0);
+    n += p < 0x80 ? 1 : p < 0x800 ? 2 : p < 0x10000 ? 3 : 4;
+  }
+  return n;
+};
+
+// Schneidet auf hoechstens max Bytes - nie mitten in ein Zeichen hinein.
+const aufBytes = (t, max) => {
+  if (bytes(t) <= max) return t;
+  let out = '';
+  for (const c of t) {
+    if (bytes(out) + bytes(c) > max) break;
+    out += c;
+  }
+  return out;
+};
+
 const aufMaxKuerzen = (roh) => {
   let t = (roh || '').replace(/,/g, '').replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
-  if (t.length > MAX) {
-    const cut = t.slice(0, MAX + 1);
+  if (bytes(t) > MAX) {
+    const cut = aufBytes(t, MAX);
     const i = cut.lastIndexOf(' ');
-    t = cut.slice(0, i > 30 ? i : MAX).replace(/[\s|,;:\-–—·]+$/, '').trim();
+    t = (i > 30 ? cut.slice(0, i) : cut).replace(/[\s|,;:\-–—·]+$/, '').trim();
   }
   return t;
 };
@@ -170,7 +196,7 @@ const autorUmformen = (roh) => {
   // Autoren als ein abgeschnittener Name.
   const genommen = [];
   for (const a of teile) {
-    if (genommen.concat(a).join('; ').length > MAX) break;
+    if (bytes(genommen.concat(a).join('; ')) > MAX) break;
     genommen.push(a);
   }
   return genommen.length ? genommen.join('; ') : aufMaxKuerzen(teile[0]);
@@ -190,19 +216,19 @@ const titelKuerzen = (roh) => aufMaxKuerzen(roh);
 const EBAY_TITEL_MAX = 80;
 const ebayTitel = (roh) => {
   let t = String(roh || '').replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
-  if (t.length > EBAY_TITEL_MAX) {
+  if (bytes(t) > EBAY_TITEL_MAX) {
     const anhang = t.search(/\s[|\u2013\u2014]\s|\s-\s/);
     if (anhang > 20) t = t.slice(0, anhang);
   }
-  if (t.length > EBAY_TITEL_MAX) {
+  if (bytes(t) > EBAY_TITEL_MAX) {
     // Lieber am Satzende kappen als mitten im Satz: aus
     // "Aufklaerung jetzt: Fuer Vernunft, Wissenschaft, Humanismus und Fortschritt. Eine"
     // wird so ein abgeschlossener Titel statt eines haengenden "Eine".
-    const cut = t.slice(0, EBAY_TITEL_MAX + 1);
+    const cut = aufBytes(t, EBAY_TITEL_MAX);
     const satz = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '),
                           cut.lastIndexOf('? '), cut.lastIndexOf('; '));
     const wort = cut.lastIndexOf(' ');
-    t = satz >= 55 ? cut.slice(0, satz + 1) : cut.slice(0, wort > 40 ? wort : EBAY_TITEL_MAX);
+    t = satz >= 55 ? cut.slice(0, satz + 1) : (wort > 40 ? cut.slice(0, wort) : cut);
     // Ein gekappter Titel soll nicht auf einem Fuellwort enden ("... und", "... Eine").
     t = t.replace(/\s+(und|oder|mit|f\u00fcr|von|der|die|das|dem|den|des|ein|eine|einen|im|am|in|zu|auf|aus|bei|als|wie)$/i, '');
   }
