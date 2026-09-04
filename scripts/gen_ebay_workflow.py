@@ -227,8 +227,10 @@ const ZUSATZ = [
   ['lager_id',         cfg.lagerId         || '2'],      // Lager-ID (FBA)
   ['mwst',             cfg.mwst            || '7'],      // Mehrwertsteuersatz
   ['sprache_code',     cfg.spracheCode     || 'de'],     // Sprache
-  ['uvp',              cfg.uvpUebertragen  || '0'],      // eBay UVP uebertragen
-  ['preisvorschlag',   cfg.preisvorschlag  || '0'],      // eBay-Preisvorschlag
+  // Ja/Nein durchgaengig als Buchstabe - siehe "An Artikelpreis binden" (Lauf 45/47/49):
+  // 0 und 1 wurden abgewiesen, Y lief durch. Beide Felder stehen im Listing auf "Nein".
+  ['uvp',              cfg.uvpUebertragen  || 'N'],      // eBay UVP uebertragen
+  ['preisvorschlag',   cfg.preisvorschlag  || 'N'],      // eBay-Preisvorschlag
   ['bilder',           cfg.anzahlBilder    || '1'],      // Anzahl der Bilder
   // "An Artikelpreis binden" erwartet 'Y'/'N', nicht 0/1 und erst recht keine Preis-ID:
   //   '7' -> "Use Item Price invalid. | ( UpdateListingMarket )"  (Lauf 45, 11 Fehler)
@@ -376,8 +378,8 @@ KONFIG = {
         {"id": "b05", "name": "lagerId", "value": "2", "type": "string"},
         {"id": "b06", "name": "mwst", "value": "7", "type": "string"},
         {"id": "b07", "name": "spracheCode", "value": "de", "type": "string"},
-        {"id": "b08", "name": "uvpUebertragen", "value": "0", "type": "string"},
-        {"id": "b09", "name": "preisvorschlag", "value": "0", "type": "string"},
+        {"id": "b08", "name": "uvpUebertragen", "value": "N", "type": "string"},
+        {"id": "b09", "name": "preisvorschlag", "value": "N", "type": "string"},
         {"id": "b10", "name": "anzahlBilder", "value": "1", "type": "string"},
         # "An Artikelpreis binden" = Ja/Nein. Die Verkaufspreis-ID 7 steckt in bpbPreisId.
         {"id": "b11", "name": "preisbindungWert", "value": "Y", "type": "string"},
