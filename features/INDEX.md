@@ -118,7 +118,8 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | Amazon-Export -> VLB-Anreicherung + Cover, 2 parallele N8N-Straenge, Mapping-Tabelle | In Progress | [plentyone/overview.md](plentyone/overview.md) |
-| eBay-Vollautomatisierung (Abhol-URLs, Import 22/23, Preis-Guard, Statusbericht) | In Progress | [plentyone/ebay-vollautomatisierung.md](plentyone/ebay-vollautomatisierung.md) |
+| eBay-Vollautomatisierung (Abhol-URLs, Import 22/23, Preis-Guard, Statusbericht) | In Review | [plentyone/ebay-vollautomatisierung.md](plentyone/ebay-vollautomatisierung.md) |
+| Handbuch: Betrieb + Aenderungen an der eBay-Kette | Deployed | [../docs/ebay-kette-handbuch.md](../docs/ebay-kette-handbuch.md) |
 
 ## Manager (GF) `/dashboard/manager`
 
