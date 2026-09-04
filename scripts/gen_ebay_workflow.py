@@ -224,6 +224,29 @@ const istBuch = (itemId) => {
   return muster.test(nr);
 };
 
+// --- Verwaiste Listings erkennen --------------------------------------------
+// Import 23 legt in EINEM Lauf zwei Dinge an: erst das Listing, dann das
+// Market-Listing. Scheitert der zweite Schritt - etwa weil die Variante nicht fuer
+// eBay freigeschaltet ist ("Es wurden keine Varianten fuer den Export
+// freigeschaltet.(eBay)") - bleibt ein Listing OHNE Market-Listing zurueck.
+// Der Artikel gilt danach als "hat schon ein Listing" und verschwindet lautlos aus
+// CSV A: Import 23 meldet 0 Zeilen, Import 22 kennt die MLID nicht, und niemand
+// merkt etwas. Genau das ist am 04.09.2026 mit 37 Buechern passiert.
+// Deshalb werden solche Artikel hier ausdruecklich gezaehlt und benannt.
+const itemsMitMarketListing = new Set();
+for (const ml of marketListings) {
+  const iid = itemByVar[ml.variationId];
+  if (iid) itemsMitMarketListing.add(iid);
+}
+const verwaiste = [];
+for (const it of items) {
+  if (!istBuch(it.id)) continue;
+  if (!itemsMitListing.has(it.id)) continue;
+  if (itemsMitMarketListing.has(it.id)) continue;
+  verwaiste.push({ item_id: it.id, titel: String(titelByItem[it.id] || '').slice(0, 90),
+                   grund: 'Listing ohne Market-Listing - in PlentyONE loeschen, dann Import 23 erneut' });
+}
+
 // --- CSV A: Buch-Artikel OHNE Listing (Import 23) ----------------------------
 const aRows = ['ItemID\tMarketID\tUserID\tTypeID\tStockDependenceTypeID\tUnitCombinationID\tDirectoryID\tEnabled\tDuration'];
 const ohnePreis = [];
@@ -330,6 +353,7 @@ const zahlen = {
   nicht_geprueft: nichtGeprueft,
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
+  verwaiste_listings: verwaiste.length,
 };
 
 const preisHinweis = preisPruefung === 'ok'
@@ -347,6 +371,9 @@ const text = [
     + ', fehlgeschlagen ' + geprueftFehler + ', noch nicht geprueft ' + nichtGeprueft + ')',
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
+  verwaiste.length ? '' : null,
+  verwaiste.length ? 'ACHTUNG: ' + verwaiste.length + ' Listing(s) ohne Market-Listing - Import 23 ist auf halbem Weg stehengeblieben:' : null,
+  ...verwaiste.slice(0, 100).map(v => '  Artikel ' + v.item_id + ': ' + v.titel),
   preisHinweis ? '' : null,
   preisHinweis ? 'ACHTUNG: ' + preisHinweis : null,
   uebersprungen.length ? '' : null,
@@ -356,13 +383,13 @@ const text = [
 
 // Gruen heisst: jedes Buch-Listing ist geprueft UND bestanden. Ein ungeprueftes
 // Listing zaehlt ausdruecklich NICHT als in Ordnung.
-const ok = geprueftFehler === 0 && nichtGeprueft === 0
-        && ohnePreis.length === 0 && preisPruefung === 'ok';
+const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
+        && verwaiste.length === 0 && preisPruefung === 'ok';
 
 const koerper = JSON.stringify({
   ok,
   zahlen,
-  probleme: probleme.slice(0, 500),
+  probleme: probleme.concat(verwaiste).slice(0, 500),
   uebersprungen: uebersprungen.concat(ohnePreis).slice(0, 500),
   text,
 });
