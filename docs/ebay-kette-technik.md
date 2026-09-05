@@ -1069,6 +1069,61 @@ Ohne diese Erlaubnis gilt: Anleitung schreiben, nicht selbst schreiben.
 
 ---
 
+## 12b Die Market-Listing-Prüfung im Stapel
+
+**Die Prüfung ist Pflicht, nicht Kür.** Ein Market-Listing ohne bestandene Prüfung
+lässt sich nicht starten — „Listings starten" läuft dann durch, ohne dass ein
+Angebot entsteht (belegt am 06.09.2026 durch einen Fehlklick auf 46 Listings).
+
+**Die Oberfläche schafft nur acht.** Markiert man mehr, meldet PlentyONE sofort
+„Die Gruppenfunktion wurde auf 46 Market-Listings erfolgreich angewendet" — und
+tut nichts. Erkennbar ist der Unterschied an der Spalte **Einstellgebühr**: sie
+wird von eBays `VerifyAddItem` zurückgeliefert. Steht dort 0,42 €, wurde wirklich
+geprüft; ist sie leer, hat eBay nie geantwortet.
+
+### Der Aufruf
+
+Die Gruppenfunktion ist kein REST-Endpunkt (`/rest/listings/markets/{id}/verify`
+liefert 503), sondern die interne GWT-Brücke `POST /plenty/api/ui.php`,
+Body `application/x-www-form-urlencoded` mit einem Feld `request`:
+
+```json
+{"requests":[{
+  "_dataName": "ItemListingGroupAction",
+  "_moduleName": "item/listing/group_action",
+  "_searchParams": {}, "_validateParams": {}, "_dataArray": {},
+  "_writeParams": { "marketListingId": "64,65,66,67" },
+  "_commandStack": [{ "type": "write", "command": "write" }],
+  "_dataList": { "ItemListingGroupActionRunValidation": {
+    "_dataName": "ItemListingGroupActionRunValidation",
+    "_moduleName": "item/listing/group_action",
+    "_writeParams": {}, "_searchParams": {}, "_dataArray": {}, "_dataList": {} } }
+}], "meta": { "id": 5, "token": "<Sitzungs-Nonce>" }}
+```
+
+`marketListingId` ist eine Komma-Liste beliebiger Länge — der Server nimmt 46 an
+und antwortet `affectedRows: 46`, arbeitet aber nur kleine Mengen wirklich ab.
+**Ein Authorization-Header ist nicht nötig**, der Sitzungs-Cookie
+`SID_PLENTY_ADMIN_<Mandant>` genügt. Er ist HttpOnly, also aus JavaScript nicht
+lesbar — `credentials: 'include'` schickt ihn trotzdem mit.
+
+### Was funktioniert
+
+Vier IDs je Aufruf, 30 Sekunden Pause, aus der Browser-Konsole des angemeldeten
+PlentyONE-Tabs. 46 Listings in zwölf Stapeln, rund sieben Minuten, alle geprüft.
+**Durchsatz etwa 400 Listings pro Stunde** — für 2.000 Bücher gut fünf Stunden.
+
+Das Skript steht in `docs/ebay-pruefung-stapel.js`. Vor dem Lauf `von`/`bis` auf
+den MLID-Bereich setzen (kleinste und größte MLID aus der Tabelle) und in der
+Konsole einmal `allow pasting` bestätigen. Der Tab muss offen bleiben.
+
+### Offen für die Automatisierung
+
+Das `meta.token` wechselt je Anfrage; ob der Server es überhaupt prüft, ist
+ungetestet. Und ob ein über `POST /rest/login` geholtes Token für `ui.php`
+gilt, ebenfalls. Solange das offen ist, läuft die Prüfung aus dem Browser —
+nicht aus n8n.
+
 ## 13 Offene Punkte
 
 | Punkt | Stand |
@@ -1079,5 +1134,6 @@ Ohne diese Erlaubnis gilt: Anleitung schreiben, nicht selbst schreiben.
 | **Cover-Pfad** | Bildzuordnung für eBay noch nicht durchgängig belegt |
 | **Tokens rotieren** | `PLENTYONE_EXPORT_TOKEN` und `N8N_EBAY_TOKEN` standen im Chatverlauf |
 | **Artikel-/Eigenschaftsimport auf HTTPS/URL** | Zeitpläne 02:00 / 02:30 noch nicht scharf |
-| **Stapelvorlage „Bücher (1)"** | fachlich überflüssig; nach dem Vollimport löschen |
+| **Stapelvorlage „Bücher (1)"** | fachlich überflüssig — Import 22 setzt alle 13 Felder selbst; nach dem Vollimport löschen |
+| **Prüfung aus n8n statt Browser** | Aufruf ist bekannt (§12b), offen sind `meta.token` und ob ein REST-Login-Token für `ui.php` gilt |
 | **Zeitplan Import 22/23** | derzeit Handstart; erst nach dem Vollimport automatisieren |
