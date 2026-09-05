@@ -117,6 +117,8 @@ export function EbayKette({
   const [berichte, setBerichte] = useState<EbayBericht[]>([])
   const [laden, setLaden] = useState(true)
   const [schalten, setSchalten] = useState(false)
+  const [rechnet, setRechnet] = useState(false)
+  const [fehler, setFehler] = useState<string | null>(null)
   const [basis, setBasis] = useState('https://dashboard.primehubgbr.com')
 
   useEffect(() => {
@@ -129,13 +131,45 @@ export function EbayKette({
       if (res.ok) {
         const j = await res.json()
         setBerichte(j.berichte ?? [])
+        return (j.berichte?.[0]?.erstellt_at ?? null) as string | null
       }
     } finally {
       setLaden(false)
     }
+    return null
   }, [])
 
   useEffect(() => { void holen() }, [holen])
+
+  /**
+   * Stoesst den n8n-Workflow an und wartet, bis ein neuerer Bericht eintrifft.
+   * n8n antwortet sofort und meldet das Ergebnis spaeter per Callback - deshalb
+   * wird hier gepollt statt auf die Antwort zu warten. Der Lauf liest gut 2.000
+   * Artikel aus PlentyONE, eine Minute ist normal.
+   */
+  async function neuBerechnen() {
+    setFehler(null)
+    setRechnet(true)
+    const vorher = berichte[0]?.erstellt_at ?? null
+    try {
+      const res = await fetch('/api/plentyone/ebay/bericht/starten', { method: 'POST' })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setFehler(j.error ?? `Start fehlgeschlagen (${res.status})`)
+        return
+      }
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 3000))
+        const neu = await holen()
+        if (neu && neu !== vorher) return
+      }
+      setFehler('Der Bericht kam nicht innerhalb von zwei Minuten zurück — Lauf in n8n prüfen.')
+    } catch {
+      setFehler('Der Bericht konnte nicht angestoßen werden.')
+    } finally {
+      setRechnet(false)
+    }
+  }
 
   async function freigabeUmlegen(an: boolean) {
     if (!runId) return
@@ -167,9 +201,18 @@ export function EbayKette({
               </p>
             </div>
           </div>
-          <Button type="button" size="sm" variant="ghost" onClick={() => void holen()} className="gap-1.5">
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            Aktualisieren
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => void neuBerechnen()}
+            disabled={rechnet}
+            className="gap-1.5"
+          >
+            {rechnet
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              : <RefreshCw className="h-3.5 w-3.5" aria-hidden />}
+            {rechnet ? 'Bericht läuft…' : 'Aktualisieren'}
           </Button>
         </div>
       </CardHeader>
@@ -210,6 +253,13 @@ export function EbayKette({
               <span className="text-xs text-muted-foreground">{datum(aktuell.erstellt_at)}</span>
             )}
           </div>
+
+          {fehler && (
+            <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              {fehler}
+            </p>
+          )}
 
           {laden ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">

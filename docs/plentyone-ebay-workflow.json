@@ -81,7 +81,23 @@
     },
     {
       "parameters": {
-        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\nconst kopf = ($('Webhook Listings').first().json.headers || {})['x-primehub-token'] || '';\nreturn [{ json: { modus: 'listings', token: kopf } }];\n"
+        "path": "ebay-bericht",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "webhook-bericht",
+      "name": "Webhook Bericht",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        740
+      ],
+      "webhookId": "ebay-bericht"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\n// vonWebhook entscheidet in \"Zugang pruefen\", ob ein Token verlangt wird -\n// Zeitplan und Handstart laufen ohne, jeder Abruf von aussen nicht.\nconst kopf = ($('Webhook Listings').first().json.headers || {})['x-primehub-token'] || '';\nreturn [{ json: { modus: 'listings', token: kopf, vonWebhook: true } }];\n"
       },
       "id": "modus-listings",
       "name": "Modus listings",
@@ -94,7 +110,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\nconst kopf = ($('Webhook Merkmale').first().json.headers || {})['x-primehub-token'] || '';\nreturn [{ json: { modus: 'merkmale', token: kopf } }];\n"
+        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\n// vonWebhook entscheidet in \"Zugang pruefen\", ob ein Token verlangt wird -\n// Zeitplan und Handstart laufen ohne, jeder Abruf von aussen nicht.\nconst kopf = ($('Webhook Merkmale').first().json.headers || {})['x-primehub-token'] || '';\nreturn [{ json: { modus: 'merkmale', token: kopf, vonWebhook: true } }];\n"
       },
       "id": "modus-merkmale",
       "name": "Modus merkmale",
@@ -107,7 +123,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\nconst kopf = '';\nreturn [{ json: { modus: 'bericht', token: kopf } }];\n"
+        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\n// vonWebhook entscheidet in \"Zugang pruefen\", ob ein Token verlangt wird -\n// Zeitplan und Handstart laufen ohne, jeder Abruf von aussen nicht.\nconst kopf = '';\nreturn [{ json: { modus: 'bericht', token: kopf, vonWebhook: false } }];\n"
       },
       "id": "modus-bericht",
       "name": "Modus bericht",
@@ -116,6 +132,19 @@
       "position": [
         -400,
         500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Betriebsart festlegen und den Webhook-Token mitnehmen.\n// vonWebhook entscheidet in \"Zugang pruefen\", ob ein Token verlangt wird -\n// Zeitplan und Handstart laufen ohne, jeder Abruf von aussen nicht.\nconst kopf = ($('Webhook Bericht').first().json.headers || {})['x-primehub-token'] || '';\nreturn [{ json: { modus: 'bericht', token: kopf, vonWebhook: true } }];\n"
+      },
+      "id": "modus-bericht-abruf",
+      "name": "Modus bericht Abruf",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        740
       ]
     },
     {
@@ -330,7 +359,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Webhook-Abrufe brauchen den gemeinsamen Token. Der Zeitplan laeuft ohne.\nconst cfg = $('Konfiguration').first().json;\nconst d = $input.first().json;\nif (d.modus !== 'bericht') {\n  const erwartet = String(cfg.webhookToken || '');\n  if (erwartet.length < 16) {\n    throw new Error('Im Knoten \"Konfiguration\" fehlt der webhookToken (mindestens 16 Zeichen).');\n  }\n  if (String(d.token || '') !== erwartet) {\n    throw new Error('Abruf ohne gueltigen Token abgelehnt.');\n  }\n}\nreturn [{ json: { modus: d.modus } }];\n"
+        "jsCode": "// Webhook-Abrufe brauchen den gemeinsamen Token. Der Zeitplan laeuft ohne.\nconst cfg = $('Konfiguration').first().json;\nconst d = $input.first().json;\nif (d.vonWebhook) {\n  const erwartet = String(cfg.webhookToken || '');\n  if (erwartet.length < 16) {\n    throw new Error('Im Knoten \"Konfiguration\" fehlt der webhookToken (mindestens 16 Zeichen).');\n  }\n  if (String(d.token || '') !== erwartet) {\n    throw new Error('Abruf ohne gueltigen Token abgelehnt.');\n  }\n}\nreturn [{ json: { modus: d.modus } }];\n"
       },
       "id": "zugang-pruefen",
       "name": "Zugang pruefen",
@@ -527,6 +556,17 @@
         ]
       ]
     },
+    "Webhook Bericht": {
+      "main": [
+        [
+          {
+            "node": "Modus bericht Abruf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Modus listings": {
       "main": [
         [
@@ -550,6 +590,17 @@
       ]
     },
     "Modus bericht": {
+      "main": [
+        [
+          {
+            "node": "Konfiguration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modus bericht Abruf": {
       "main": [
         [
           {

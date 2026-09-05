@@ -6,6 +6,7 @@ Der Workflow hat drei Eingaenge und einen gemeinsamen Rechenweg:
 
     Webhook  ebay-listings  ->\
     Webhook  ebay-merkmale  -> Konfiguration -> Zugang pruefen -> Login
+    Webhook  ebay-bericht   ->/   (Dashboard-Knopf "Aktualisieren")
     Zeitplan 05:00          ->/                                    -> Daten holen
     Manuell starten         ->/                                       -> CSV ausliefern
                                                                       -> Bericht senden
@@ -27,8 +28,10 @@ ZIEL = "docs/plentyone-ebay-workflow.json"
 # ---------------------------------------------------------------------------
 
 MODUS = """// Betriebsart festlegen und den Webhook-Token mitnehmen.
+// vonWebhook entscheidet in "Zugang pruefen", ob ein Token verlangt wird -
+// Zeitplan und Handstart laufen ohne, jeder Abruf von aussen nicht.
 const kopf = %s;
-return [{ json: { modus: '%s', token: kopf } }];
+return [{ json: { modus: '%s', token: kopf, vonWebhook: %s } }];
 """
 
 MODUS_WEBHOOK = "($('%s').first().json.headers || {})['x-primehub-token'] || ''"
@@ -36,7 +39,7 @@ MODUS_WEBHOOK = "($('%s').first().json.headers || {})['x-primehub-token'] || ''"
 ZUGANG = r"""// Webhook-Abrufe brauchen den gemeinsamen Token. Der Zeitplan laeuft ohne.
 const cfg = $('Konfiguration').first().json;
 const d = $input.first().json;
-if (d.modus !== 'bericht') {
+if (d.vonWebhook) {
   const erwartet = String(cfg.webhookToken || '');
   if (erwartet.length < 16) {
     throw new Error('Im Knoten "Konfiguration" fehlt der webhookToken (mindestens 16 Zeichen).');
@@ -606,13 +609,20 @@ nodes = [
     node("Zeitplan 05:00", "n8n-nodes-base.scheduleTrigger", 1.2, [-640, 420],
          {"rule": {"interval": [{"field": "cronExpression", "expression": "0 5 * * *"}]}}),
     node("Manuell starten", "n8n-nodes-base.manualTrigger", 1, [-640, 580], {}),
+    # Das Dashboard stoesst den Bericht per Knopfdruck an. Antwort sofort
+    # (onReceived) - das Ergebnis kommt spaeter ueber "Bericht senden" zurueck.
+    node("Webhook Bericht", "n8n-nodes-base.webhook", 2, [-640, 740],
+         {"path": "ebay-bericht", "httpMethod": "POST", "responseMode": "onReceived"},
+         webhookId="ebay-bericht"),
 
     node("Modus listings", "n8n-nodes-base.code", 2, [-400, 60],
-         {"jsCode": MODUS % (MODUS_WEBHOOK % "Webhook Listings", "listings")}),
+         {"jsCode": MODUS % (MODUS_WEBHOOK % "Webhook Listings", "listings", "true")}),
     node("Modus merkmale", "n8n-nodes-base.code", 2, [-400, 240],
-         {"jsCode": MODUS % (MODUS_WEBHOOK % "Webhook Merkmale", "merkmale")}),
+         {"jsCode": MODUS % (MODUS_WEBHOOK % "Webhook Merkmale", "merkmale", "true")}),
     node("Modus bericht", "n8n-nodes-base.code", 2, [-400, 500],
-         {"jsCode": MODUS % ("''", "bericht")}),
+         {"jsCode": MODUS % ("''", "bericht", "false")}),
+    node("Modus bericht Abruf", "n8n-nodes-base.code", 2, [-400, 740],
+         {"jsCode": MODUS % (MODUS_WEBHOOK % "Webhook Bericht", "bericht", "true")}),
 
     node("Konfiguration", "n8n-nodes-base.set", 3.4, [-160, 280], KONFIG),
     node("Zugang pruefen", "n8n-nodes-base.code", 2, [60, 280], {"jsCode": ZUGANG}),
@@ -671,9 +681,11 @@ connections = {
     "Webhook Merkmale": {"main": [verbinde("Modus merkmale")]},
     "Zeitplan 05:00": {"main": [verbinde("Modus bericht")]},
     "Manuell starten": {"main": [verbinde("Modus bericht")]},
+    "Webhook Bericht": {"main": [verbinde("Modus bericht Abruf")]},
     "Modus listings": {"main": [verbinde("Konfiguration")]},
     "Modus merkmale": {"main": [verbinde("Konfiguration")]},
     "Modus bericht": {"main": [verbinde("Konfiguration")]},
+    "Modus bericht Abruf": {"main": [verbinde("Konfiguration")]},
     "Konfiguration": {"main": [verbinde("Zugang pruefen")]},
     "Zugang pruefen": {"main": [verbinde("PlentyONE Login")]},
     "PlentyONE Login": {"main": [verbinde("Daten holen")]},
