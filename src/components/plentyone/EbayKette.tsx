@@ -325,9 +325,9 @@ export function EbayKette({
           </ul>
 
           <p className="rounded-md border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-800 dark:text-sky-200">
-            Zwischen 03:00 und 04:00 liegt die Stapelverarbeitung: Vorlage „Bücher (1)" auf die
-            neuen Listings anwenden. Das sind bis auf Weiteres die einzigen zwei Klicks im ganzen
-            Zyklus — der Batch-Endpunkt dafür ist noch nicht bekannt.
+            Keine Stapelverarbeitung mehr nötig: Import 22 setzt Kategorie, Versandprofil, Zustand,
+            Layout, Lager, MwSt, Sprache, Bilder, Preisbindung und den eBay-Titel selbst. Die Vorlage
+            „Bücher (1)" ist damit überflüssig und kann nach dem Vollimport gelöscht werden.
           </p>
         </section>
       </CardContent>
