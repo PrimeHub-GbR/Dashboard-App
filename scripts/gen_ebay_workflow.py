@@ -609,11 +609,18 @@ nodes = [
     node("Zeitplan 05:00", "n8n-nodes-base.scheduleTrigger", 1.2, [-640, 420],
          {"rule": {"interval": [{"field": "cronExpression", "expression": "0 5 * * *"}]}}),
     node("Manuell starten", "n8n-nodes-base.manualTrigger", 1, [-640, 580], {}),
-    # Das Dashboard stoesst den Bericht per Knopfdruck an. Antwort sofort
-    # (onReceived) - das Ergebnis kommt spaeter ueber "Bericht senden" zurueck.
+    # Das Dashboard stoesst den Bericht per Knopfdruck an. Geantwortet wird
+    # sofort ueber "Antwort Bericht"; das Ergebnis kommt spaeter ueber
+    # "Bericht senden" zurueck. Ein eigener Respond-Knoten ist noetig, weil
+    # n8n sonst "Unused Respond to Webhook node found in the workflow" wirft -
+    # sobald irgendein Respond-Knoten existiert, muss ihn jeder Webhook nutzen.
     node("Webhook Bericht", "n8n-nodes-base.webhook", 2, [-640, 740],
-         {"path": "ebay-bericht", "httpMethod": "POST", "responseMode": "onReceived"},
+         {"path": "ebay-bericht", "httpMethod": "POST", "responseMode": "responseNode"},
          webhookId="ebay-bericht"),
+    node("Antwort Bericht", "n8n-nodes-base.respondToWebhook", 1.1, [-400, 900], {
+        "respondWith": "text",
+        "responseBody": "angestossen",
+    }),
 
     node("Modus listings", "n8n-nodes-base.code", 2, [-400, 60],
          {"jsCode": MODUS % (MODUS_WEBHOOK % "Webhook Listings", "listings", "true")}),
@@ -681,7 +688,8 @@ connections = {
     "Webhook Merkmale": {"main": [verbinde("Modus merkmale")]},
     "Zeitplan 05:00": {"main": [verbinde("Modus bericht")]},
     "Manuell starten": {"main": [verbinde("Modus bericht")]},
-    "Webhook Bericht": {"main": [verbinde("Modus bericht Abruf")]},
+    "Webhook Bericht": {"main": [verbinde("Antwort Bericht")]},
+    "Antwort Bericht": {"main": [verbinde("Modus bericht Abruf")]},
     "Modus listings": {"main": [verbinde("Konfiguration")]},
     "Modus merkmale": {"main": [verbinde("Konfiguration")]},
     "Modus bericht": {"main": [verbinde("Konfiguration")]},

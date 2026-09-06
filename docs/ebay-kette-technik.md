@@ -1069,6 +1069,28 @@ Ohne diese Erlaubnis gilt: Anleitung schreiben, nicht selbst schreiben.
 
 ---
 
+## 12a Der Bericht-Webhook
+
+Der Knopf „Aktualisieren" im Dashboard ruft `POST /api/plentyone/ebay/bericht/starten`
+auf; die Route stösst `N8N_EBAY_BERICHT_URL` mit dem Header `x-primehub-token` an
+und wartet nicht. n8n antwortet sofort, rechnet weiter und meldet das Ergebnis über
+`Bericht senden` an `/api/plentyone/ebay/bericht`. Das Dashboard pollt derweil bis
+zu zwei Minuten auf einen Bericht mit neuerem Zeitstempel.
+
+Im Workflow hängt daran: `Webhook Bericht` (POST, Pfad `ebay-bericht`) →
+`Antwort Bericht` → `Modus bericht Abruf` → `Konfiguration`.
+
+> **Warum ein eigener Respond-Knoten.** „Sofort antworten" (onReceived) genügt nicht:
+> Sobald irgendwo im Workflow ein *Respond to Webhook*-Knoten steht — hier
+> `CSV ausliefern` — verlangt n8n, dass **jeder** Webhook einen benutzt, sonst
+> bricht der Lauf mit *„Unused Respond to Webhook node found in the workflow"* ab
+> (belegt 06.09.2026, Lauf 373738).
+
+Die Token-Prüfung hängt seither an `vonWebhook`, nicht mehr an der Betriebsart:
+`Modus listings`, `Modus merkmale` und `Modus bericht Abruf` setzen `true`,
+`Modus bericht` (Zeitplan und Handstart) setzt `false`. Wer einen dieser Knoten
+anfasst, muss das Feld mitführen — fehlt es, ist der jeweilige Webhook ungeschützt.
+
 ## 12b Die Market-Listing-Prüfung im Stapel
 
 **Die Prüfung ist Pflicht, nicht Kür.** Ein Market-Listing ohne bestandene Prüfung

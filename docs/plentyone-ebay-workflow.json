@@ -83,7 +83,7 @@
       "parameters": {
         "path": "ebay-bericht",
         "httpMethod": "POST",
-        "responseMode": "onReceived"
+        "responseMode": "responseNode"
       },
       "id": "webhook-bericht",
       "name": "Webhook Bericht",
@@ -94,6 +94,20 @@
         740
       ],
       "webhookId": "ebay-bericht"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "angestossen"
+      },
+      "id": "antwort-bericht",
+      "name": "Antwort Bericht",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        900
+      ]
     },
     {
       "parameters": {
@@ -557,6 +571,17 @@
       ]
     },
     "Webhook Bericht": {
+      "main": [
+        [
+          {
+            "node": "Antwort Bericht",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Antwort Bericht": {
       "main": [
         [
           {
