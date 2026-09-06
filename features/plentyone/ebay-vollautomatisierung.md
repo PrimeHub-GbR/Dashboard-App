@@ -1,6 +1,6 @@
 # eBay-Vollautomatisierung über PlentyONE
 
-**Status:** In Progress
+**Status:** In Review
 **Tab:** PlentyONE-Migration `/dashboard/plentyone`
 **Zugriff:** Admin + Manager
 **Quelle:** Spezifikation vom 03.09.2026 (Live-System verifiziert 25.08.–03.09.2026)

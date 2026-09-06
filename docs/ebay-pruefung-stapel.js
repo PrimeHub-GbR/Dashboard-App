@@ -37,6 +37,10 @@ for (let k = 0; k < alle.length; k += STAPEL) {
       _dataName: 'ItemListingGroupActionRunValidation',
       _moduleName: 'item/listing/group_action',
       _writeParams: {}, _searchParams: {}, _dataArray: {}, _dataList: {} } },
+  // meta.token ist eine mitgeschnittene Sitzungs-Nonce der Oberflaeche,
+  // kein Zugangsschluessel - ohne den Sitzungs-Cookie nuetzt sie niemandem.
+  // Sollte der Aufruf eines Tages abgelehnt werden: neuen Wert aus einem
+  // F12-Mitschnitt der Gruppenfunktion eintragen.
   }], meta: { id: 5, token: 'ar4Irci8NJqMkOhs' } };
 
   // Kein Authorization-Header nötig: der Sitzungs-Cookie reicht, und

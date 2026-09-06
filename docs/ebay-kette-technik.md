@@ -1174,14 +1174,46 @@ nicht aus n8n.
 
 ## 13 Offene Punkte
 
+Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft).
+
+### Erledigt und bewusst so belassen
+
+| Punkt | Entscheidung |
+|---|---|
+| **Verkaufskanäle 2.00 + 2.08** | über `markt_aktiv` → *Märkte » Aktiv* im Artikelimport, zweimal zugeordnet. Am 06.09.2026 an neu angelegten Artikeln von Hand nachgeprüft — die Kanäle stehen. Die Gruppenfunktion entfällt |
+| **`aktiv` kommt als 0** aus *plentyone-metadata* | Zielfeld *Varianten » Aktiv* wird stattdessen aus `verfuegbarkeit` (konstant 1) gespeist. Zulässig, weil nur der Bericht der aktiven Angebote hochgeladen wird. Die Ursache im Workflow bleibt **absichtlich** unbehoben |
+| **Stapelvorlage „Bücher (1)"** | überflüssig, Import 22 setzt alle 13 Felder selbst. Nach dem Vollimport löschen |
+| **Bücher ohne Cover** | werden nicht gelistet (§12c). eBay verlangt ein Bild, ein Buch ohne VLB-Treffer hat keines |
+| **Tokens rotieren** | entfällt — `PLENTYONE_EXPORT_TOKEN` und `N8N_EBAY_TOKEN` werden ohnehin erneuert |
+
+### Noch zu tun
+
 | Punkt | Stand |
 |---|---|
-| **Artikelimport: `aktiv = 1` und die zwei eBay-Kanäle** | höchste Priorität — solange sie fehlen, bleibt nach jedem Import Handarbeit (Gruppenfunktion). Erst prüfen, ob die Zuordnung feste Werte erlaubt; sonst Spalten in der Migrations-CSV |
-| **Vollimport ~2.000 Bücher** | bisher nur 11 Listings gebaut und geprüft |
+| **Zeitpläne scharf schalten** | Die vier Importe stehen auf Handstart. Für den echten Zyklus: Artikelimport 02:00, Eigenschaftsimport 02:30, Import 23 um 03:00, Import 22 um 04:00. **Erinnerung an den Nutzer eingeplant** |
+| **Vollimport ~2.000 Bücher** | bisher 49 Listings gebaut und geprüft |
 | **Lager-ID 2** | zeigt laut API auf „Amazon FBA-Lager BuchDepot24"; prüfen, ob das für eBay-Versand richtig ist oder Lager 1 („Sales") gehört |
-| **Cover-Pfad** | Bildzuordnung für eBay noch nicht durchgängig belegt |
-| **Tokens rotieren** | `PLENTYONE_EXPORT_TOKEN` und `N8N_EBAY_TOKEN` standen im Chatverlauf |
-| **Artikel-/Eigenschaftsimport auf HTTPS/URL** | Zeitpläne 02:00 / 02:30 noch nicht scharf |
-| **Stapelvorlage „Bücher (1)"** | fachlich überflüssig — Import 22 setzt alle 13 Felder selbst; nach dem Vollimport löschen |
-| **Prüfung aus n8n statt Browser** | Aufruf ist bekannt (§12b), offen sind `meta.token` und ob ein REST-Login-Token für `ui.php` gilt |
-| **Zeitplan Import 22/23** | derzeit Handstart; erst nach dem Vollimport automatisieren |
+
+### Verbesserung für später — Prüfung aus n8n statt aus dem Browser
+
+Heute läuft die Market-Listing-Prüfung über `docs/ebay-pruefung-stapel.js` in der
+Browser-Konsole des angemeldeten PlentyONE-Tabs: vier IDs je Aufruf, 30 Sekunden
+Pause, rund 400 Listings pro Stunde. Bei 2.000 Büchern sind das gut fünf Stunden,
+in denen der Tab offen bleiben muss. Bewusste Entscheidung — es funktioniert, und
+der Aufwand für die Automatisierung lohnt sich noch nicht.
+
+Wer es später doch angeht, braucht drei Antworten:
+
+1. **Gilt ein Token aus `POST /rest/login` auch für `/plenty/api/ui.php`?** Der
+   Browser schickt den Sitzungs-Cookie `SID_PLENTY_ADMIN_<Mandant>`; ob die
+   REST-Anmeldung ein gleichwertiges Token liefert, ist ungetestet.
+2. **Prüft der Server `meta.token` überhaupt?** Der Wert wechselt je Anfrage.
+   Ein fest eingetragener älterer Wert lief durch — das spricht dafür, dass er
+   ignoriert wird, ist aber kein Beweis.
+3. **Wo genau liegt die Mengengrenze?** Der Server nimmt 46 IDs an und meldet
+   `affectedRows: 46`, arbeitet aber nur kleine Mengen wirklich ab. Vier gehen
+   sicher, acht laut Oberfläche auch. Dazwischen ist ungetestet.
+
+Sind die drei geklärt, wäre es ein Schleifen-Knoten im bestehenden Workflow —
+angestossen vom selben Bericht-Webhook, der schon existiert. Der Aufruf selbst
+steht vollständig in §12b.
