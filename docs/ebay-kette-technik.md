@@ -1069,6 +1069,14 @@ Ohne diese Erlaubnis gilt: Anleitung schreiben, nicht selbst schreiben.
 
 ---
 
+> **Den Code-Knoten „Daten holen" aktualisieren.** Nicht aus
+> `docs/plentyone-ebay-workflow.json` herauskopieren — dort steht er als
+> JSON-String mit `
+`-Escapes, und beim Versuch landete am 06.09.2026 die
+> ganze Datei im Feld `jsCode`. Stattdessen **`docs/ebay-daten-holen.js`**
+> öffnen, alles markieren, in n8n ins JavaScript-Feld einfügen. Beide Dateien
+> erzeugt `python scripts/gen_ebay_workflow.py` aus derselben Quelle.
+
 ## 12a Der Bericht-Webhook
 
 Der Knopf „Aktualisieren" im Dashboard ruft `POST /api/plentyone/ebay/bericht/starten`
