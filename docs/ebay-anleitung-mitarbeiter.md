@@ -78,28 +78,38 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
 
 # Block 4 · Angebote prüfen lassen
 
+> **Wichtig:** Die Schaltfläche *Gruppenfunktion » Market-Listings prüfen*
+> schafft nur **acht** Angebote. Bei mehr meldet sie Erfolg und tut nichts.
+> Deshalb läuft die Prüfung über das Skript unten.
+
 18. In PlentyONE die **Market-Listings** öffnen.
-19. Oben links das **Kästchen in der Kopfzeile** anklicken — damit sind alle
-    Zeilen markiert.
-20. Auf **Gruppenfunktion** klicken.
-21. **Market-Listings prüfen** wählen und bestätigen.
-22. Kurz warten, dann die Liste **neu laden**.
-23. In der Liste steht bei jeder Zeile ein Zeichen:
+19. Die **kleinste** und die **größte** Zahl in der Spalte **MLID** notieren
+    (ganz oben und ganz unten in der Liste).
+20. **F12** drücken, oben auf **Konsole** klicken.
+21. Beim ersten Mal: `allow pasting` tippen, **Enter**.
+22. Die Datei **`docs/ebay-pruefung-stapel.js`** öffnen, ganz oben die zwei
+    Zahlen aus Schritt 19 bei `VON` und `BIS` eintragen.
+23. Datei komplett kopieren, in die Konsole einfügen, **Enter**.
+24. **Warten**, bis unten `fertig` erscheint. Der Browser-Tab muss offen bleiben.
+    Grobe Dauer: 100 Angebote ≈ 15 Minuten, 1.000 ≈ 2,5 Stunden.
+25. Die Liste **neu laden**. Bei jeder Zeile steht jetzt ein Zeichen:
 
 | Zeichen | Bedeutung | Was tun |
 |---|---|---|
-| **✓** | in Ordnung | weitermachen |
+| **✓** und eine **Einstellgebühr** | in Ordnung | weitermachen |
 | **!** | nicht in Ordnung | Stopp, Chef fragen |
+| ✓ aber **keine** Einstellgebühr | nicht wirklich geprüft | Stopp, Chef fragen |
 
-24. Erst wenn **alle** Zeilen ein ✓ haben, geht es weiter.
+26. Erst wenn **alle** Zeilen ein ✓ haben, geht es weiter.
 
 ---
 
 # Block 5 · Bericht ansehen
 
-25. Zurück ins **Dashboard**, links auf **PlentyONE-Migration**.
-26. Nach unten scrollen bis **5 · Weiter zu eBay**.
-27. Dort steht der Bericht von heute Nacht.
+27. Zurück ins **Dashboard**, links auf **PlentyONE-Migration**.
+28. Nach unten scrollen bis **5 · Weiter zu eBay**.
+29. Auf **Aktualisieren** klicken (oben rechts). Der Bericht wird neu
+    gerechnet, das dauert etwa eine Minute.
 
 | Farbe | Was tun |
 |---|---|
@@ -112,10 +122,10 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
 
 **Das machst du nur, wenn der Chef es ausdrücklich sagt.**
 
-28. In PlentyONE zurück zu den **Market-Listings**.
-29. Alle Zeilen markieren.
-30. **Gruppenfunktion** → **Listing starten**.
-31. Fertig. Die Bücher sind bei eBay.
+30. In PlentyONE zurück zu den **Market-Listings**.
+31. Alle Zeilen markieren.
+32. **Gruppenfunktion** → **Listing starten**.
+33. Fertig. Die Bücher sind bei eBay.
 
 ---
 
@@ -145,9 +155,10 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
                   ② Eigenschaftsimport
                   ③ eBay-Listing-Erstellung
                   ④ eBay-Merkmale Bücher       ← Fehler muss 0 sein
-4. PlentyONE   →  Market-Listings, alle markieren
-                  Gruppenfunktion » Market-Listings prüfen
-                  alle ✓ ?
+4. PlentyONE   →  Market-Listings, kleinste und größte MLID notieren
+                  F12 » Konsole » Skript ebay-pruefung-stapel.js einfügen
+                  warten bis "fertig", dann Liste neu laden
+                  alle ✓ mit Einstellgebühr ?
 5. Dashboard   →  5 · Weiter zu eBay
                   grün ?
 6. Nur nach Freigabe vom Chef:
