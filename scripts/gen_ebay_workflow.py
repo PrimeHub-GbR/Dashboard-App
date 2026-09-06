@@ -88,13 +88,33 @@ const pageAll = async (base) => {
   return all;
 };
 
-// 1) Artikel mit Titeln  (with=itemTexts wirft 500 - with=texts ist der richtige Weg)
-const items = await pageAll('/rest/items?with=texts');
+// 1) Artikel mit Titeln und Bildern.
+//    with=itemTexts wirft 500 - with=texts ist der richtige Weg. Die Bilder
+//    kommen im selben Zug mit; scheitert das, laeuft der Rest trotzdem und der
+//    Bild-Guard meldet 'nicht pruefbar', statt stillschweigend alles zu filtern.
+let bildPruefung = 'ok';
+let items;
+try {
+  items = await pageAll('/rest/items?with=texts,images');
+} catch (e) {
+  bildPruefung = 'nicht_moeglich';
+  items = await pageAll('/rest/items?with=texts');
+}
 const titelByItem = {};
+const bildByItem = {};
 for (const it of items) {
   const t = (it.texts || []).find(x => x.lang === 'de') || (it.texts || [])[0];
   titelByItem[it.id] = t ? (t.name1 || '') : '';
+  bildByItem[it.id] = Array.isArray(it.images) ? it.images.length : null;
 }
+// Kein einziger Artikel meldet ein Bildfeld? Dann heisst die Relation anders -
+// nicht filtern, sondern melden.
+if (bildPruefung === 'ok' && !items.some(it => Array.isArray(it.images))) {
+  bildPruefung = 'nicht_moeglich';
+}
+// eBay lehnt jedes Angebot ohne Bild ab ('kein Artikelbild vorhanden',
+// 06.09.2026 an MLID 110). Buecher ohne VLB-Treffer haben kein Cover.
+const bildOk = (itemId) => bildPruefung !== 'ok' || Number(bildByItem[itemId] || 0) > 0;
 
 // 2) Varianten - Hauptvariante je Artikel
 const variations = await pageAll('/rest/items/variations');
@@ -336,6 +356,7 @@ for (const it of items) {
 // --- CSV A: Buch-Artikel OHNE Listing (Import 23) ----------------------------
 const aRows = ['ItemID\tMarketID\tUserID\tTypeID\tStockDependenceTypeID\tUnitCombinationID\tDirectoryID\tEnabled\tDuration'];
 const ohnePreis = [];
+const ohneBild = [];
 let aCount = 0;
 // Entscheidend ist das MARKET-Listing, nicht das Listing. Wer nur auf
 // itemsMitListing prueft, haelt einen halb angelegten Artikel fuer erledigt und
@@ -344,6 +365,14 @@ for (const it of items) {
   if (!istBuch(it.id)) continue;
   if (itemsMitMarketListing.has(it.id)) continue;
   const v = varByItem[it.id];
+  if (!bildOk(it.id)) {
+    // Ohne Bild scheitert die eBay-Pruefung mit 'kein Artikelbild vorhanden'.
+    // Solche Titel gar nicht erst anlegen - sonst steht der Bericht dauerhaft rot.
+    ohneBild.push({ item_id: it.id, titel: String(titelByItem[it.id] || '').slice(0, 90),
+                    grund: 'kein Artikelbild - eBay lehnt Angebote ohne Bild ab'
+                           + ' (meist kein VLB-Treffer, also auch kein Cover)' });
+    continue;
+  }
   if (!preisOk(v.variationId)) {
     // Weder gebundener Ladenpreis noch freier eBay-Preis - ohne Preis kein Listing.
     const vorhanden = allePreiseByVar[v.variationId] || [];
@@ -456,6 +485,7 @@ const zahlen = {
   nicht_geprueft: nichtGeprueft,
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
+  ohne_bild: ohneBild.length,
   mit_ersatzpreis: mitErsatzpreis,
   verwaiste_listings: verwaiste.length,
 };
@@ -475,12 +505,16 @@ const text = [
     + ', fehlgeschlagen ' + geprueftFehler + ', noch nicht geprueft ' + nichtGeprueft + ')',
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
+  'Ohne Artikelbild zurueckgehalten: ' + zahlen.ohne_bild,
   'Ueber den freien eBay-Preis statt der Buchpreisbindung: ' + zahlen.mit_ersatzpreis,
   verwaiste.length ? '' : null,
   verwaiste.length ? 'ACHTUNG: ' + verwaiste.length + ' Listing(s) ohne Market-Listing - Import 23 ist auf halbem Weg stehengeblieben:' : null,
   ...verwaiste.slice(0, 100).map(v => '  Artikel ' + v.item_id + ': ' + v.titel),
   preisHinweis ? '' : null,
   preisHinweis ? 'ACHTUNG: ' + preisHinweis : null,
+  bildPruefung === 'ok' ? null : '',
+  bildPruefung === 'ok' ? null
+    : 'ACHTUNG: Die Artikelbilder liessen sich nicht lesen - der Bild-Guard konnte nicht pruefen.',
   uebersprungen.length ? '' : null,
   uebersprungen.length ? 'UEBERSPRUNGEN:' : null,
   ...uebersprungen.slice(0, 100).map(u => '  MLID ' + u.mlid + ' (Artikel ' + u.item_id + '): ' + u.grund),
@@ -489,13 +523,13 @@ const text = [
 // Gruen heisst: jedes Buch-Listing ist geprueft UND bestanden. Ein ungeprueftes
 // Listing zaehlt ausdruecklich NICHT als in Ordnung.
 const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
-        && verwaiste.length === 0 && preisPruefung === 'ok';
+        && verwaiste.length === 0 && preisPruefung === 'ok' && bildPruefung === 'ok';
 
 const koerper = JSON.stringify({
   ok,
   zahlen,
   probleme: probleme.concat(verwaiste).slice(0, 500),
-  uebersprungen: uebersprungen.concat(ohnePreis).slice(0, 500),
+  uebersprungen: uebersprungen.concat(ohnePreis).concat(ohneBild).slice(0, 500),
   text,
 });
 

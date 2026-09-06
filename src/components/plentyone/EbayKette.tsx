@@ -58,6 +58,7 @@ const ZAHL_LABEL: Record<string, string> = {
   nicht_geprueft: 'noch nicht geprüft',
   merkmale: 'Merkmale gesetzt',
   ohne_bpb_preis: 'ohne Buchpreisbindungspreis',
+  ohne_bild: 'ohne Artikelbild',
   mit_ersatzpreis: 'über den freien eBay-Preis',
   verwaiste_listings: 'Listing ohne Market-Listing',
 }
@@ -325,7 +326,7 @@ export function EbayKette({
               {aktuell.uebersprungen.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                    Übersprungen ({aktuell.uebersprungen.length}) — fehlender Autor, Titel oder Preis
+                    Übersprungen ({aktuell.uebersprungen.length}) — fehlender Autor, Titel, Preis oder Bild
                   </p>
                   <ul className="space-y-1">
                     {aktuell.uebersprungen.slice(0, 25).map((p, i) => (

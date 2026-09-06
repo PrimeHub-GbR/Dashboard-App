@@ -46,12 +46,18 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false }) {
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = []
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
     const varId = 1200 + i
-    items.push({ id: itemId, texts: [{ lang: 'de', name1: b.titel }] })
+    // images: was PlentyONE bei ?with=texts,images liefert. Leeres Array =
+    // Artikel ohne Cover, z. B. ein Buch ohne VLB-Treffer.
+    items.push({
+      id: itemId,
+      texts: [{ lang: 'de', name1: b.titel }],
+      ...(bilderFehlen ? {} : { images: ohneBild.includes(i) ? [] : [{ id: 5000 + i }] }),
+    })
     variations.push({ id: varId, itemId, number: b.nr, isMain: true })
     relations.push({ propertyId: 10, targetId: varId, values: [{ value: ohneAutor.includes(i) ? '' : b.autor }] })
     // 978-3 = deutscher Sprachraum, sofern die Fixture nichts anderes sagt
@@ -80,7 +86,8 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
     }
   })
   // Von Hand angelegter Nicht-Buch-Artikel - darf nie ein eBay-Listing bekommen
-  items.push({ id: 999, texts: [{ lang: 'de', name1: 'Adventskalender Testartikel' }] })
+  items.push({ id: 999, texts: [{ lang: 'de', name1: 'Adventskalender Testartikel' }],
+               ...(bilderFehlen ? {} : { images: [{ id: 5999 }] }) })
   variations.push({ id: 1999, itemId: 999, number: 'MANUELL-1', isMain: true })
   preise.push({ id: 1999, itemId: 999, variationSalesPrices: [{ salesPriceId: 7, price: 12 }] })
 
@@ -266,6 +273,31 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const b3 = JSON.parse((await lauf(ohne, 'bericht')).koerper)
   pruefe(b3.uebersprungen.some((x) => String(x.grund).includes('kein Autor')),
     'das uebersprungene Buch wird namentlich genannt (E3/AK6)')
+
+  console.log('\n=== Artikel ohne Bild ===')
+  // eBay lehnt Angebote ohne Bild ab ('kein Artikelbild vorhanden'), deshalb
+  // darf so ein Buch gar nicht erst in CSV A landen.
+  const rBild = await lauf(baueStand({ mitListings: false, ohneBild: [0, 1] }), 'listings')
+  pruefe(rBild.inhalt.split('\n').length - 1 === BUECHER.length - 2,
+         `zwei Buecher ohne Bild werden zurueckgehalten, erhalten ${rBild.inhalt.split('\n').length - 1} von ${BUECHER.length - 2}`)
+  const bBericht = await lauf(baueStand({ mitListings: false, ohneBild: [0, 1] }), 'bericht')
+  pruefe(bBericht.zahlen.ohne_bild === 2, `ohne_bild zaehlt 2, erhalten ${bBericht.zahlen.ohne_bild}`)
+  pruefe(/Ohne Artikelbild zurueckgehalten: 2/.test(bBericht.inhalt),
+         'der Bericht zaehlt sie im Text mit')
+  const uebBild = JSON.parse(bBericht.koerper).uebersprungen
+  pruefe(uebBild.some((u) => /kein Artikelbild/.test(u.grund || '')),
+         'die betroffenen Artikel stehen namentlich im Bericht')
+
+  console.log('\n=== Bilder nicht lesbar ===')
+  // Liefert PlentyONE gar kein Bildfeld, wird NICHT gefiltert - sonst faellt
+  // stillschweigend das ganze Sortiment weg.
+  const rOhneFeld = await lauf(baueStand({ mitListings: false, bilderFehlen: true }), 'listings')
+  pruefe(rOhneFeld.inhalt.split('\n').length - 1 === BUECHER.length,
+         `ohne lesbares Bildfeld wird nichts zurueckgehalten, erhalten ${rOhneFeld.inhalt.split('\n').length - 1} von ${BUECHER.length}`)
+  const bOhneFeld = await lauf(baueStand({ mitListings: false, bilderFehlen: true }), 'bericht')
+  pruefe(/Artikelbilder liessen sich nicht lesen/.test(bOhneFeld.inhalt),
+         'der Bericht sagt ausdruecklich, dass der Bild-Guard nicht pruefen konnte')
+  pruefe(bOhneFeld.ok === false, 'und der Bericht ist deshalb nicht gruen')
 
   console.log('\n=== Verkaufspreise nicht lesbar ===')
   const kaputt = baueStand({ mitListings: false, preisFehler: true })

@@ -1091,6 +1091,24 @@ Die Token-Prüfung hängt seither an `vonWebhook`, nicht mehr an der Betriebsart
 `Modus bericht` (Zeitplan und Handstart) setzt `false`. Wer einen dieser Knoten
 anfasst, muss das Feld mitführen — fehlt es, ist der jeweilige Webhook ungeschützt.
 
+### Bild-Guard
+
+eBay lehnt jedes Angebot ohne Bild ab: *„kein Artikelbild vorhanden" (Code 0)* —
+belegt am 06.09.2026 an MLID 110, Artikel 255, dem einzigen Buch des Testlaufs
+mit `vlb_status = KEIN_TREFFER`. Ohne VLB-Treffer gibt es kein Cover, und ohne
+Cover kein Listing.
+
+Entscheidung des Nutzers: **solche Titel werden gar nicht erst angeboten.** Die
+Kette hält sie aus CSV A heraus und nennt sie im Bericht unter *Übersprungen*
+(Zähler `ohne_bild`). Kein Platzhalterbild, kein Amazon-Bild.
+
+Gelesen wird das über `/rest/items?with=texts,images`; die Bildliste steht dann
+je Artikel unter `images`. Scheitert der Abruf oder fehlt das Feld bei allen
+Artikeln, wird **nicht** gefiltert — der Bericht meldet stattdessen „Die
+Artikelbilder liessen sich nicht lesen" und wird nicht grün. Dasselbe Muster wie
+beim Preis-Guard: lieber ein roter Bericht als ein stilles Wegfallen des
+Sortiments.
+
 ## 12b Die Market-Listing-Prüfung im Stapel
 
 **Die Prüfung ist Pflicht, nicht Kür.** Ein Market-Listing ohne bestandene Prüfung
