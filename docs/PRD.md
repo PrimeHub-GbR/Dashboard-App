@@ -86,7 +86,7 @@ PlentyONE ist die Drehscheibe, Amazon bleibt unangetastet (externer Repricer, nu
 | 1 | Amazon-Export → VLB-Anreicherung → Artikel-, Eigenschaften-CSV + Cover | live |
 | 2 | **eBay-Vollautomatisierung** — Listings, Merkmale, Prüfung, Bericht | in Arbeit |
 | 3 | Kaufland nach demselben Muster | geplant |
-| 4 | Bestandsautomatik / Amazon MCF für Marktplatz-Aufträge | Folgeprojekt |
+| 4 | **Bestandsautomatik / Amazon MCF** — FBA-Bestand spiegeln, eBay-Aufträge von Amazon liefern lassen | in Arbeit |
 
 Spec: [`features/plentyone/ebay-vollautomatisierung.md`](../features/plentyone/ebay-vollautomatisierung.md)
 
@@ -109,7 +109,9 @@ prüfbereiten eBay-Listing; der Live-Start bleibt hinter einer ausdrücklichen F
   Claude darf N8N-Workflows nur lesen — Änderungen macht der Nutzer nach Anleitung selbst.
 - **Buchpreisbindung:** eBay-Preise sind gebundene Ladenpreise (Verkaufspreis-ID 7 aus dem VLB).
   Kein Preisvorschlag, kein Listing ohne gültigen Preis.
-- **Amazon:** ausschließlich lesend. Keine Preise, Artikeldaten oder Bestände zurückschreiben.
+- **Amazon:** für Preise und Artikeldaten ausschließlich lesend — Artikelexport `Nein`, Preis- und
+  Bestandsübertragung `Keine Übertragung`. PlentyONE **liest** FBA-Bestand und Aufträge und darf
+  eBay-Aufträge per Multi-Channel-Versand (MCF) an Amazon zur Lieferung geben.
 - **VLB:** höchstens 2 gleichzeitige Sessions — ein Lauf belegt beide, Logout ist Pflicht.
 - **Auth:** Single-Tenant, keine Selbstregistrierung. Supabase Auth + RLS auf jeder Tabelle.
 - **Stack:** Next.js (App Router), TypeScript, Tailwind, shadcn/ui, Supabase, Vercel.
@@ -119,5 +121,6 @@ prüfbereiten eBay-Listing; der Live-Start bleibt hinter einer ausdrücklichen F
 - Kein eigener Repricer — Amazon bleibt beim externen Anbieter.
 - Keine Schreibzugriffe zurück nach Google Drive (Drive = Quelle, Supabase = Master).
 - Kein Multi-Language-Support.
-- Keine Amazon-SP-API-Anbindung (bewusst gestrichen, siehe Betriebsrhythmus).
+- Keine Amazon-SP-API im **Dashboard** — den Bestandsbericht zieht der Nutzer weiter selbst.
+  (PlentyONE ↔ Amazon ist davon unberührt: dort hängt der FBA-Bestandsimport dran, Stufe 4.)
 - OTTO als Marktplatz (keine Bücher-Kategorie) — geparkt.

@@ -78,6 +78,36 @@ const listings = await pageAll('/rest/listings');
 const itemsMitListing = new Set(listings.map(l => l.itemId));
 const marketListings = await pageAll('/rest/listings/markets');
 
+// 3b) Bestand im FBA-Lager (cfg.lagerId) - fuer den Bericht, nie zum Filtern.
+//     Amazon fuellt dieses Lager stuendlich (Einrichtung >> Maerkte >> Amazon >>
+//     Auftragseinstellungen >> Bestandsimport). Die eBay-Bestandsautomatik uebernimmt
+//     den Nettobestand alle 20 Minuten ins Angebot. Hier wird nur gezaehlt und das
+//     Alter des letzten Imports gemessen: Bestand 0 ist Normalfall (ausverkauft),
+//     ein veralteter Bestand dagegen das Warnsignal, dass die Kette Amazon -> eBay
+//     steht und Ueberverkaeufe drohen.
+const fbaLagerId = Number(cfg.lagerId || 2);
+let bestandPruefung = 'ok';
+const bestandByVar = {};
+let bestandStand = 0;
+try {
+  const zeilen = await pageAll('/rest/stockmanagement/warehouses/' + fbaLagerId + '/stock');
+  for (const z of zeilen) {
+    bestandByVar[z.variationId] = {
+      netto: Number(z.stockNet || 0),
+      physisch: Number(z.stockPhysical || 0),
+      reserviert: Number(z.reservedStock || 0),
+    };
+    const t = Date.parse(z.updatedAt || '');
+    if (t && t > bestandStand) bestandStand = t;
+  }
+  if (!zeilen.length) bestandPruefung = 'keine_zeilen';
+} catch (e) {
+  bestandPruefung = 'nicht_moeglich';
+}
+const bestandAlterMin = bestandStand ? Math.round((Date.now() - bestandStand) / 60000) : 0;
+const bestandMaxAlterMin = Number(cfg.bestandMaxAlterMin || 120);
+const bestandUeberwacht = String(cfg.bestandUeberwachung || 'N') === 'Y';
+
 // 4) Autoren aus den VLB-Eigenschaften
 const relations = await pageAll('/rest/v2/properties/relations?with=values');
 const autorByVar = {};
@@ -347,6 +377,11 @@ const ZUSATZ = [
   ['zustand_id',       cfg.zustandId       || '1000'],   // eBay-Zustands-ID: 1000 = Neu (eBay-Standardcode)
   ['layout_id',        cfg.layoutId        || '1'],      // Layout-Vorlagen-ID ("Buecher")
   ['lager_id',         cfg.lagerId         || '2'],      // Lager-ID (FBA)
+  // Bestandsabhaengigkeit des LISTINGS (Zielfeld in Import 22:
+  // "Listing >> Bestandsabhaengigkeits-ID"). Import-Skala: 2 = beschraenkt (ohne
+  // Reservierung) - Voraussetzung fuer Bestandsautomatik und "Nicht mehr vorraetig".
+  // Import 23 setzt den Wert bei der Anlage; diese Spalte zieht Altbestand nach.
+  ['bestandsabhaengigkeit', cfg.stockDependenceTypeId || '2'],
   // Der Base-Reiter hat ZWEI Steuerfelder. Bei MLID 1 standen beide gefuellt, aber
   // das kam von der Stapel-Vorlage. Die vorlagenfreien Listings (MLID 12-21,
   // 04.09.2026) zeigen: mit 'mwst' allein bleiben Satz UND Land leer.
@@ -382,11 +417,17 @@ let geprueftOk = 0;
 let geprueftFehler = 0;
 let nichtGeprueft = 0;
 let buchListings = 0;
+let bestandKaufbar = 0;
+let bestandNull = 0;
 
 for (const ml of marketListings) {
   const itemId = itemByVar[ml.variationId];
   if (!itemId || !istBuch(itemId)) continue;
   buchListings++;
+  if (bestandPruefung === 'ok') {
+    const bst = bestandByVar[ml.variationId];
+    if (bst && bst.netto > 0) bestandKaufbar++; else bestandNull++;
+  }
 
   const titelRoh = titelByItem[itemId];
   if (ml.verified === 'succeeded') geprueftOk++;
@@ -435,6 +476,9 @@ const zahlen = {
   ohne_bild: ohneBild.length,
   mit_ersatzpreis: mitErsatzpreis,
   verwaiste_listings: verwaiste.length,
+  bestand_kaufbar: bestandKaufbar,
+  bestand_null: bestandNull,
+  bestand_alter_min: bestandAlterMin,
 };
 
 const preisHinweis = preisPruefung === 'ok'
@@ -442,6 +486,14 @@ const preisHinweis = preisPruefung === 'ok'
   : (preisPruefung === 'nicht_moeglich'
       ? 'Die Verkaufspreise liessen sich nicht lesen - der Preis-Guard konnte nicht pruefen. Vor dem Start von Hand kontrollieren.'
       : 'Kein einziger Buchpreisbindungspreis gefunden - vermutlich stimmt die Verkaufspreis-ID nicht.');
+
+const bestandHinweis = bestandPruefung === 'nicht_moeglich'
+  ? 'Der FBA-Bestand (Lager ' + fbaLagerId + ') liess sich nicht lesen - eBay-Mengen koennen veraltet sein.'
+  : bestandPruefung === 'keine_zeilen'
+    ? 'Im FBA-Lager ' + fbaLagerId + ' liegen keine Bestandszeilen - der Amazon-Bestandsimport laeuft nicht.'
+    : (bestandAlterMin > bestandMaxAlterMin)
+      ? 'FBA-Bestand veraltet: letzter Import vor ' + bestandAlterMin + ' min (Grenze ' + bestandMaxAlterMin + ' min) - Amazon-Verkaeufe erreichen eBay nicht.'
+      : null;
 
 const text = [
   'eBay-Kontrolle ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)',
@@ -454,6 +506,12 @@ const text = [
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
   'Ohne Artikelbild zurueckgehalten: ' + zahlen.ohne_bild,
   'Ueber den freien eBay-Preis statt der Buchpreisbindung: ' + zahlen.mit_ersatzpreis,
+  bestandPruefung === 'ok'
+    ? 'FBA-Lager ' + fbaLagerId + ': kaufbar ' + bestandKaufbar + ', Bestand 0: ' + bestandNull
+      + ', Bestandsstand ' + (bestandStand
+          ? new Date(bestandStand).toISOString().slice(0, 16).replace('T', ' ') + ' UTC (vor ' + bestandAlterMin + ' min)'
+          : 'unbekannt')
+    : null,
   verwaiste.length ? '' : null,
   verwaiste.length ? 'ACHTUNG: ' + verwaiste.length + ' Listing(s) ohne Market-Listing - Import 23 ist auf halbem Weg stehengeblieben:' : null,
   ...verwaiste.slice(0, 100).map(v => '  Artikel ' + v.item_id + ': ' + v.titel),
@@ -462,6 +520,8 @@ const text = [
   bildPruefung === 'ok' ? null : '',
   bildPruefung === 'ok' ? null
     : 'ACHTUNG: Die Artikelbilder liessen sich nicht lesen - der Bild-Guard konnte nicht pruefen.',
+  bestandHinweis ? '' : null,
+  bestandHinweis ? 'ACHTUNG: ' + bestandHinweis : null,
   uebersprungen.length ? '' : null,
   uebersprungen.length ? 'UEBERSPRUNGEN:' : null,
   ...uebersprungen.slice(0, 100).map(u => '  MLID ' + u.mlid + ' (Artikel ' + u.item_id + '): ' + u.grund),
@@ -469,8 +529,11 @@ const text = [
 
 // Gruen heisst: jedes Buch-Listing ist geprueft UND bestanden. Ein ungeprueftes
 // Listing zaehlt ausdruecklich NICHT als in Ordnung.
+// Der Bestand macht den Bericht nur rot, wenn die Ueberwachung eingeschaltet ist
+// (nach dem Pilot). Vorher steht er informativ im Text.
 const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
-        && verwaiste.length === 0 && preisPruefung === 'ok' && bildPruefung === 'ok';
+        && verwaiste.length === 0 && preisPruefung === 'ok' && bildPruefung === 'ok'
+        && (!bestandUeberwacht || (bestandPruefung === 'ok' && bestandAlterMin <= bestandMaxAlterMin));
 
 const koerper = JSON.stringify({
   ok,

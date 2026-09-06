@@ -291,7 +291,7 @@ steht.
 | a11 | `marketId` | `1008` | `MarketID` — eBay Deutschland |
 | a12 | `userId` | `10` | `UserID` |
 | a13 | `typeId` | `2` | `TypeID` |
-| a14 | `stockDependenceTypeId` | `1` | `StockDependenceTypeID` |
+| a14 | `stockDependenceTypeId` | `2` | `StockDependenceTypeID` — zwei Skalen, siehe §13 |
 | a15 | `unitCombinationId` | `1` | `UnitCombinationID` |
 | a16 | `directoryId` | `1` | `DirectoryID` — Verzeichnis „Bücher" |
 | a17 | `enabled` | `Y` | `Enabled` |
@@ -305,7 +305,7 @@ steht.
 | b02 | `versandprofilId` | `1` | `versandprofil_id` | Lauf 48 ✓ — `6` war falsch |
 | b03 | `zustandId` | `1000` | `zustand_id` | Lauf 51 ✓ — `1` war ungültig |
 | b04 | `layoutId` | `1` | `layout_id` | Listing zeigt Layout „Bücher" |
-| b05 | `lagerId` | `2` | `lager_id` | ⚠ siehe §13 |
+| b05 | `lagerId` | `2` | `lager_id` | Amazon FBA-Lager, siehe §13 |
 | b06 | `mwst` | `7` | `mwst` | Lauf 50 ✓ |
 | b12 | `mwstLand` | `1` | `mwst_land` | Lauf 52 ✓ |
 | b07 | `spracheCode` | `de` | `sprache_code` | Lauf 50 ✓ |
@@ -1172,7 +1172,96 @@ ungetestet. Und ob ein über `POST /rest/login` geholtes Token für `ui.php`
 gilt, ebenfalls. Solange das offen ist, läuft die Prüfung aus dem Browser —
 nicht aus n8n.
 
-## 13 Offene Punkte
+## 13 Bestand aus Amazon FBA und Versand per MCF
+
+Der gesamte physische Bestand liegt bei Amazon FBA. Damit eBay-Mengen stimmen und
+eBay-Aufträge von Amazon geliefert werden, laufen zwei Ketten:
+
+```
+Amazon-Verkauf → FBA-Bestandsimport (stündlich) → Lager 2 stockNet
+   → eBay-Bestandsautomatik (20 min) → Angebot „Nicht mehr vorrätig", zurück bei Bestand
+
+eBay-Verkauf → Auftragsimport (stündlich) → Auftrag in Lager 2, reservedStock +1
+   → Status [5] → Flow → Amazon MCF → neutrale Lieferung → Paketnummer (täglich)
+```
+
+Schlimmster Fall zwischen Amazon-Verkauf und Ausblenden auf eBay: **rund 80 Minuten**
+(60 Bestandsimport + 20 eBay-Abgleich). Bei Menge 1 ist in diesem Fenster ein
+Überverkauf möglich; er ist bewusst in Kauf genommen. Kein Bestandspuffer — Puffer 1
+würde bei Einzelstücken jedes Angebot ausblenden.
+
+### Die zwei Skalen der Bestandsabhängigkeit
+
+Der wichtigste Stolperstein. **Import und REST zählen unterschiedlich:**
+
+| Bedeutung | Import (CSV) | REST (`/rest/listings`) |
+|---|---|---|
+| unbeschränkt (mit Abgleich) | 0 | 1 |
+| beschränkt (mit Reservierung) | 1 | 2 |
+| **beschränkt (ohne Reservierung)** | **2** | **3** |
+| unbeschränkt (ohne Abgleich) | 3 | 4 |
+
+Beleg (06.09.2026): Import 23 schrieb `1`, `GET /rest/listings` zeigt bei allen 49
+Listings `stockDependenceTypeId: 2`.
+
+Die eBay-Bestandsautomatik und die „Nicht mehr vorrätig"-Option arbeiten **nur** mit
+„beschränkt (ohne Reservierung)" — im Import also **2**. Ein `3` im Import wäre
+„unbeschränkt ohne Abgleich": keine Automatik, Überverkauf garantiert.
+
+CSV B trägt den Wert seit 06.09.2026 als Spalte `bestandsabhaengigkeit` mit, damit
+Import 22 bestehende Listings nachzieht. Zielfeld dort: **Listing » Bestandsabhängigkeits-ID**.
+
+### PlentyONE-Konfiguration
+
+Reihenfolge einhalten — die Read-only-Schalter kommen **vor** der API-Anbindung.
+
+| # | Menü | Einstellung |
+|---|---|---|
+| 1 | Einrichtung » Waren » Lager » „Amazon FBA-Lager BuchDepot24" | Logistiktyp **Amazon**, Lagertyp **Vertrieb**. „Der Bestand im Reparaturlager ist nicht in den Webshop oder auf andere Portale übertragbar" |
+| 2 | dito, neues Lager | „Amazon unverkäuflich", Lagertyp **Reparatur** |
+| 3 | Märkte » Amazon » Einstellungen » Tab **Artikeleinstellungen** | Artikelexport **Nein** · Preisänderungen **Keine Übertragung** · Bestandsänderungen **Keine Übertragung** |
+| 4 | dito, Tab **Konto** | Verkäufer-ID, Händler-Token, **„Zugriff erlauben"** (SP-API) |
+| 5 | dito, Tab **Auftragseinstellungen** » „Versand durch Amazon (FBA)" | Aktiv ☑ · Herkunft **Für alle Aufträge verwendbar** · Lager **2** · Lager für unverkäuflichen Bestand = Lager aus 2 · Warenausgang **Als gebucht markieren** · Bestandsimport **stündlich** |
+| 6 | dito, „Rechnung erzeugen" | **VCS plentymarkets** — erst nach Abstimmung mit der PayJoe-Kette. Nummernkreis ohne Leerzeichen |
+| 7 | Märkte » eBay » Einstellungen » **Basiseinstellungen** | Bestandsautomatik aktivieren **Ja** |
+| 8 | dito, **Kontoeinstellungen** (primehub_gbr) | „Nicht mehr vorrätig-Option nutzen" **Ja** · Bestandspuffer **0** · SCO-Puffer **0** |
+| 9 | Einrichtung » **Listings » Warenbestand** | „Angebote automatisch beenden/ausblenden" an · Lager = **nur Lager 2** |
+| 10 | Flow Studio | Trigger *Auftragsstatus geändert [5] Freigabe Versand* · Filter *Lager-ID = 2*, *Versand ausschließlich durch FBA = Ja*, *Herkunft ≠ Amazon* · Aktion **Multichannel > Amazon > Versandfreigabe an FBA erteilen** |
+| 11 | Märkte » eBay » Konto » Versandprofile | „Bücher DE": Bearbeitungszeit ≥ 2–3 Werktage — Paketnummern kommen nur täglich |
+
+An den Varianten ist **nichts** zu tun: der Artikelimport setzt Hauptlager 2,
+WB-Beschränkung, die FBA-Flags und die Amazon-SKU bereits (`src/lib/plentyone-mapping.ts`).
+
+### Was der Bericht dazu sagt
+
+Lesezugriff 8 im Knoten *Daten holen*:
+`GET /rest/stockmanagement/warehouses/{cfg.lagerId}/stock` → Felder `variationId`,
+`stockNet`, `stockPhysical`, `reservedStock`, `updatedAt`.
+
+| Zahl | Bedeutung |
+|---|---|
+| `bestand_kaufbar` | Buch-Listings mit `stockNet > 0` |
+| `bestand_null` | Listings mit Bestand 0 — **Normalfall**, macht nie rot |
+| `bestand_alter_min` | Minuten seit dem letzten FBA-Import (jüngstes `updatedAt`) |
+
+Zwei Schalter in *Konfiguration*: `bestandUeberwachung` (`N` informativ, `Y` macht
+veralteten oder unlesbaren Bestand rot) und `bestandMaxAlterMin` (Vorgabe 120).
+
+Dasselbe Muster wie beim Preis- und Bild-Guard: **nicht prüfbar heißt melden, nicht
+filtern.** Ein unlesbares Lager hält kein Buch zurück und zählt kein Buch als
+ausverkauft — es macht den Bericht rot.
+
+### Grenzen
+
+| Punkt | Stand |
+|---|---|
+| Überverkaufsfenster ~80 min | akzeptiert; im Pilot messen. MCF ohne Bestand scheitert → eBay-Auftrag stornieren |
+| Paketnummern nur 1× täglich | eBay erfährt den Versand verzögert; Bearbeitungszeit im Versandprofil ausgleichen |
+| FBA-**Aufträge** kommen täglich per Bericht | senkt das Überverkaufsfenster **nicht** — das schnellste Signal bleibt der stündliche Bestandsimport |
+| „Beim FBA-Bestandsimport werden nur Einzelartikel berücksichtigt" | Bücher sind Einzelartikel, unkritisch |
+| Update bestehender Listings über Import 22 | ob das Listing-Feld über die MLID aktualisiert wird, ist **unbestätigt** — sonst 49 Listings löschen und über Import 23 neu anlegen |
+
+## 14 Offene Punkte
 
 Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft).
 

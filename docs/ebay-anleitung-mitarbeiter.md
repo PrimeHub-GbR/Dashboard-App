@@ -136,6 +136,7 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
 | Import meldet Fehler über 0 | Chef fragen |
 | Ein **!** bleibt nach der Prüfung stehen | Chef fragen |
 | Bericht im Dashboard ist rot | Text kopieren, Chef schicken |
+| Bericht sagt „FBA-Bestand veraltet“ | Chef fragen — nicht live stellen |
 | „Titel enthält zu viele Zeichen" | Chef fragen |
 | Import 3 meldet 0 Zeilen | **kein Problem** — weitermachen |
 | Der Upload im Dashboard bleibt hängen | Chef fragen |

@@ -46,8 +46,8 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false }) {
-  const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = []
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false }) {
+  const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = [], bestand = []
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
     const varId = 1200 + i
@@ -60,6 +60,14 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
     })
     variations.push({ id: varId, itemId, number: b.nr, isMain: true })
     relations.push({ propertyId: 10, targetId: varId, values: [{ value: ohneAutor.includes(i) ? '' : b.autor }] })
+    // Bestandszeile im FBA-Lager 2, wie /rest/stockmanagement/warehouses/2/stock sie
+    // liefert. bestandAlt: letzter Amazon-Import liegt Stunden zurueck.
+    bestand.push({
+      variationId: varId, warehouseId: 2,
+      stockNet: bestandNull.includes(i) ? 0 : 1, stockPhysical: bestandNull.includes(i) ? 0 : 1,
+      reservedStock: 0,
+      updatedAt: new Date(Date.now() - (bestandAlt ? 5 * 3600000 : 10 * 60000)).toISOString(),
+    })
     // 978-3 = deutscher Sprachraum, sofern die Fixture nichts anderes sagt
     barcodes.push({ id: varId, itemId, variationBarcodes: [{ code: b.ean || ('9783' + String(100000000 + i)) }] })
     // nurUvp: kein gebundener Ladenpreis (7), aber ein UVP (2) - der Fall
@@ -91,7 +99,7 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
   variations.push({ id: 1999, itemId: 999, number: 'MANUELL-1', isMain: true })
   preise.push({ id: 1999, itemId: 999, variationSalesPrices: [{ salesPriceId: 7, price: 12 }] })
 
-  const stand = { items, variations, listings, markets, relations, barcodes }
+  const stand = { items, variations, listings, markets, relations, barcodes, bestand, bestandFehlt, bestandLeer }
   if (preisFehler) Object.defineProperty(stand, 'preise', { get() { throw new Error('500 undefined relationship') } })
   else stand.preise = preise
   return stand
@@ -106,6 +114,10 @@ async function lauf(stand, modus) {
     helpers: {
       httpRequest: async ({ url }) => {
         if (url.includes('/rest/items?with=texts')) return seite(stand.items, url)
+        if (url.includes('/rest/stockmanagement/warehouses/2/stock')) {
+          if (stand.bestandFehlt) throw new Error('503 Service Unavailable')
+          return seite(stand.bestandLeer ? [] : stand.bestand, url)
+        }
         if (url.includes('/rest/items/variations?with=variationSalesPrices')) return seite(stand.preise, url)
         if (url.includes('/rest/items/variations?with=variationBarcodes')) return seite(stand.barcodes, url)
         if (url.includes('/rest/items/variations')) return seite(stand.variations, url)
@@ -137,6 +149,10 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const r1 = await lauf(baueStand({ mitListings: false, ohnePreis: [10, 11] }), 'listings')
   const a = r1.inhalt.split('\n')
   pruefe(a[0].split('\t').length === 9, 'Kopfzeile hat 9 Spalten')
+  // Import-Skala: 2 = beschraenkt (ohne Reservierung). 1 war 'mit Reservierung'
+  // (REST zeigte 2), 3 waere 'unbeschraenkt ohne Abgleich' - keine Automatik.
+  pruefe(a.slice(1).every((z) => z.split('\t')[4] === '2'),
+         'StockDependenceTypeID = 2 (beschraenkt ohne Reservierung, Import-Skala)')
   pruefe(a.length - 1 === N - 2, `${N - 2} Zeilen (2 ohne Buchpreisbindungspreis zurueckgehalten), erhalten ${a.length - 1}`)
   pruefe(!a.some((z) => z.startsWith('999\t')), 'Nicht-Buch bleibt draussen (E9/E11)')
   pruefe(r1.zahlen.ohne_bpb_preis === 2, 'Preis-Guard meldet 2 zurueckgehaltene Artikel (E10/AK4)')
@@ -153,7 +169,7 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const b = r2.inhalt.split('\n')
   const kopf = b[0].split('\t')
   pruefe(kopf.slice(0, 3).join('\t') === 'MLID\tName\tWert', 'Kopfzeile beginnt mit MLID/Name/Wert')
-  pruefe(kopf.length === 16, `16 Spalten: 3 Merkmale + 12 Konfigurationswerte + eBay-Titel, erhalten ${kopf.length}`)
+  pruefe(kopf.length === 17, `17 Spalten: 3 Merkmale + 13 Konfigurationswerte + eBay-Titel, erhalten ${kopf.length}`)
   pruefe(b.slice(1).every((z) => z.split('\t').length === kopf.length), 'jede Zeile hat gleich viele Spalten')
   const spalte = (name) => kopf.indexOf(name)
   const erste = b[1].split('\t')
@@ -162,6 +178,8 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   // PlentyONE auf jede Zeile mit "Use Item Price invalid." (Import-Lauf 45).
   pruefe(erste[spalte('preisbindung')] === 'Y', 'An Artikelpreis binden = Y (7 und 1 wurden abgewiesen)')
   pruefe(erste[spalte('lager_id')] === '2', 'Lager 2 (FBA)')
+  pruefe(b.slice(1).every((z) => z.split('\t')[spalte('bestandsabhaengigkeit')] === '2'),
+         'Bestandsabhaengigkeit 2 in jeder Zeile - zieht bestehende Listings nach')
   pruefe(erste[spalte('mwst_land')] === '1' && erste[spalte('mwst')] === '7',
          'Steuer vollstaendig: Land 1 (DE) + Satz 7 - der Satz allein bleibt leer')
 
@@ -298,6 +316,38 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(/Artikelbilder liessen sich nicht lesen/.test(bOhneFeld.inhalt),
          'der Bericht sagt ausdruecklich, dass der Bild-Guard nicht pruefen konnte')
   pruefe(bOhneFeld.ok === false, 'und der Bericht ist deshalb nicht gruen')
+
+  console.log('\n=== FBA-Bestand im Bericht ===')
+  // Bestand 0 ist Normalfall (ausverkauft) und macht nie rot. Rot wird es nur,
+  // wenn die Ueberwachung eingeschaltet ist UND der Bestand veraltet oder unlesbar ist.
+  const bNormal = await lauf(baueStand({ mitListings: true, bestandNull: [0, 1] }), 'bericht')
+  pruefe(bNormal.zahlen.bestand_kaufbar === N - 2 && bNormal.zahlen.bestand_null === 2,
+         `kaufbar ${N - 2} / Bestand 0: 2, erhalten ${bNormal.zahlen.bestand_kaufbar} / ${bNormal.zahlen.bestand_null}`)
+  pruefe(bNormal.zahlen.bestand_alter_min <= 11, `Alter des Bestands in Minuten, erhalten ${bNormal.zahlen.bestand_alter_min}`)
+  pruefe(/FBA-Lager 2: kaufbar/.test(bNormal.inhalt), 'der Text nennt den FBA-Bestand')
+  pruefe(bNormal.ok === true, 'Bestand 0 macht den Bericht nicht rot')
+
+  const bAltAus = await lauf(baueStand({ mitListings: true, bestandAlt: true }), 'bericht')
+  pruefe(/ACHTUNG: FBA-Bestand veraltet/.test(bAltAus.inhalt), 'veralteter Bestand wird immer gemeldet')
+  pruefe(bAltAus.ok === true, 'ohne Ueberwachung bleibt der Bericht trotzdem gruen')
+
+  CFG.bestandUeberwachung = 'Y'
+  const bAltAn = await lauf(baueStand({ mitListings: true, bestandAlt: true }), 'bericht')
+  pruefe(bAltAn.ok === false, 'mit Ueberwachung macht ein veralteter Bestand den Bericht rot')
+  const bFehlt = await lauf(baueStand({ mitListings: true, bestandFehlt: true }), 'bericht')
+  pruefe(/liess sich nicht lesen/.test(bFehlt.inhalt) && bFehlt.ok === false,
+         'unlesbarer Bestand: gemeldet und rot')
+  pruefe(bFehlt.zahlen.bestand_kaufbar === 0 && bFehlt.zahlen.bestand_null === 0,
+         'unlesbarer Bestand zaehlt nichts - kein Buch gilt faelschlich als ausverkauft')
+  const bLeer = await lauf(baueStand({ mitListings: true, bestandLeer: true }), 'bericht')
+  pruefe(/keine Bestandszeilen/.test(bLeer.inhalt) && bLeer.ok === false,
+         'leeres FBA-Lager: Amazon-Import laeuft nicht - gemeldet und rot')
+  const bFrisch = await lauf(baueStand({ mitListings: true }), 'bericht')
+  pruefe(bFrisch.ok === true, 'frischer Bestand mit Ueberwachung: gruen')
+  CFG.bestandUeberwachung = 'N'
+  // CSV A und B bleiben vom Bestand unberuehrt - nie filtern.
+  const aFehlt = (await lauf(baueStand({ mitListings: false, bestandFehlt: true }), 'listings')).inhalt.split('\n')
+  pruefe(aFehlt.length - 1 === N, `unlesbarer Bestand haelt kein Buch zurueck, erhalten ${aFehlt.length - 1} von ${N}`)
 
   console.log('\n=== Verkaufspreise nicht lesbar ===')
   const kaputt = baueStand({ mitListings: false, preisFehler: true })

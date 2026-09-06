@@ -119,6 +119,7 @@
 |---------|--------|------|
 | Amazon-Export -> VLB-Anreicherung + Cover, 2 parallele N8N-Straenge, Mapping-Tabelle | In Progress | [plentyone/overview.md](plentyone/overview.md) |
 | eBay-Vollautomatisierung (Abhol-URLs, Import 22/23, Preis- und Bild-Guard, Statusbericht auf Knopfdruck) | In Review | [plentyone/ebay-vollautomatisierung.md](plentyone/ebay-vollautomatisierung.md) |
+| Bestand aus Amazon FBA spiegeln + eBay-Auftraege per MCF liefern | In Progress | [plentyone/bestand-mcf.md](plentyone/bestand-mcf.md) |
 | Doku: Pruefskript fuer Market-Listings (Gruppenfunktion schafft nur 8) | Deployed | [../docs/ebay-pruefung-stapel.js](../docs/ebay-pruefung-stapel.js) |
 | Doku: Code des n8n-Knotens "Daten holen" zum Einfuegen | Deployed | [../docs/ebay-daten-holen.js](../docs/ebay-daten-holen.js) |
 | Doku: technische Rekonstruktion der eBay-Kette | Deployed | [../docs/ebay-kette-technik.md](../docs/ebay-kette-technik.md) |

@@ -61,6 +61,9 @@ const ZAHL_LABEL: Record<string, string> = {
   ohne_bild: 'ohne Artikelbild',
   mit_ersatzpreis: 'über den freien eBay-Preis',
   verwaiste_listings: 'Listing ohne Market-Listing',
+  bestand_kaufbar: 'auf eBay kaufbar (FBA-Bestand > 0)',
+  bestand_null: 'Bestand 0 im FBA-Lager',
+  bestand_alter_min: 'FBA-Bestand zuletzt vor (Min.)',
 }
 
 const datum = (iso: string) =>

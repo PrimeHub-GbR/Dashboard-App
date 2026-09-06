@@ -51,14 +51,14 @@ Bestand). Amazon läuft autark mit externem Repricer; von Amazon wird nur gelese
 | MarketID eBay Deutschland | **1008** (referrerId 2.08) |
 | eBay-Konto (UserID / credentialsId) | **10** = primehub_gbr |
 | TypeID Festpreis | **2** |
-| StockDependenceTypeID | **1** = beschränkt (mit Reservierung) |
+| StockDependenceTypeID | **2** = beschränkt (ohne Reservierung) im Import; REST zeigt dafür 3. Voraussetzung für die eBay-Bestandsautomatik — siehe [bestand-mcf.md](bestand-mcf.md) |
 | UnitCombinationID | **1** |
 | Verzeichnis (DirectoryID) | **1** = „Bücher" |
 | eBay-Kategorie Bücher | **261186** (Bücher & Zeitschriften » Bücher) |
 | Verkaufspreis Buchpreisbindung | **ID 7** (extern „fixed book prices") |
 | eBay-Layout „Bücher" | **ID 1** |
 | Versandprofile | „Bücher DE" (in der Vorlage) · „Standardpaket" ID 6 |
-| Lager | **ID 2** „Amazon FBA-Lager BuchDepot24" (Lagertyp noch „Reparatur" → offener Punkt) |
+| Lager | **ID 2** „Amazon FBA-Lager BuchDepot24", Logistiktyp Amazon — Quelle der eBay-Menge (Lagertyp muss „Vertrieb" sein) |
 | Kategorie (plenty) | „Books" **ID 77** |
 | Eigenschaften „VLB Buchdaten" | 10 Autor · 11 Erscheinungsdatum · 12 Sprache · 13 Seitenzahl · 14 Bindung · 15 Warengruppe · 16 Thema; Verlag über Systemfeld **Hersteller** |
 | Variantennummern-Schema | `<PREFIX>-<nr>-<tt-mm-jjjj>` — **korrigiert:** der Prefix ist nicht immer `APR-`, siehe 2.9 |
@@ -69,7 +69,9 @@ Bestand). Amazon läuft autark mit externem Repricer; von Amazon wird nur gelese
 
 - „Produktdetails aus dem eBay-Katalog hinzufügen" = **Ja** → eBay zieht per ISBN/EAN
   Katalogdaten; Bücher mit Katalogtreffer brauchen keine manuellen Merkmale.
-- Bestandsautomatik = **Nein**; Menge je Listing = 1.
+- Bestandsautomatik = **Ja** (Stufe 4): die eBay-Menge folgt dem Nettobestand in Lager 2,
+  Abgleich alle 20 Minuten, bei 0 greift die „Nicht mehr vorrätig"-Option.
+  Maximal verkaufbare Menge je Listing bleibt 1.
 
 ### 2.4 Stapelverarbeitungs-Vorlage „Bücher (1)"
 
@@ -312,7 +314,7 @@ schreiben nur Service-Role).
 | E12 | Listing ohne angewendete Vorlage | Reihenfolge strikt: Import 23 → Vorlage → Import 22 → Prüfen; Zeitpläne entsprechend gestaffelt |
 | E13 | MLID entsteht erst nach Listing-Anlage | Merkmale-CSV wird beim Abruf frisch berechnet |
 | E14 | VLB-Token nicht abgemeldet | Logout in jedem Ausgang; max. 2 Sessions |
-| E15 | FBA-Bestand 0 | Bestandsabhängigkeit „beschränkt (mit Reservierung)", Menge 1 |
+| E15 | FBA-Bestand 0 | „Nicht mehr vorrätig" — Angebot bleibt sichtbar und unkaufbar, kehrt bei Bestand zurück |
 | E16 | VLB-Preisänderung bei laufendem Listing | zieht automatisch durch (Bindung an Artikelpreis) |
 | E17 | Massenstart ~2.000 Listings | „verteilt auf X Minuten", nicht alles auf einmal |
 | E18 | Überlappende Zeitpläne | Abstände von 30 Minuten; Läufe sind idempotent |
@@ -346,7 +348,7 @@ schreiben nur Service-Role).
 2. **Batch-Endpoints unbekannt** — „Vorlage ausführen", „Prüfen", „Starten" beim nächsten
    UI-Lauf per Netzwerk-Mitschnitt erfassen (Stufe 2).
 3. **Lager ID 2** von Lagertyp „Reparatur" auf „Vertrieb" umstellen.
-4. **Bestandsautomatik / MCF** — aktuell Menge 1, Automatik aus; Folgeprojekt.
+4. **Bestandsautomatik / MCF** — eigene Spec: [bestand-mcf.md](bestand-mcf.md).
 5. **VLB-Cover-Genehmigung (E20)** vor dem Massenstart klären.
 6. **Auth'n'Auth** bei eBay nicht freigeschaltet — bisher kein Blocker.
 7. Danach: Kaufland nach demselben Muster.
