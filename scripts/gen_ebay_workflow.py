@@ -178,6 +178,13 @@ const gpsrByItem = {};
 for (const it of items) {
   gpsrByItem[it.id] = gpsrById[String(it.manufacturerId || '')] || null;
 }
+// Hersteller sind da, aber kein einziger Artikel zeigt darauf? Dann fehlt im
+// Artikelimport die Zeile vlb_verlag -> "Artikel >> Hersteller-ID". Das ist ein
+// Einrichtungsfehler, kein Befund an tausend Einzelbuechern: EINE Meldung, und
+// nichts filtern. Belegt am 07.09.2026, als der Guard 50 laufende Listings
+// einzeln anschwaerzte, obwohl schlicht die Zuordnung fehlte.
+const gpsrZugeordnet = items.filter(it => gpsrByItem[it.id] !== null).length;
+if (gpsrPruefung === 'ok' && gpsrZugeordnet === 0) gpsrPruefung = 'keine_zuordnung';
 const gpsrVonItem = (itemId) => gpsrByItem[itemId] || null;
 const gpsrVon = (it) => gpsrVonItem(it.id);
 const gpsrOk = (it) => {
@@ -632,6 +639,8 @@ const zahlen = {
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
   ohne_bild: ohneBild.length,
+  gpsr_hersteller: hersteller.length,
+  gpsr_zugeordnet: gpsrZugeordnet,
   ohne_gpsr: ohneGpsr.length,
   listings_ohne_gpsr: listingsOhneGpsr,
   gpsr_ausserhalb_eu: gpsrAusserhalbEu + listingsAusserhalbEu,
@@ -664,6 +673,11 @@ const gpsrHinweis = gpsrPruefung === 'nicht_moeglich'
   : gpsrPruefung === 'keine_hersteller'
     ? 'In PlentyONE ist kein einziger Hersteller angelegt. Ohne Herstellerangabe'
       + ' darf kein Angebot online (Art. 19 GPSR) - erst den Hersteller-Import fahren.'
+  : gpsrPruefung === 'keine_zuordnung'
+    ? 'Es gibt ' + hersteller.length + ' Hersteller, aber kein Artikel ist einem'
+      + ' zugeordnet. Im Artikelimport die Zeile vlb_verlag auf "Artikel >>'
+      + ' Hersteller-ID" stellen und den Import laufen lassen. Bis dahin haelt der'
+      + ' Guard nichts zurueck und schwaerzt kein laufendes Listing an.'
     : ((gpsrAusserhalbEu + listingsAusserhalbEu) > 0
         ? (gpsrAusserhalbEu + listingsAusserhalbEu)
           + ' Buch/Buecher haben einen Hersteller AUSSERHALB der EU.'
@@ -681,6 +695,12 @@ const text = [
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
   'Ohne Artikelbild zurueckgehalten: ' + zahlen.ohne_bild,
+  'Hersteller in PlentyONE: ' + hersteller.length + ', davon zugeordnete Artikel: '
+    + gpsrZugeordnet + ' von ' + items.length
+    + (hersteller.length
+        ? ' - z.B. ' + hersteller.slice(0, 3)
+            .map(h => '#' + h.id + ' ' + String(h.name || '(ohne Namen)')).join(', ')
+        : ''),
   'Ohne GPSR-Herstellerangabe zurueckgehalten: ' + zahlen.ohne_gpsr,
   listingsOhneGpsr
     ? 'ACHTUNG: ' + listingsOhneGpsr + ' LAUFENDE(S) Listing(s) ohne vollstaendige'

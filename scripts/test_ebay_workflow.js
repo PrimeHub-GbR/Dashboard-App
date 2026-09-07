@@ -46,7 +46,7 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false }) {
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false, gpsrZuordnungFehlt = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = [], bestand = []
   // Hersteller, wie /rest/items/manufacturers sie liefert. 1 = vollstaendig (DE),
   // 2 = ohne Anschrift und Mail, 3 = vollstaendig aber Sitz Schweiz (Nicht-EU).
@@ -60,7 +60,8 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
   ]
   const laender = [{ id: 1, isoCode2: 'DE' }, { id: 4, isoCode2: 'CH' }]
   // 0 = kein Hersteller am Artikel; sonst die ID von oben.
-  const herstellerVon = (i) => gpsrOhne.includes(i) ? 0
+  const herstellerVon = (i) => gpsrZuordnungFehlt ? 0
+                             : gpsrOhne.includes(i) ? 0
                              : gpsrLuecke.includes(i) ? 2
                              : gpsrCh.includes(i) ? 3 : 1
   BUECHER.forEach((b, i) => {
@@ -111,7 +112,7 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
   })
   // Von Hand angelegter Nicht-Buch-Artikel - darf nie ein eBay-Listing bekommen
   items.push({ id: 999, texts: [{ lang: 'de', name1: 'Adventskalender Testartikel' }],
-               ...(gpsrFeldFehlt ? {} : { manufacturerId: 1 }),
+               ...(gpsrFeldFehlt ? {} : { manufacturerId: gpsrZuordnungFehlt ? 0 : 1 }),
                ...(bilderFehlen ? {} : { images: [{ id: 5999 }] }) })
   variations.push({ id: 1999, itemId: 999, number: 'MANUELL-1', isMain: true })
   preise.push({ id: 1999, itemId: 999, variationSalesPrices: [{ salesPriceId: 7, price: 12 }] })
@@ -424,6 +425,26 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const gLiveCh = await lauf(baueStand({ mitListings: true, gpsrCh: [1] }), 'bericht')
   pruefe(gLiveCh.zahlen.gpsr_ausserhalb_eu === 1 && gLiveCh.zahlen.listings_ohne_gpsr === 0,
          `laufendes Listing mit Nicht-EU-Hersteller: gezaehlt, nicht angeschwaerzt, erhalten ${gLiveCh.zahlen.gpsr_ausserhalb_eu}`)
+
+  // Hersteller angelegt, aber niemand zeigt darauf: ein Einrichtungsfehler.
+  // Der Guard darf daraus keine tausend Einzelmeldungen machen und erst recht
+  // nicht jedes Buch zurueckhalten.
+  const gZu = await lauf(baueStand({ mitListings: true, gpsrZuordnungFehlt: true }), 'bericht')
+  pruefe(gZu.zahlen.listings_ohne_gpsr === 0 && gZu.zahlen.ohne_gpsr === 0,
+         `fehlende Zuordnung schwaerzt nichts an, erhalten listings ${gZu.zahlen.listings_ohne_gpsr} / neu ${gZu.zahlen.ohne_gpsr}`)
+  pruefe(/kein Artikel ist einem/.test(gZu.inhalt) && gZu.ok === false,
+         'sie wird als eine Meldung genannt und macht den Bericht rot')
+  pruefe(gZu.zahlen.gpsr_hersteller === 3 && gZu.zahlen.gpsr_zugeordnet === 0,
+         `die Diagnosezahlen zeigen Hersteller ohne Zuordnung, erhalten ${gZu.zahlen.gpsr_hersteller} / ${gZu.zahlen.gpsr_zugeordnet}`)
+  const aZu = (await lauf(baueStand({ mitListings: false, gpsrZuordnungFehlt: true }), 'listings'))
+                .inhalt.split('\n')
+  pruefe(aZu.length - 1 === N, `CSV A bleibt vollstaendig, erhalten ${aZu.length - 1} von ${N}`)
+
+  // Gegenprobe: sobald wenigstens ein Artikel zugeordnet ist, sind fehlende
+  // Hersteller wieder echte Einzelbefunde und werden gemeldet.
+  const gEinzeln = await lauf(baueStand({ mitListings: true, gpsrOhne: [0] }), 'bericht')
+  pruefe(gEinzeln.zahlen.listings_ohne_gpsr === 1 && gEinzeln.zahlen.gpsr_zugeordnet > 0,
+         `einzelner Ausreisser wird weiterhin gemeldet, erhalten ${gEinzeln.zahlen.listings_ohne_gpsr}`)
 
   console.log('\n=== FBA-Bestand im Bericht ===')
   // Bestand 0 ist Normalfall (ausverkauft) und macht nie rot. Rot wird es nur,

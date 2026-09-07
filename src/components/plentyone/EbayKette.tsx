@@ -59,6 +59,8 @@ const ZAHL_LABEL: Record<string, string> = {
   merkmale: 'Merkmale gesetzt',
   ohne_bpb_preis: 'ohne Buchpreisbindungspreis',
   ohne_bild: 'ohne Artikelbild',
+  gpsr_hersteller: 'Hersteller in PlentyONE',
+  gpsr_zugeordnet: 'Artikel mit Hersteller',
   ohne_gpsr: 'ohne GPSR-Herstellerangabe (nicht gelistet)',
   listings_ohne_gpsr: 'LAUFENDE Listings ohne Herstellerangabe',
   gpsr_ausserhalb_eu: 'Hersteller außerhalb der EU',

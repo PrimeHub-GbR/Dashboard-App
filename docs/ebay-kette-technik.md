@@ -1308,6 +1308,7 @@ Bücher zurückhält, wäre schlimmer als gar keiner.
 | `nicht_moeglich` | REST-Aufruf scheitert | nichts gefiltert, Bericht **rot** |
 | `keine_hersteller` | kein Hersteller angelegt | nichts gefiltert, Bericht **rot** — der Hersteller-Import fehlt |
 | `kein_feld` | kein Artikel meldet `manufacturerId` | nichts gefiltert, Bericht **rot** — Feldname prüfen |
+| `keine_zuordnung` | Hersteller da, aber kein Artikel zeigt darauf | nichts gefiltert, Bericht **rot** — Mapping-Zeile `vlb_verlag` fehlt |
 | `ok` | alles lesbar | es wird gefiltert |
 
 `gpsrPruefung === 'ok'` geht in die `ok`-Bewertung des Berichts ein. Solange der
@@ -1359,10 +1360,27 @@ Auch hier gilt die Grundregel: Ist `gpsrPruefung` nicht `ok`, wird **kein**
 laufendes Listing angeschwärzt. Sonst stünden bei einem REST-Ausfall schlagartig
 alle 2.000 Angebote als abmahnbar da.
 
+Den vierten Zustand hat der Praxisfall vom 07.09.2026 erzwungen: Der Bericht
+meldete 50 laufende Listings einzeln als abmahnbar, dabei war schlicht die
+Zuordnung nicht gepflegt — im Artikelimport stand die Zeile `vlb_verlag` noch
+auf *Import = AUS*. Ein Einrichtungsfehler gehört in **eine** Meldung, nicht in
+fünfzig; beim Vollimport wären es zweitausend gewesen. Die beiden Diagnosezahlen
+`gpsr_hersteller` und `gpsr_zugeordnet` trennen die drei Fälle auf einen Blick:
+
+| `gpsr_hersteller` | `gpsr_zugeordnet` | Diagnose |
+|---|---|---|
+| 0 | 0 | Hersteller-Import fehlt |
+| > 0 | 0 | Mapping-Zeile `vlb_verlag` → *Artikel » Hersteller-ID* fehlt |
+| > 0 | > 0 | gepflegt — Einzelmeldungen sind echte Befunde |
+
+Der Bericht nennt zusätzlich die ersten drei Hersteller mit ID und Namen, damit
+sich prüfen lässt, ob REST dieselben sieht wie die Oberfläche.
+
 ### Zahlen im Bericht
 
 | Schlüssel | Bedeutung |
 |---|---|
+| `gpsr_hersteller` / `gpsr_zugeordnet` | Diagnose: Hersteller vorhanden / Artikel zugeordnet |
 | `ohne_gpsr` | **zurückgehalten** — kommt gar nicht erst in CSV A |
 | `listings_ohne_gpsr` | **läuft bereits** ohne vollständige Herstellerangabe — beenden oder nachpflegen |
 | `gpsr_ausserhalb_eu` | Hersteller außerhalb der EU (neue und laufende) — EU-Verantwortlichen klären |
