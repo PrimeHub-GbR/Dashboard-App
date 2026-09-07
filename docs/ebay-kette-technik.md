@@ -30,7 +30,9 @@ PlentyONE, jeden abgewiesenen Wert mit der Fehlermeldung, die er erzeugt hat.
 | 10 | [Wiederaufbau von null](#10-wiederaufbau-von-null) |
 | 11 | [Änderungsrezepte mit Code](#11-änderungsrezepte-mit-code) |
 | 12 | [Fallstricke und Werkzeugnotizen](#12-fallstricke-und-werkzeugnotizen) |
-| 13 | [Offene Punkte](#13-offene-punkte) |
+| 13 | [Bestand aus Amazon FBA und Versand per MCF](#13-bestand-aus-amazon-fba-und-versand-per-mcf) |
+| 13b | [Der GPSR-Guard](#13b-der-gpsr-guard) |
+| 14 | [Offene Punkte](#14-offene-punkte) |
 
 ---
 
@@ -1260,6 +1262,83 @@ ausverkauft — es macht den Bericht rot.
 | FBA-**Aufträge** kommen täglich per Bericht | senkt das Überverkaufsfenster **nicht** — das schnellste Signal bleibt der stündliche Bestandsimport |
 | „Beim FBA-Bestandsimport werden nur Einzelartikel berücksichtigt" | Bücher sind Einzelartikel, unkritisch |
 | Update bestehender Listings über Import 22 | ob das Listing-Feld über die MLID aktualisiert wird, ist **unbestätigt** — sonst 49 Listings löschen und über Import 23 neu anlegen |
+
+## 13b Der GPSR-Guard
+
+Seit dem 13.12.2024 gilt die EU-Produktsicherheitsverordnung (GPSR, VO 2023/988).
+**Art. 19** verlangt in *jedem* Fernabsatz-Angebot Name, Postanschrift und
+E-Mail-Adresse des Herstellers. Bücher haben keine Bereichsausnahme — deshalb
+führt das VLB die Felder überhaupt. Verstöße sind abmahnfähig; ein dokumentierter
+eBay-Fall vom Januar 2026 kostete 1.216,60 €.
+
+### Wo die Daten liegen
+
+Nicht am Artikel, sondern am **Hersteller**: *Einrichtung » Artikel » Hersteller*.
+Der Artikelimport kann sie deshalb nicht direkt setzen — die sechs `gpsr_*`-Spalten
+der CSV stehen bewusst auf `zielfeld: null` und speisen den separaten
+**Hersteller-Import** (Schritt 2 der Einrichtungsliste). Erst danach lässt sich
+Spalte 33 `vlb_verlag` auf *Artikel » Hersteller-ID* mappen.
+
+### Was der Guard prüft
+
+Lesezugriff im Knoten *Daten holen*:
+
+| Aufruf | Zweck |
+|---|---|
+| `GET /rest/items/manufacturers` | Hersteller mit `name`, `street`, `postcode`, `town`, `email`, `countryId` |
+| `GET /rest/orders/shipping/countries` | `isoCode2` je `countryId`, um Nicht-EU-Sitze zu erkennen |
+
+Ein Buch wird **zurückgehalten**, wenn der Artikel keinen Hersteller hat oder
+dem Hersteller eines der fünf Pflichtfelder fehlt. Der Grund steht im Klartext
+in `uebersprungen` und damit im Dashboard:
+
+```
+Hersteller "Verlag ohne Kontakt" unvollstaendig, es fehlt: Strasse, PLZ, Ort, E-Mail
+kein Hersteller am Artikel - Art. 19 GPSR verlangt Name, Anschrift und E-Mail
+```
+
+### Vier Zustände, in denen NICHT gefiltert wird
+
+Dasselbe Muster wie beim Preis- und Bild-Guard: **nicht prüfbar heißt melden,
+nicht filtern.** Ein Guard, der bei einer Fehlfunktion stillschweigend alle 2.000
+Bücher zurückhält, wäre schlimmer als gar keiner.
+
+| `gpsrPruefung` | Auslöser | Verhalten |
+|---|---|---|
+| `nicht_moeglich` | REST-Aufruf scheitert | nichts gefiltert, Bericht **rot** |
+| `keine_hersteller` | kein Hersteller angelegt | nichts gefiltert, Bericht **rot** — der Hersteller-Import fehlt |
+| `kein_feld` | kein Artikel meldet `manufacturerId` | nichts gefiltert, Bericht **rot** — Feldname prüfen |
+| `ok` | alles lesbar | es wird gefiltert |
+
+`gpsrPruefung === 'ok'` geht in die `ok`-Bewertung des Berichts ein. Solange der
+Hersteller-Import nicht gelaufen ist, ist der Bericht also rot — das ist gewollt
+und die einzige sichtbare Bremse vor einem abmahnbaren Livegang.
+
+### Hersteller außerhalb der EU
+
+Sitzt der Hersteller nicht in der EU, verlangt Art. 19 **zusätzlich** eine
+verantwortliche Person *in* der EU (Art. 16 GPSR / Art. 4 VO 2019/1020). Wer das
+ist, hängt am Bezugsweg: Wer bei einem deutschen Großhändler kauft, ist selbst
+Händler und nennt den vorhandenen Einführer — wer direkt importiert, wird selbst
+zum Einführer und müsste seinen Namen sogar physisch am Produkt anbringen.
+
+Das kann der Guard nicht entscheiden. Er **zählt** solche Bücher deshalb nur
+(`gpsr_ausserhalb_eu`) und schreibt einen Hinweis in den Bericht, statt sie zu
+filtern. Relevant ist das bei Schweizer Verlagen — Diogenes, Zürich war 2 von 50
+Testtiteln — und bei den wenigen englischsprachigen Titeln, die das VLB ohnehin
+nicht führt.
+
+Scheitert `/rest/orders/shipping/countries`, entfällt allein diese Zusatzprüfung;
+der Rest des Guards läuft weiter.
+
+### Zahlen im Bericht
+
+| Schlüssel | Bedeutung |
+|---|---|
+| `ohne_gpsr` | zurückgehalten, weil Herstellerangabe fehlt |
+| `gpsr_ausserhalb_eu` | gelistet, aber Hersteller außerhalb der EU — EU-Verantwortlichen klären |
+
+---
 
 ## 14 Offene Punkte
 

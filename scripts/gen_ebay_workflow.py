@@ -117,6 +117,68 @@ if (bildPruefung === 'ok' && !items.some(it => Array.isArray(it.images))) {
 // 06.09.2026 an MLID 110). Buecher ohne VLB-Treffer haben kein Cover.
 const bildOk = (itemId) => bildPruefung !== 'ok' || Number(bildByItem[itemId] || 0) > 0;
 
+// 1b) Hersteller mit GPSR-Kontaktdaten.
+//     Art. 19 GPSR verlangt in JEDEM Angebot Name, Anschrift und E-Mail des
+//     Herstellers. Fehlt das, ist es abmahnfaehig (dokumentierter eBay-Fall
+//     Januar 2026: 1.216,60 EUR). Solche Buecher gar nicht erst listen.
+//     In PlentyONE haengen die Daten am Hersteller, nicht am Artikel:
+//     Einrichtung > Artikel > Hersteller.
+let gpsrPruefung = 'ok';
+let hersteller = [];
+try {
+  hersteller = await pageAll('/rest/items/manufacturers');
+} catch (e) {
+  gpsrPruefung = 'nicht_moeglich';
+}
+// Laendercodes, um Hersteller ausserhalb der EU zu erkennen (CH, US, UK).
+// Scheitert der Abruf, entfaellt nur diese Zusatzpruefung.
+const isoByLand = {};
+try {
+  for (const c of await pageAll('/rest/orders/shipping/countries')) {
+    isoByLand[String(c.id)] = String(c.isoCode2 || '').toUpperCase();
+  }
+} catch (e) { /* ohne Laenderliste wird nur nicht auf EU geprueft */ }
+const EU_LAENDER = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR',
+                    'HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK',
+                    'SI','ES','SE'];
+const gpsrById = {};
+for (const h of hersteller) {
+  const name = String(h.name || '').trim();
+  const strasse = String(h.street || '').trim();
+  const plz = String(h.postcode || '').trim();
+  const ort = String(h.town || '').trim();
+  const mail = String(h.email || '').trim();
+  const iso = isoByLand[String(h.countryId || '')] || '';
+  const fehlt = [name ? null : 'Name', strasse ? null : 'Strasse', plz ? null : 'PLZ',
+                 ort ? null : 'Ort', mail ? null : 'E-Mail'].filter(x => x !== null);
+  gpsrById[String(h.id)] = {
+    name: name || ('Hersteller ' + h.id),
+    vollstaendig: fehlt.length === 0,
+    fehlt: fehlt.join(', '),
+    iso: iso,
+    // Sitzt der Hersteller ausserhalb der EU, verlangt Art. 19 zusaetzlich
+    // eine verantwortliche Person IN der EU. Das wird gemeldet, nicht
+    // gefiltert - wer das ist, klaert der Bezugsweg (Grosshaendler).
+    ausserhalbEu: iso !== '' && EU_LAENDER.indexOf(iso) === -1,
+  };
+}
+// Kein einziger Hersteller angelegt? Dann fehlt der Hersteller-Import -
+// melden, statt stillschweigend jedes Buch zurueckzuhalten.
+if (gpsrPruefung === 'ok' && hersteller.length === 0) gpsrPruefung = 'keine_hersteller';
+// Meldet kein einziger Artikel ein Hersteller-Feld, heisst es anders als
+// erwartet. Dann NICHT filtern - sonst haelt der Guard schlagartig jedes
+// Buch zurueck, obwohl die Hersteller sauber gepflegt sind.
+if (gpsrPruefung === 'ok'
+    && !items.some(it => it.manufacturerId !== undefined && it.manufacturerId !== null)) {
+  gpsrPruefung = 'kein_feld';
+}
+const gpsrVon = (it) => gpsrById[String(it.manufacturerId || '')] || null;
+const gpsrOk = (it) => {
+  if (gpsrPruefung !== 'ok') return true;   // nicht pruefbar -> nicht filtern
+  const g = gpsrVon(it);
+  return g !== null && g.vollstaendig;
+};
+
 // 2) Varianten - Hauptvariante je Artikel
 const variations = await pageAll('/rest/items/variations');
 const varByItem = {};
@@ -388,6 +450,8 @@ for (const it of items) {
 const aRows = ['ItemID\tMarketID\tUserID\tTypeID\tStockDependenceTypeID\tUnitCombinationID\tDirectoryID\tEnabled\tDuration'];
 const ohnePreis = [];
 const ohneBild = [];
+const ohneGpsr = [];
+let gpsrAusserhalbEu = 0;
 let aCount = 0;
 // Entscheidend ist das MARKET-Listing, nicht das Listing. Wer nur auf
 // itemsMitListing prueft, haelt einen halb angelegten Artikel fuer erledigt und
@@ -396,6 +460,16 @@ for (const it of items) {
   if (!istBuch(it.id)) continue;
   if (itemsMitMarketListing.has(it.id)) continue;
   const v = varByItem[it.id];
+  if (!gpsrOk(it)) {
+    // Ohne Herstellerangabe darf das Angebot nach Art. 19 GPSR nicht online.
+    const g = gpsrVon(it);
+    ohneGpsr.push({ item_id: it.id, titel: String(titelByItem[it.id] || '').slice(0, 90),
+                    grund: g === null
+                      ? 'kein Hersteller am Artikel - Art. 19 GPSR verlangt Name,'
+                        + ' Anschrift und E-Mail des Herstellers im Angebot'
+                      : 'Hersteller \"' + g.name + '\" unvollstaendig, es fehlt: ' + g.fehlt });
+    continue;
+  }
   if (!bildOk(it.id)) {
     // Ohne Bild scheitert die eBay-Pruefung mit 'kein Artikelbild vorhanden'.
     // Solche Titel gar nicht erst anlegen - sonst steht der Bericht dauerhaft rot.
@@ -404,6 +478,8 @@ for (const it of items) {
                            + ' (meist kein VLB-Treffer, also auch kein Cover)' });
     continue;
   }
+  const gEu = gpsrVon(it);
+  if (gEu !== null && gEu.ausserhalbEu) gpsrAusserhalbEu++;
   if (!preisOk(v.variationId)) {
     // Weder gebundener Ladenpreis noch freier eBay-Preis - ohne Preis kein Listing.
     const vorhanden = allePreiseByVar[v.variationId] || [];
@@ -528,6 +604,8 @@ const zahlen = {
   merkmale: bCount,
   ohne_bpb_preis: ohnePreis.length,
   ohne_bild: ohneBild.length,
+  ohne_gpsr: ohneGpsr.length,
+  gpsr_ausserhalb_eu: gpsrAusserhalbEu,
   mit_ersatzpreis: mitErsatzpreis,
   verwaiste_listings: verwaiste.length,
   bestand_kaufbar: bestandKaufbar,
@@ -549,6 +627,20 @@ const bestandHinweis = bestandPruefung === 'nicht_moeglich'
       ? 'FBA-Bestand veraltet: letzter Import vor ' + bestandAlterMin + ' min (Grenze ' + bestandMaxAlterMin + ' min) - Amazon-Verkaeufe erreichen eBay nicht.'
       : null;
 
+const gpsrHinweis = gpsrPruefung === 'nicht_moeglich'
+  ? 'Die Hersteller liessen sich nicht lesen - der GPSR-Guard konnte nicht pruefen.'
+  : gpsrPruefung === 'kein_feld'
+    ? 'Kein Artikel meldet ein Hersteller-Feld - der GPSR-Guard konnte nicht'
+      + ' pruefen und haelt vorsichtshalber nichts zurueck. Feldnamen pruefen.'
+  : gpsrPruefung === 'keine_hersteller'
+    ? 'In PlentyONE ist kein einziger Hersteller angelegt. Ohne Herstellerangabe'
+      + ' darf kein Angebot online (Art. 19 GPSR) - erst den Hersteller-Import fahren.'
+    : (gpsrAusserhalbEu > 0
+        ? gpsrAusserhalbEu + ' Buch/Buecher haben einen Hersteller AUSSERHALB der EU.'
+          + ' Dort verlangt Art. 19 zusaetzlich eine verantwortliche Person in der EU'
+          + ' - beim Grosshaendler erfragen, wer der Einfuehrer ist.'
+        : null);
+
 const text = [
   'eBay-Kontrolle ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' (UTC)',
   '',
@@ -559,6 +651,7 @@ const text = [
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
   'Ohne Artikelbild zurueckgehalten: ' + zahlen.ohne_bild,
+  'Ohne GPSR-Herstellerangabe zurueckgehalten: ' + zahlen.ohne_gpsr,
   'Ueber den freien eBay-Preis statt der Buchpreisbindung: ' + zahlen.mit_ersatzpreis,
   bestandPruefung === 'ok'
     ? 'FBA-Lager ' + fbaLagerId + ': kaufbar ' + bestandKaufbar + ', Bestand 0: ' + bestandNull
@@ -574,6 +667,8 @@ const text = [
   bildPruefung === 'ok' ? null : '',
   bildPruefung === 'ok' ? null
     : 'ACHTUNG: Die Artikelbilder liessen sich nicht lesen - der Bild-Guard konnte nicht pruefen.',
+  gpsrHinweis ? '' : null,
+  gpsrHinweis ? 'ACHTUNG: ' + gpsrHinweis : null,
   bestandHinweis ? '' : null,
   bestandHinweis ? 'ACHTUNG: ' + bestandHinweis : null,
   uebersprungen.length ? '' : null,
@@ -587,13 +682,14 @@ const text = [
 // (nach dem Pilot). Vorher steht er informativ im Text.
 const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
         && verwaiste.length === 0 && preisPruefung === 'ok' && bildPruefung === 'ok'
+        && gpsrPruefung === 'ok'
         && (!bestandUeberwacht || (bestandPruefung === 'ok' && bestandAlterMin <= bestandMaxAlterMin));
 
 const koerper = JSON.stringify({
   ok,
   zahlen,
   probleme: probleme.concat(verwaiste).slice(0, 500),
-  uebersprungen: uebersprungen.concat(ohnePreis).concat(ohneBild).slice(0, 500),
+  uebersprungen: uebersprungen.concat(ohnePreis).concat(ohneBild).concat(ohneGpsr).slice(0, 500),
   text,
 });
 

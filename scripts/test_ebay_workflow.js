@@ -46,8 +46,23 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false }) {
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = [], bestand = []
+  // Hersteller, wie /rest/items/manufacturers sie liefert. 1 = vollstaendig (DE),
+  // 2 = ohne Anschrift und Mail, 3 = vollstaendig aber Sitz Schweiz (Nicht-EU).
+  const hersteller = gpsrKeine ? [] : [
+    { id: 1, name: 'Rowohlt Verlag GmbH', street: 'Kirchenallee 19', postcode: '20099',
+      town: 'Hamburg', countryId: 1, email: 'produktsicherheit@rowohlt.de' },
+    { id: 2, name: 'Verlag ohne Kontakt', street: '', postcode: '', town: '',
+      countryId: 1, email: '' },
+    { id: 3, name: 'Diogenes Verlag AG', street: 'Sprecherstrasse 8', postcode: '8032',
+      town: 'Zuerich', countryId: 4, email: 'info@diogenes.ch' },
+  ]
+  const laender = [{ id: 1, isoCode2: 'DE' }, { id: 4, isoCode2: 'CH' }]
+  // 0 = kein Hersteller am Artikel; sonst die ID von oben.
+  const herstellerVon = (i) => gpsrOhne.includes(i) ? 0
+                             : gpsrLuecke.includes(i) ? 2
+                             : gpsrCh.includes(i) ? 3 : 1
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
     const varId = 1200 + i
@@ -57,6 +72,7 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
       id: itemId,
       texts: [{ lang: 'de', name1: b.titel }],
       ...(bilderFehlen ? {} : { images: ohneBild.includes(i) ? [] : [{ id: 5000 + i }] }),
+      ...(gpsrFeldFehlt ? {} : { manufacturerId: herstellerVon(i) }),
     })
     variations.push({ id: varId, itemId, number: b.nr, isMain: true })
     relations.push({ propertyId: 10, targetId: varId, values: [{ value: ohneAutor.includes(i) ? '' : b.autor }] })
@@ -95,11 +111,12 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
   })
   // Von Hand angelegter Nicht-Buch-Artikel - darf nie ein eBay-Listing bekommen
   items.push({ id: 999, texts: [{ lang: 'de', name1: 'Adventskalender Testartikel' }],
+               ...(gpsrFeldFehlt ? {} : { manufacturerId: 1 }),
                ...(bilderFehlen ? {} : { images: [{ id: 5999 }] }) })
   variations.push({ id: 1999, itemId: 999, number: 'MANUELL-1', isMain: true })
   preise.push({ id: 1999, itemId: 999, variationSalesPrices: [{ salesPriceId: 7, price: 12 }] })
 
-  const stand = { items, variations, listings, markets, relations, barcodes, bestand, bestandFehlt, bestandLeer }
+  const stand = { items, variations, listings, markets, relations, barcodes, bestand, bestandFehlt, bestandLeer, hersteller, laender, gpsrFehlt, laenderFehlen }
   if (preisFehler) Object.defineProperty(stand, 'preise', { get() { throw new Error('500 undefined relationship') } })
   else stand.preise = preise
   return stand
@@ -113,6 +130,14 @@ async function lauf(stand, modus) {
   const ctx = {
     helpers: {
       httpRequest: async ({ url }) => {
+        if (url.includes('/rest/items/manufacturers')) {
+          if (stand.gpsrFehlt) throw new Error('500 Internal Server Error')
+          return seite(stand.hersteller, url)
+        }
+        if (url.includes('/rest/orders/shipping/countries')) {
+          if (stand.laenderFehlen) throw new Error('403 Forbidden')
+          return seite(stand.laender, url)
+        }
         if (url.includes('/rest/items?with=texts')) return seite(stand.items, url)
         if (url.includes('/rest/stockmanagement/warehouses/2/stock')) {
           if (stand.bestandFehlt) throw new Error('503 Service Unavailable')
@@ -316,6 +341,66 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(/Artikelbilder liessen sich nicht lesen/.test(bOhneFeld.inhalt),
          'der Bericht sagt ausdruecklich, dass der Bild-Guard nicht pruefen konnte')
   pruefe(bOhneFeld.ok === false, 'und der Bericht ist deshalb nicht gruen')
+
+  console.log('\n=== GPSR-Guard ===')
+  // Art. 19 GPSR: ohne Herstellername, Anschrift und E-Mail darf kein Angebot
+  // online. Der Guard haelt solche Buecher zurueck, statt sie abmahnbar zu listen.
+  const gOk = await lauf(baueStand({ mitListings: false }), 'listings')
+  pruefe(gOk.zahlen.ohne_gpsr === 0 && gOk.inhalt.split('\n').length - 1 === N,
+         `vollstaendige Hersteller halten nichts zurueck, erhalten ${gOk.zahlen.ohne_gpsr}`)
+
+  const gOhne = await lauf(baueStand({ mitListings: false, gpsrOhne: [0, 1] }), 'listings')
+  pruefe(gOhne.zahlen.ohne_gpsr === 2, `ohne Hersteller am Artikel: 2, erhalten ${gOhne.zahlen.ohne_gpsr}`)
+  pruefe(gOhne.inhalt.split('\n').length - 1 === N - 2, 'die zwei stehen nicht in CSV A')
+
+  const gLuecke = await lauf(baueStand({ mitListings: false, gpsrLuecke: [2] }), 'listings')
+  pruefe(gLuecke.zahlen.ohne_gpsr === 1, `unvollstaendiger Hersteller: 1, erhalten ${gLuecke.zahlen.ohne_gpsr}`)
+
+  const bLuecke = await lauf(baueStand({ mitListings: false, gpsrLuecke: [2] }), 'bericht')
+  pruefe(/Ohne GPSR-Herstellerangabe zurueckgehalten: 1/.test(bLuecke.inhalt),
+         'der Bericht nennt die Zahl')
+  const koerper = JSON.parse(bLuecke.koerper)
+  pruefe(koerper.uebersprungen.some(u => /Verlag ohne Kontakt/.test(u.grund || '')
+                                      && /Strasse/.test(u.grund || '')),
+         'das Buch steht namentlich mit Grund in uebersprungen - so sieht es der Nutzer im Dashboard')
+
+  // Schweizer Verlag: darf gelistet werden, wird aber gemeldet - Art. 19 verlangt
+  // dort zusaetzlich eine verantwortliche Person in der EU.
+  const gCh = await lauf(baueStand({ mitListings: false, gpsrCh: [0] }), 'bericht')
+  pruefe(gCh.zahlen.ohne_gpsr === 0 && gCh.zahlen.gpsr_ausserhalb_eu === 1,
+         `Nicht-EU-Hersteller wird gezaehlt, nicht gefiltert: erhalten ohne_gpsr `
+         + `${gCh.zahlen.ohne_gpsr} / ausserhalb_eu ${gCh.zahlen.gpsr_ausserhalb_eu}`)
+  pruefe(/AUSSERHALB der EU/.test(gCh.inhalt), 'der Bericht weist auf den EU-Verantwortlichen hin')
+
+  // Kein Hersteller angelegt = Hersteller-Import fehlt. Dann NICHT alles filtern,
+  // sondern melden und den Bericht rot machen.
+  const gKeine = await lauf(baueStand({ mitListings: false, gpsrKeine: true }), 'bericht')
+  pruefe(gKeine.zahlen.ohne_gpsr === 0, 'ohne angelegte Hersteller wird nichts stumm gefiltert')
+  pruefe(/kein einziger Hersteller angelegt/.test(gKeine.inhalt) && gKeine.ok === false,
+         'fehlender Hersteller-Import: gemeldet und rot')
+  const aKeine = (await lauf(baueStand({ mitListings: false, gpsrKeine: true }), 'listings'))
+                   .inhalt.split('\n')
+  pruefe(aKeine.length - 1 === N, `CSV A bleibt vollstaendig, erhalten ${aKeine.length - 1} von ${N}`)
+
+  const gFehlt = await lauf(baueStand({ mitListings: false, gpsrFehlt: true }), 'bericht')
+  pruefe(/nicht lesen/.test(gFehlt.inhalt) && gFehlt.ok === false,
+         'unlesbare Hersteller: gemeldet und rot')
+  pruefe(gFehlt.zahlen.ohne_gpsr === 0, 'unlesbare Hersteller halten kein Buch zurueck')
+
+  // Ohne Laenderliste laeuft der Guard weiter, nur die EU-Pruefung entfaellt.
+  const gLand = await lauf(baueStand({ mitListings: false, gpsrCh: [0], laenderFehlen: true }), 'bericht')
+  pruefe(gLand.zahlen.gpsr_ausserhalb_eu === 0 && gLand.zahlen.ohne_gpsr === 0,
+         'fehlende Laenderliste legt den Guard nicht lahm')
+
+  // Heisst das Hersteller-Feld anders als erwartet, darf der Guard NICHT alles
+  // filtern - das waere der teuerste Fehler, den er machen koennte.
+  const gFeld = await lauf(baueStand({ mitListings: false, gpsrFeldFehlt: true }), 'bericht')
+  pruefe(gFeld.zahlen.ohne_gpsr === 0 && /Hersteller-Feld/.test(gFeld.inhalt)
+         && gFeld.ok === false,
+         'unbekannter Feldname: nichts gefiltert, gemeldet und rot')
+  const aFeld = (await lauf(baueStand({ mitListings: false, gpsrFeldFehlt: true }), 'listings'))
+                  .inhalt.split('\n')
+  pruefe(aFeld.length - 1 === N, `CSV A bleibt vollstaendig, erhalten ${aFeld.length - 1} von ${N}`)
 
   console.log('\n=== FBA-Bestand im Bericht ===')
   // Bestand 0 ist Normalfall (ausverkauft) und macht nie rot. Rot wird es nur,

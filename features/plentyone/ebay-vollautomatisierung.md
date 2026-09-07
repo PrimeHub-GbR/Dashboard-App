@@ -322,6 +322,7 @@ schreiben nur Service-Role).
 | E20 | Cover-Rechte für eBay | VLB-Sondergenehmigung steht aus — vor dem Massen-Live-Gang klären |
 | E21 | Offener n8n-Webhook | Header-Auth; das Dashboard proxt, der Token bleibt serverseitig |
 | E22 | Zeitplan zieht eine alte CSV erneut | Export-Fenster: nach 7 Tagen bzw. nach Abschalten der Freigabe nur noch die Kopfzeile |
+| E23 | **Artikel ohne GPSR-Herstellerangabe** | darf NIE live gehen (Art. 19 GPSR, abmahnfähig — eBay-Fall Jan. 2026: 1.216,60 €); der GPSR-Guard hält sie aus der Import-23-CSV und benennt sie im Bericht. Hersteller außerhalb der EU werden nur gezählt, dort ist ein EU-Verantwortlicher zu klären |
 
 ## 6. Akzeptanzkriterien
 
