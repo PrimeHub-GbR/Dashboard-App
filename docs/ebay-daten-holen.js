@@ -35,33 +35,15 @@ const pageAll = async (base) => {
   return all;
 };
 
-// 1) Artikel mit Titeln und Bildern.
-//    with=itemTexts wirft 500 - with=texts ist der richtige Weg. Die Bilder
-//    kommen im selben Zug mit; scheitert das, laeuft der Rest trotzdem und der
-//    Bild-Guard meldet 'nicht pruefbar', statt stillschweigend alles zu filtern.
-let bildPruefung = 'ok';
-let items;
-try {
-  items = await pageAll('/rest/items?with=texts,images');
-} catch (e) {
-  bildPruefung = 'nicht_moeglich';
-  items = await pageAll('/rest/items?with=texts');
-}
+// 1) Artikel mit Titeln.
+//    with=itemTexts wirft 500 - with=texts ist der richtige Weg. Bilder kommen
+//    hier NICHT mit, die haengen an der Variante (siehe Abschnitt 2b).
+const items = await pageAll('/rest/items?with=texts');
 const titelByItem = {};
-const bildByItem = {};
 for (const it of items) {
   const t = (it.texts || []).find(x => x.lang === 'de') || (it.texts || [])[0];
   titelByItem[it.id] = t ? (t.name1 || '') : '';
-  bildByItem[it.id] = Array.isArray(it.images) ? it.images.length : null;
 }
-// Kein einziger Artikel meldet ein Bildfeld? Dann heisst die Relation anders -
-// nicht filtern, sondern melden.
-if (bildPruefung === 'ok' && !items.some(it => Array.isArray(it.images))) {
-  bildPruefung = 'nicht_moeglich';
-}
-// eBay lehnt jedes Angebot ohne Bild ab ('kein Artikelbild vorhanden',
-// 06.09.2026 an MLID 110). Buecher ohne VLB-Treffer haben kein Cover.
-const bildOk = (itemId) => bildPruefung !== 'ok' || Number(bildByItem[itemId] || 0) > 0;
 
 // 1b) Hersteller mit GPSR-Kontaktdaten.
 //     Art. 19 GPSR verlangt in JEDEM Angebot Name, Anschrift und E-Mail des
@@ -148,6 +130,37 @@ for (const v of variations) {
   varByItem[v.itemId] = { variationId: v.id, number: v.number || '' };
   itemByVar[v.id] = v.itemId;
 }
+
+// 2b) Bild-Guard. eBay lehnt jedes Angebot ohne Bild ab ('kein Artikelbild
+//     vorhanden', 06.09.2026 an MLID 110); Buecher ohne VLB-Treffer haben kein
+//     Cover.
+//     Bilder liegen NICHT am Artikel: '/rest/items?with=images' ist keine
+//     gueltige Relation, der Aufruf liefert schlicht kein Bildfeld. Genau daran
+//     hing der Guard seit dem 07.09.2026 auf 'nicht pruefbar' fest und hat kein
+//     einziges Buch geprueft. PlentyONE verlinkt Bilder an der Variante - und
+//     das ist ohnehin die richtige Ebene, denn gelistet wird die Variante.
+let bildPruefung = 'ok';
+const bildByVar = {};
+try {
+  const mitBild = await pageAll('/rest/items/variations?with=images');
+  for (const v of mitBild) {
+    const liste = v.images || v.variationImages || [];
+    bildByVar[v.id] = Array.isArray(liste) ? liste.length : 0;
+  }
+  // Meldet kein einziger Datensatz ein Bildfeld, heisst die Relation wieder
+  // anders. Dann NICHT filtern - sonst haelt der Guard schlagartig jedes Buch
+  // zurueck, obwohl alle Cover sauber haengen.
+  if (!mitBild.some(v => Array.isArray(v.images) || Array.isArray(v.variationImages))) {
+    bildPruefung = 'kein_feld';
+  }
+} catch (e) {
+  bildPruefung = 'nicht_moeglich';
+}
+const bildOk = (itemId) => {
+  if (bildPruefung !== 'ok') return true;   // nicht pruefbar -> nicht filtern
+  const v = varByItem[itemId];
+  return !!v && Number(bildByVar[v.variationId] || 0) > 0;
+};
 
 // 3) Vorhandene Listings und Market-Listings (MLIDs + Pruefstatus)
 const listings = await pageAll('/rest/listings');
@@ -666,7 +679,10 @@ const text = [
   preisHinweis ? 'ACHTUNG: ' + preisHinweis : null,
   bildPruefung === 'ok' ? null : '',
   bildPruefung === 'ok' ? null
-    : 'ACHTUNG: Die Artikelbilder liessen sich nicht lesen - der Bild-Guard konnte nicht pruefen.',
+    : bildPruefung === 'kein_feld'
+      ? 'ACHTUNG: Keine Variante meldet ein Bildfeld - der Bild-Guard konnte nicht'
+        + ' pruefen und haelt vorsichtshalber nichts zurueck. Relationsnamen pruefen.'
+      : 'ACHTUNG: Die Artikelbilder liessen sich nicht lesen - der Bild-Guard konnte nicht pruefen.',
   gpsrHinweis ? '' : null,
   gpsrHinweis ? 'ACHTUNG: ' + gpsrHinweis : null,
   bestandHinweis ? '' : null,

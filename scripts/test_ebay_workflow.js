@@ -46,8 +46,8 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false, gpsrZuordnungFehlt = false }) {
-  const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = [], bestand = []
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false, gpsrZuordnungFehlt = false, bilderFehler = false }) {
+  const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = [], bestand = [], bilder = []
   // Hersteller, wie /rest/items/manufacturers sie liefert. 1 = vollstaendig (DE),
   // 2 = ohne Anschrift und Mail, 3 = vollstaendig aber Sitz Schweiz (Nicht-EU).
   const hersteller = gpsrKeine ? [] : [
@@ -67,15 +67,17 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
   BUECHER.forEach((b, i) => {
     const itemId = 200 + i
     const varId = 1200 + i
-    // images: was PlentyONE bei ?with=texts,images liefert. Leeres Array =
-    // Artikel ohne Cover, z. B. ein Buch ohne VLB-Treffer.
     items.push({
       id: itemId,
       texts: [{ lang: 'de', name1: b.titel }],
-      ...(bilderFehlen ? {} : { images: ohneBild.includes(i) ? [] : [{ id: 5000 + i }] }),
       ...(gpsrFeldFehlt ? {} : { manufacturerId: herstellerVon(i) }),
     })
     variations.push({ id: varId, itemId, number: b.nr, isMain: true })
+    // Bilder haengen an der VARIANTE, so wie /rest/items/variations?with=images
+    // sie liefert. Leeres Array = kein Cover, z. B. ein Buch ohne VLB-Treffer;
+    // bilderFehlen laesst das Feld ganz weg, als hiesse die Relation anders.
+    bilder.push({ id: varId, itemId,
+      ...(bilderFehlen ? {} : { images: ohneBild.includes(i) ? [] : [{ id: 5000 + i }] }) })
     relations.push({ propertyId: 10, targetId: varId, values: [{ value: ohneAutor.includes(i) ? '' : b.autor }] })
     // Bestandszeile im FBA-Lager 2, wie /rest/stockmanagement/warehouses/2/stock sie
     // liefert. bestandAlt: letzter Amazon-Import liegt Stunden zurueck.
@@ -112,12 +114,17 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
   })
   // Von Hand angelegter Nicht-Buch-Artikel - darf nie ein eBay-Listing bekommen
   items.push({ id: 999, texts: [{ lang: 'de', name1: 'Adventskalender Testartikel' }],
-               ...(gpsrFeldFehlt ? {} : { manufacturerId: gpsrZuordnungFehlt ? 0 : 1 }),
-               ...(bilderFehlen ? {} : { images: [{ id: 5999 }] }) })
+               ...(gpsrFeldFehlt ? {} : { manufacturerId: gpsrZuordnungFehlt ? 0 : 1 }) })
   variations.push({ id: 1999, itemId: 999, number: 'MANUELL-1', isMain: true })
+  bilder.push({ id: 1999, itemId: 999,
+    ...(bilderFehlen ? {} : { images: [{ id: 5999 }] }) })
   preise.push({ id: 1999, itemId: 999, variationSalesPrices: [{ salesPriceId: 7, price: 12 }] })
 
-  const stand = { items, variations, listings, markets, relations, barcodes, bestand, bestandFehlt, bestandLeer, hersteller, laender, gpsrFehlt, laenderFehlen }
+  const stand = { items, variations, listings, markets, relations, barcodes, bestand, bestandFehlt, bestandLeer, hersteller, laender, gpsrFehlt, laenderFehlen, bilderFehler }
+  if (bilderFehler) {
+    Object.defineProperty(stand, 'bilder',
+      { get() { throw new Error('500 undefined relationship') } })
+  } else stand.bilder = bilder
   if (preisFehler) Object.defineProperty(stand, 'preise', { get() { throw new Error('500 undefined relationship') } })
   else stand.preise = preise
   return stand
@@ -144,6 +151,7 @@ async function lauf(stand, modus) {
           if (stand.bestandFehlt) throw new Error('503 Service Unavailable')
           return seite(stand.bestandLeer ? [] : stand.bestand, url)
         }
+        if (url.includes('/rest/items/variations?with=images')) return seite(stand.bilder, url)
         if (url.includes('/rest/items/variations?with=variationSalesPrices')) return seite(stand.preise, url)
         if (url.includes('/rest/items/variations?with=variationBarcodes')) return seite(stand.barcodes, url)
         if (url.includes('/rest/items/variations')) return seite(stand.variations, url)
@@ -339,9 +347,20 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(rOhneFeld.inhalt.split('\n').length - 1 === BUECHER.length,
          `ohne lesbares Bildfeld wird nichts zurueckgehalten, erhalten ${rOhneFeld.inhalt.split('\n').length - 1} von ${BUECHER.length}`)
   const bOhneFeld = await lauf(baueStand({ mitListings: false, bilderFehlen: true }), 'bericht')
-  pruefe(/Artikelbilder liessen sich nicht lesen/.test(bOhneFeld.inhalt),
-         'der Bericht sagt ausdruecklich, dass der Bild-Guard nicht pruefen konnte')
+  pruefe(/Keine Variante meldet ein Bildfeld/.test(bOhneFeld.inhalt),
+         'der Bericht nennt den Grund: die Relation heisst anders')
   pruefe(bOhneFeld.ok === false, 'und der Bericht ist deshalb nicht gruen')
+
+  // Zweiter Ausfallweg: der Abruf selbst scheitert. Auch dann nicht filtern.
+  // Genau dieser Fall lief vom 07.09.2026 an unbemerkt, weil der Guard die
+  // Bilder am Artikel suchte - dort gibt es sie nicht.
+  const rFehler = await lauf(baueStand({ mitListings: false, bilderFehler: true }), 'listings')
+  pruefe(rFehler.inhalt.split('\n').length - 1 === BUECHER.length,
+         `unlesbare Bilder halten kein Buch zurueck, erhalten ${rFehler.inhalt.split('\n').length - 1} von ${BUECHER.length}`)
+  const bFehler = await lauf(baueStand({ mitListings: false, bilderFehler: true }), 'bericht')
+  pruefe(/Artikelbilder liessen sich nicht lesen/.test(bFehler.inhalt) && bFehler.ok === false,
+         'unlesbare Bilder: gemeldet und rot')
+  pruefe(bFehler.zahlen.ohne_bild === 0, 'und es wird kein Buch faelschlich als bildlos gezaehlt')
 
   console.log('\n=== GPSR-Guard ===')
   // Art. 19 GPSR: ohne Herstellername, Anschrift und E-Mail darf kein Angebot

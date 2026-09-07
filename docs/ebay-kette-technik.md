@@ -341,12 +341,13 @@ Zwei Helfer: `api(path)` setzt `Authorization: Bearer` und `Accept: application/
 `pageAll(base)` blättert mit `page` + `itemsPerPage=250` bis `isLastPage`, maximal
 400 Seiten (= 100.000 Datensätze).
 
-### 5.2 Sechs Lesezugriffe
+### 5.2 Die Lesezugriffe
 
 | Reihenfolge | Aufruf | Ergebnis im Speicher |
 |---|---|---|
 | 1 | `/rest/items?with=texts` | `titelByItem[itemId] = name1` (bevorzugt `lang === 'de'`) |
 | 2 | `/rest/items/variations` | `varByItem[itemId] = {variationId, number}`, `itemByVar[variationId] = itemId` |
+| 2b | `/rest/items/variations?with=images` | `bildByVar[variationId] = images.length` — Bilder hängen an der Variante, **nicht** am Artikel |
 | 3 | `/rest/listings` | `itemsMitListing` als `Set` |
 | 4 | `/rest/listings/markets` | `marketListings` — enthält `id` (= MLID), `variationId`, `verified` |
 | 5 | `/rest/v2/properties/relations?with=values` | `autorByVar[targetId]` für `propertyId === 10` |
@@ -354,6 +355,11 @@ Zwei Helfer: `api(path)` setzt `Authorization: Bearer` und `Accept: application/
 
 > **`with=itemTexts` wirft 500.** Der richtige Parameter heißt `with=texts`.
 > Das hat Zeit gekostet und steht deshalb hier.
+>
+> **`with=images` gibt es an `/rest/items` nicht.** Kein Fehler, keine Ausnahme —
+> das Feld fehlt einfach. Bilder liegen an der Variante:
+> `/rest/items/variations?with=images`. Das hat den Bild-Guard zwei Tage lang
+> blind laufen lassen.
 
 ### 5.3 Der Preis-Guard
 
@@ -1112,12 +1118,41 @@ Entscheidung des Nutzers: **solche Titel werden gar nicht erst angeboten.** Die
 Kette hält sie aus CSV A heraus und nennt sie im Bericht unter *Übersprungen*
 (Zähler `ohne_bild`). Kein Platzhalterbild, kein Amazon-Bild.
 
-Gelesen wird das über `/rest/items?with=texts,images`; die Bildliste steht dann
-je Artikel unter `images`. Scheitert der Abruf oder fehlt das Feld bei allen
-Artikeln, wird **nicht** gefiltert — der Bericht meldet stattdessen „Die
-Artikelbilder liessen sich nicht lesen" und wird nicht grün. Dasselbe Muster wie
-beim Preis-Guard: lieber ein roter Bericht als ein stilles Wegfallen des
-Sortiments.
+#### Bilder hängen an der Variante, nicht am Artikel
+
+Der Guard las anfangs `/rest/items?with=texts,images` — und **`images` ist an
+`/rest/items` keine gültige Relation.** Der Aufruf lieferte einfach kein
+Bildfeld, der Guard fiel auf „nicht prüfbar" und hat vom 07.09.2026 an *kein
+einziges Buch geprüft*. Im Bericht stand durchgehend:
+
+```
+ACHTUNG: Die Artikelbilder liessen sich nicht lesen - der Bild-Guard konnte nicht pruefen.
+```
+
+Weil ein nicht prüfbarer Guard nach der Hausregel nichts filtert, fiel der
+Ausfall nicht als fehlende Ware auf, sondern nur als Warnzeile — die man
+überliest. Richtig ist:
+
+```
+GET /rest/items/variations?with=images   →  bildByVar[variationId] = images.length
+```
+
+PlentyONE verlinkt Bilder an der Variante. Das ist auch die sachlich richtige
+Ebene: gelistet wird die Variante, und nur was an ihr hängt, sieht eBay. Geprüft
+wird deshalb die Hauptvariante des Artikels (`varByItem[itemId].variationId`).
+
+#### Wenn nicht geprüft werden kann
+
+| `bildPruefung` | Auslöser | Verhalten |
+|---|---|---|
+| `nicht_moeglich` | REST-Aufruf scheitert | nichts gefiltert, Bericht **rot** |
+| `kein_feld` | keine Variante meldet ein Bildfeld | nichts gefiltert, Bericht **rot** — Relationsname prüfen |
+| `ok` | Bildlisten lesbar | es wird gefiltert |
+
+Dasselbe Muster wie beim Preis- und GPSR-Guard: lieber ein roter Bericht als ein
+stilles Wegfallen des Sortiments. Der Zustand `kein_feld` ist neu und trennt die
+beiden Ursachen — bei der alten Fassung sahen „Route kaputt" und „Relation heißt
+anders" im Bericht identisch aus, was die Fehlersuche zwei Tage gekostet hat.
 
 ## 12b Die Market-Listing-Prüfung im Stapel
 
