@@ -402,6 +402,29 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
                   .inhalt.split('\n')
   pruefe(aFeld.length - 1 === N, `CSV A bleibt vollstaendig, erhalten ${aFeld.length - 1} von ${N}`)
 
+  // Bestehende Listings kann der Guard nicht mehr zurueckhalten - sie sind online.
+  // Er muss sie aber melden, sonst laeuft ein abmahnbares Angebot unbemerkt weiter.
+  const gLive = await lauf(baueStand({ mitListings: true, gpsrLuecke: [2] }), 'bericht')
+  pruefe(gLive.zahlen.listings_ohne_gpsr === 1,
+         `laufendes Listing ohne Herstellerangabe wird gezaehlt, erhalten ${gLive.zahlen.listings_ohne_gpsr}`)
+  pruefe(gLive.ok === false, 'und macht den Bericht rot')
+  pruefe(/LAUFENDE\(S\) Listing/.test(gLive.inhalt), 'der Text warnt ausdruecklich')
+  pruefe(JSON.parse(gLive.koerper).probleme.some(x => /LIVE mit unvollstaendigem/.test(x.grund || '')),
+         'es steht mit MLID unter Probleme, nicht unter Uebersprungen')
+
+  const gLiveOk = await lauf(baueStand({ mitListings: true }), 'bericht')
+  pruefe(gLiveOk.zahlen.listings_ohne_gpsr === 0, 'vollstaendige Hersteller melden nichts')
+
+  // Auch hier gilt: nicht pruefbar heisst nicht melden - sonst waeren schlagartig
+  // alle laufenden Listings als abmahnbar markiert.
+  const gLiveKeine = await lauf(baueStand({ mitListings: true, gpsrKeine: true }), 'bericht')
+  pruefe(gLiveKeine.zahlen.listings_ohne_gpsr === 0,
+         'ohne lesbare Hersteller wird kein laufendes Listing angeschwaerzt')
+
+  const gLiveCh = await lauf(baueStand({ mitListings: true, gpsrCh: [1] }), 'bericht')
+  pruefe(gLiveCh.zahlen.gpsr_ausserhalb_eu === 1 && gLiveCh.zahlen.listings_ohne_gpsr === 0,
+         `laufendes Listing mit Nicht-EU-Hersteller: gezaehlt, nicht angeschwaerzt, erhalten ${gLiveCh.zahlen.gpsr_ausserhalb_eu}`)
+
   console.log('\n=== FBA-Bestand im Bericht ===')
   // Bestand 0 ist Normalfall (ausverkauft) und macht nie rot. Rot wird es nur,
   // wenn die Ueberwachung eingeschaltet ist UND der Bestand veraltet oder unlesbar ist.

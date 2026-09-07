@@ -60,6 +60,7 @@ const ZAHL_LABEL: Record<string, string> = {
   ohne_bpb_preis: 'ohne Buchpreisbindungspreis',
   ohne_bild: 'ohne Artikelbild',
   ohne_gpsr: 'ohne GPSR-Herstellerangabe (nicht gelistet)',
+  listings_ohne_gpsr: 'LAUFENDE Listings ohne Herstellerangabe',
   gpsr_ausserhalb_eu: 'Hersteller außerhalb der EU',
   mit_ersatzpreis: 'über den freien eBay-Preis',
   verwaiste_listings: 'Listing ohne Market-Listing',

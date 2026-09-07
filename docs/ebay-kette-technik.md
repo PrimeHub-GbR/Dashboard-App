@@ -1331,12 +1331,41 @@ nicht führt.
 Scheitert `/rest/orders/shipping/countries`, entfällt allein diese Zusatzprüfung;
 der Rest des Guards läuft weiter.
 
+### Laufende Listings — die zweite Hälfte des Guards
+
+Der Filter beim Bau von CSV A greift nur für Bücher, die **noch kein** Listing
+haben. Die Schleife überspringt alles andere:
+
+```js
+if (itemsMitMarketListing.has(it.id)) continue;   // ← bestehende Listings raus
+...
+if (!gpsrOk(it)) { ... }                          // ← so weit kommt es nie
+```
+
+Damit wäre der Guard blind für genau die Angebote, die *schon online* sind —
+und nur die können abgemahnt werden. Am 07.09.2026 zeigte der erste Lauf
+`ohne_gpsr: 0` bei `ohne_listing: 0`: der Guard hatte über null Bücher gearbeitet.
+
+Deshalb prüft der Bericht **zusätzlich** jedes bestehende Market-Listing gegen
+die Herstellerdaten. Zurückhalten geht dort nicht mehr, also landet der Fund
+unter `probleme` (mit MLID) statt unter `uebersprungen`, und der Bericht wird rot:
+
+```
+LIVE ohne Herstellerangabe (Art. 19 GPSR) - Hersteller zuordnen oder Listing beenden
+LIVE mit unvollstaendigem Hersteller: Verlag ohne Kontakt - es fehlt: Strasse, PLZ, Ort
+```
+
+Auch hier gilt die Grundregel: Ist `gpsrPruefung` nicht `ok`, wird **kein**
+laufendes Listing angeschwärzt. Sonst stünden bei einem REST-Ausfall schlagartig
+alle 2.000 Angebote als abmahnbar da.
+
 ### Zahlen im Bericht
 
 | Schlüssel | Bedeutung |
 |---|---|
-| `ohne_gpsr` | zurückgehalten, weil Herstellerangabe fehlt |
-| `gpsr_ausserhalb_eu` | gelistet, aber Hersteller außerhalb der EU — EU-Verantwortlichen klären |
+| `ohne_gpsr` | **zurückgehalten** — kommt gar nicht erst in CSV A |
+| `listings_ohne_gpsr` | **läuft bereits** ohne vollständige Herstellerangabe — beenden oder nachpflegen |
+| `gpsr_ausserhalb_eu` | Hersteller außerhalb der EU (neue und laufende) — EU-Verantwortlichen klären |
 
 ---
 

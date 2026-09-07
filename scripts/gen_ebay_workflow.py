@@ -172,7 +172,14 @@ if (gpsrPruefung === 'ok'
     && !items.some(it => it.manufacturerId !== undefined && it.manufacturerId !== null)) {
   gpsrPruefung = 'kein_feld';
 }
-const gpsrVon = (it) => gpsrById[String(it.manufacturerId || '')] || null;
+// Zuordnung Artikel -> Hersteller. Wird zweimal gebraucht: beim Bau von CSV A
+// (zurueckhalten) und beim Durchgang durch die bestehenden Listings (melden).
+const gpsrByItem = {};
+for (const it of items) {
+  gpsrByItem[it.id] = gpsrById[String(it.manufacturerId || '')] || null;
+}
+const gpsrVonItem = (itemId) => gpsrByItem[itemId] || null;
+const gpsrVon = (it) => gpsrVonItem(it.id);
 const gpsrOk = (it) => {
   if (gpsrPruefung !== 'ok') return true;   // nicht pruefbar -> nicht filtern
   const g = gpsrVon(it);
@@ -549,6 +556,8 @@ let nichtGeprueft = 0;
 let buchListings = 0;
 let bestandKaufbar = 0;
 let bestandNull = 0;
+let listingsOhneGpsr = 0;
+let listingsAusserhalbEu = 0;
 
 for (const ml of marketListings) {
   const itemId = itemByVar[ml.variationId];
@@ -560,6 +569,25 @@ for (const ml of marketListings) {
   }
 
   const titelRoh = titelByItem[itemId];
+
+  // Ein bestehendes Listing ist bereits online - zurueckhalten geht nicht mehr.
+  // Fehlt die Herstellerangabe, ist das Angebot abmahnbar, SOLANGE es laeuft.
+  // Also als Problem melden, damit es beendet oder nachgepflegt wird.
+  if (gpsrPruefung === 'ok') {
+    const gl = gpsrVonItem(itemId);
+    if (gl === null || !gl.vollstaendig) {
+      listingsOhneGpsr++;
+      probleme.push({ mlid: ml.id, item_id: itemId, titel: String(titelRoh || '').slice(0, 90),
+                      grund: gl === null
+                        ? 'LIVE ohne Herstellerangabe (Art. 19 GPSR) - Hersteller zuordnen'
+                          + ' oder Listing beenden'
+                        : 'LIVE mit unvollstaendigem Hersteller: ' + gl.name
+                          + ' - es fehlt: ' + gl.fehlt });
+    } else if (gl.ausserhalbEu) {
+      listingsAusserhalbEu++;
+    }
+  }
+
   if (ml.verified === 'succeeded') geprueftOk++;
   else if (ml.verified === 'failed') {
     geprueftFehler++;
@@ -605,7 +633,8 @@ const zahlen = {
   ohne_bpb_preis: ohnePreis.length,
   ohne_bild: ohneBild.length,
   ohne_gpsr: ohneGpsr.length,
-  gpsr_ausserhalb_eu: gpsrAusserhalbEu,
+  listings_ohne_gpsr: listingsOhneGpsr,
+  gpsr_ausserhalb_eu: gpsrAusserhalbEu + listingsAusserhalbEu,
   mit_ersatzpreis: mitErsatzpreis,
   verwaiste_listings: verwaiste.length,
   bestand_kaufbar: bestandKaufbar,
@@ -635,8 +664,9 @@ const gpsrHinweis = gpsrPruefung === 'nicht_moeglich'
   : gpsrPruefung === 'keine_hersteller'
     ? 'In PlentyONE ist kein einziger Hersteller angelegt. Ohne Herstellerangabe'
       + ' darf kein Angebot online (Art. 19 GPSR) - erst den Hersteller-Import fahren.'
-    : (gpsrAusserhalbEu > 0
-        ? gpsrAusserhalbEu + ' Buch/Buecher haben einen Hersteller AUSSERHALB der EU.'
+    : ((gpsrAusserhalbEu + listingsAusserhalbEu) > 0
+        ? (gpsrAusserhalbEu + listingsAusserhalbEu)
+          + ' Buch/Buecher haben einen Hersteller AUSSERHALB der EU.'
           + ' Dort verlangt Art. 19 zusaetzlich eine verantwortliche Person in der EU'
           + ' - beim Grosshaendler erfragen, wer der Einfuehrer ist.'
         : null);
@@ -652,6 +682,10 @@ const text = [
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
   'Ohne Artikelbild zurueckgehalten: ' + zahlen.ohne_bild,
   'Ohne GPSR-Herstellerangabe zurueckgehalten: ' + zahlen.ohne_gpsr,
+  listingsOhneGpsr
+    ? 'ACHTUNG: ' + listingsOhneGpsr + ' LAUFENDE(S) Listing(s) ohne vollstaendige'
+      + ' Herstellerangabe - abmahnbar, solange sie online sind (siehe Probleme)'
+    : null,
   'Ueber den freien eBay-Preis statt der Buchpreisbindung: ' + zahlen.mit_ersatzpreis,
   bestandPruefung === 'ok'
     ? 'FBA-Lager ' + fbaLagerId + ': kaufbar ' + bestandKaufbar + ', Bestand 0: ' + bestandNull
@@ -682,7 +716,7 @@ const text = [
 // (nach dem Pilot). Vorher steht er informativ im Text.
 const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
         && verwaiste.length === 0 && preisPruefung === 'ok' && bildPruefung === 'ok'
-        && gpsrPruefung === 'ok'
+        && gpsrPruefung === 'ok' && listingsOhneGpsr === 0
         && (!bestandUeberwacht || (bestandPruefung === 'ok' && bestandAlterMin <= bestandMaxAlterMin));
 
 const koerper = JSON.stringify({
