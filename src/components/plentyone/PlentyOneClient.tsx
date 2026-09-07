@@ -282,6 +282,8 @@ export function PlentyOneClient() {
                         ['Hersteller importierbar', aktuell.stats.hersteller],
                         ['Verlage ohne GPSR', aktuell.stats.hersteller_ohne_gpsr],
                         ['Hersteller außerhalb EU', aktuell.stats.hersteller_ausserhalb_eu],
+                        ['mit EU-Verantwortlichem', aktuell.stats.hersteller_mit_eu_vertreter],
+                        ['ohne Land-ID', aktuell.stats.hersteller_ohne_land_id],
                         ['Gewicht geschätzt', aktuell.stats.gewicht_pauschal],
                       ] as const).map(([k, v]) =>
                         v === undefined ? null : (
@@ -346,6 +348,20 @@ export function PlentyOneClient() {
                         Hersteller-ID“ leer — und ohne Herstellerangabe darf nach Art. 19 GPSR
                         kein Angebot online.
                       </p>
+                      {Number(aktuell.stats.hersteller_ids_fehlen) > 0 && (
+                        <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                          Die Hersteller-IDs konnten nicht vergeben werden — die Datei kommt ohne
+                          ID. Nicht importieren: PlentyONE vergibt sonst eigene Nummern, und der
+                          nächste Lauf legt Duplikate an.
+                        </p>
+                      )}
+                      {Number(aktuell.stats.hersteller_ohne_vertreter) > 0 && (
+                        <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                          {aktuell.stats.hersteller_ohne_vertreter} Verlag(e) sitzen außerhalb der
+                          EU, ohne dass die VLB-Daten einen EU-Verantwortlichen nennen. Art. 19
+                          GPSR verlangt ihn — beim Verlag erfragen.
+                        </p>
+                      )}
                       {Number(aktuell.stats.hersteller_ohne_gpsr) > 0 && (
                         <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                           {aktuell.stats.hersteller_ohne_gpsr} Verlag(e) haben keine
