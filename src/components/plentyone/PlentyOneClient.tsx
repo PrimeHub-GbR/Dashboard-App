@@ -312,10 +312,17 @@ export function PlentyOneClient() {
                           </a>
                         </Button>
                       )}
-                      <Button asChild size="sm" variant="secondary" className="w-full gap-2">
+                      <Button asChild size="sm" variant="secondary" className="w-full justify-between gap-2">
                         <a href={dl(aktuell.id, 'csv')}>
-                          <Download className="h-4 w-4" aria-hidden />
-                          plentyONE_Import_final.csv
+                          <span className="flex items-center gap-2">
+                            <Download className="h-4 w-4" aria-hidden />
+                            plentyONE_Import_final.csv
+                          </span>
+                          {aktuell.stats.zeilen ? (
+                            <span className="text-xs text-muted-foreground">
+                              {aktuell.stats.zeilen} Zeilen
+                            </span>
+                          ) : null}
                         </a>
                       </Button>
                       {aktuell.eigenschaften_path && (

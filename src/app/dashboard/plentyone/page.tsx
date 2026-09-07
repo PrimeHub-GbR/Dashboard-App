@@ -36,7 +36,7 @@ export default async function PlentyOnePage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="PlentyONE-Migration"
-        description="Amazon-Listings nach PlentyONE übernehmen — mit Verlagsdaten aus der VLB und den Buchcovern. Ein Upload, zwei parallele Stränge, zwei Ergebnisdateien."
+        description="Amazon-Listings nach PlentyONE übernehmen — mit Verlagsdaten aus der VLB und den Buchcovern. Ein Upload, zwei parallele Stränge — Hersteller, Artikel, Eigenschaften und die Cover."
       />
       <PlentyOneClient />
     </div>
