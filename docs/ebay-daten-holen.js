@@ -69,6 +69,18 @@ try {
 const EU_LAENDER = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR',
                     'HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK',
                     'SI','ES','SE'];
+// Umgekehrte Richtung, ISO -> ID. Genau die braucht der Hersteller-Import,
+// und sie steht in keiner oeffentlichen Doku - nur im eigenen System.
+const idByIso = {};
+for (const id of Object.keys(isoByLand)) {
+  if (isoByLand[id] && !idByIso[isoByLand[id]]) idByIso[isoByLand[id]] = id;
+}
+// Die Laender, in denen Buchverlage sitzen. Fehlt eines, ist es in PlentyONE
+// nicht als Versandland angelegt - dann faellt es hier auf, statt spaeter im
+// Import.
+const landIdText = ['DE','AT','CH','GB','US','NL','FR','IT','ES','PL','CZ','DK','SE']
+  .map(iso => idByIso[iso] ? iso + '=' + idByIso[iso] : null)
+  .filter(x => x !== null).join(', ');
 const gpsrById = {};
 for (const h of hersteller) {
   const name = String(h.name || '').trim();
@@ -654,6 +666,10 @@ const text = [
   'Merkmal-Zeilen (Import 22): ' + zahlen.merkmale,
   'Ohne Buchpreisbindungspreis zurueckgehalten: ' + zahlen.ohne_bpb_preis,
   'Ohne Artikelbild zurueckgehalten: ' + zahlen.ohne_bild,
+  landIdText
+    ? 'Land-IDs fuer den Hersteller-Import (das Feld Land verlangt die Zahl,'
+      + ' nicht den ISO-Code): ' + landIdText
+    : 'Land-IDs nicht lesbar - die Laenderliste kam nicht durch.',
   'Hersteller in PlentyONE: ' + hersteller.length + ', davon zugeordnete Artikel: '
     + gpsrZugeordnet + ' von ' + items.length
     + (hersteller.length

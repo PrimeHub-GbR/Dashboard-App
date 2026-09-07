@@ -409,6 +409,15 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
 
   // Ohne Laenderliste laeuft der Guard weiter, nur die EU-Pruefung entfaellt.
   const gLand = await lauf(baueStand({ mitListings: false, gpsrCh: [0], laenderFehlen: true }), 'bericht')
+  pruefe(/Land-IDs nicht lesbar/.test(gLand.inhalt),
+         'ohne Laenderliste sagt der Bericht das auch fuer die Land-IDs')
+
+  // Der Hersteller-Import verlangt am Feld Land die ID, nicht 'DE'. Welche
+  // Zahl das ist, weiss nur das eigene System - der Bericht sagt es an.
+  const gIds = await lauf(baueStand({ mitListings: false }), 'bericht')
+  pruefe(/Land-IDs fuer den Hersteller-Import/.test(gIds.inhalt)
+         && /DE=1/.test(gIds.inhalt) && /CH=4/.test(gIds.inhalt),
+         'der Bericht nennt die Land-IDs im Klartext')
   pruefe(gLand.zahlen.gpsr_ausserhalb_eu === 0 && gLand.zahlen.ohne_gpsr === 0,
          'fehlende Laenderliste legt den Guard nicht lahm')
 
