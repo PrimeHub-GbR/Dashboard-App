@@ -85,8 +85,8 @@ export const MAPPING_SPALTEN: MappingZeile[] = [
   // ---------------------------------------------------------------- Block C (32–50)
   { spalte: 'vlb_autor', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: '→ Eigenschaften-Import, ID 10',
     beschreibung: 'Autoren als „Nachname, Vorname", mehrere mit Semikolon getrennt.' },
-  { spalte: 'vlb_verlag', zielfeld: 'Artikel » Hersteller-ID', herkunft: 'vlb', block: 'C', zusatz: 'erst nach dem Hersteller-Import',
-    beschreibung: 'Verlagsname (Imprint) — Kaufland verlangt ihn als „manufacturer“, eBay als „Marke“. Wird über den Namen gegen die angelegten Hersteller aufgelöst, legt aber keine an. Solange der Hersteller-Import nicht gelaufen ist: Zeile ausschalten.' },
+  { spalte: 'vlb_verlag', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: '→ Hersteller-Import',
+    beschreibung: 'Verlagsname (Imprint) — speist die Hersteller-Datei. NICHT auf „Artikel » Hersteller-ID“ mappen: das Feld ist numerisch und lehnt den Namen ab. Dafür gibt es die Spalte hersteller_id.' },
   { spalte: 'vlb_erscheinungsdatum', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: '→ Eigenschaften-Import, ID 11',
     beschreibung: 'Erscheinungsdatum als JJJJ-MM-TT. Bei unvollständigen VLB-Angaben auf Monats- bzw. Jahresanfang gesetzt.' },
   { spalte: 'vlb_sprache', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: 'Klartext, nur zum Lesen',
@@ -137,9 +137,10 @@ export const MAPPING_SPALTEN: MappingZeile[] = [
     beschreibung: 'Steuersatz aus dem VLB-Preis. Steht hier 19, ist der pauschale Wert 7 in Spalte 23 falsch.' },
   { spalte: 'vlb_status', zielfeld: null, herkunft: 'vlb', block: 'D',
     beschreibung: 'OK oder KEIN_TREFFER — zeigt, ob die VLB einen Datensatz zur ISBN hat.' },
+  { spalte: 'hersteller_id', zielfeld: 'Artikel » Hersteller-ID', herkunft: 'fest', block: 'C',
+    beschreibung: 'Die numerische ID des Verlags aus PlentyONE. Nachgeschlagen aus der Liste, die der eBay-Bericht pflegt — vergeben werden die IDs von PlentyONE selbst. Leer, solange der Verlag dort noch nicht angelegt ist; dann erst Hersteller importieren und einmal den Bericht laufen lassen.' },
 ]
 
-/** Zweiter Import: Eigenschaften. Eine Zeile je Artikel und Eigenschaft. */
 export const HERSTELLER_IMPORT = {
   datei: 'plentyONE_Hersteller.csv',
   hinweis:
