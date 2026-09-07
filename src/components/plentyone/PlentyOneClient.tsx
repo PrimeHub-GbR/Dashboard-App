@@ -348,13 +348,6 @@ export function PlentyOneClient() {
                         Hersteller-ID“ leer — und ohne Herstellerangabe darf nach Art. 19 GPSR
                         kein Angebot online.
                       </p>
-                      {Number(aktuell.stats.hersteller_ids_fehlen) > 0 && (
-                        <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                          Die Hersteller-IDs konnten nicht vergeben werden — die Datei kommt ohne
-                          ID. Nicht importieren: PlentyONE vergibt sonst eigene Nummern, und der
-                          nächste Lauf legt Duplikate an.
-                        </p>
-                      )}
                       {Number(aktuell.stats.hersteller_ohne_vertreter) > 0 && (
                         <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
                           {aktuell.stats.hersteller_ohne_vertreter} Verlag(e) sitzen außerhalb der
