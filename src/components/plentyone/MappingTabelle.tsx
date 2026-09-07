@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   MAPPING_SPALTEN, HERKUNFT_LABEL, BLOCK_LABEL, EIGENSCHAFTEN_IMPORT,
+  HERSTELLER_IMPORT,
   type Herkunft, type Block,
 } from '@/lib/plentyone-mapping'
 
@@ -135,6 +136,48 @@ export function MappingTabelle() {
       </Card>
 
       {/* ------------------------------------------------ zweiter Import */}
+      <Card>
+        <CardHeader className="gap-2">
+          <CardTitle className="text-foreground">
+            Mapping-Tabelle — Hersteller-Import
+          </CardTitle>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {HERSTELLER_IMPORT.hinweis}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="w-14 py-2 pr-2 font-medium">CSV</th>
+                  <th scope="col" className="w-44 py-2 pr-3 font-medium">Spalte</th>
+                  <th scope="col" className="w-80 py-2 pr-3 font-medium">Zielfeld</th>
+                  <th scope="col" className="py-2 font-medium">Bedeutung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {HERSTELLER_IMPORT.mapping.map((m, i) => (
+                  <tr key={m.spalte} className="border-b border-border align-top">
+                    <td className="py-2.5 pr-2 tabular-nums text-foreground">{i + 1}</td>
+                    <td className="py-2.5 pr-3">
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-[13px] text-foreground">
+                        {m.spalte}
+                      </code>
+                    </td>
+                    <td className="py-2.5 pr-3 text-foreground">{m.zielfeld}</td>
+                    <td className="py-2.5 leading-relaxed text-muted-foreground">{m.beschreibung}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            {HERSTELLER_IMPORT.eu}
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="gap-2">
           <CardTitle className="text-foreground">

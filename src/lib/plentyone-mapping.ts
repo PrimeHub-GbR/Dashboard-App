@@ -140,6 +140,31 @@ export const MAPPING_SPALTEN: MappingZeile[] = [
 ]
 
 /** Zweiter Import: Eigenschaften. Eine Zeile je Artikel und Eigenschaft. */
+export const HERSTELLER_IMPORT = {
+  datei: 'plentyONE_Hersteller.csv',
+  hinweis:
+    'PlentyONE fu\u0308hrt Hersteller als eigene Stammdaten mit eigenem Import-Typ. Der Artikelimport kann sie nur referenzieren, nicht anlegen \u2014 deshalb muss dieser Import VOR dem Artikelimport laufen. Ein Feld fu\u0308r die Hersteller-ID gibt es nicht; PlentyONE vergibt sie selbst. Abgleich u\u0308ber \u201eName \u2192 Herstellername\u201c, dann werden bestehende Verlage aktualisiert statt verdoppelt.',
+  mapping: [
+    { spalte: 'name', zielfeld: 'Hersteller \u00bb Name', beschreibung: 'Das Imprint \u2014 die Marke, die eBay anzeigt. \u201eFISCHER Scherz\u201c, nicht der Konzern.' },
+    { spalte: 'firmenname', zielfeld: 'Hersteller \u00bb Firmenname', beschreibung: 'Der rechtliche Tr\u00e4ger, den Art. 19 GPSR verlangt \u2014 \u201eS. Fischer Verlag GmbH\u201c. Weicht bei jedem Verlag vom Namen ab.' },
+    { spalte: 'strasse', zielfeld: 'Hersteller \u00bb Stra\u00dfe', beschreibung: 'Ohne Hausnummer \u2014 PlentyONE f\u00fchrt beide getrennt.' },
+    { spalte: 'hausnummer', zielfeld: 'Hersteller \u00bb Haus-Nr.', beschreibung: 'Abgetrennt, auch \u201e14-20\u201c. Fehlt die Zuordnung, bleibt die Anschrift unvollst\u00e4ndig.' },
+    { spalte: 'plz', zielfeld: 'Hersteller \u00bb PLZ', beschreibung: 'Postleitzahl der Herstelleranschrift.' },
+    { spalte: 'ort', zielfeld: 'Hersteller \u00bb Ort', beschreibung: 'Ort der Herstelleranschrift.' },
+    { spalte: 'land_id', zielfeld: 'Hersteller \u00bb Land', beschreibung: 'Die Zahl, nicht der ISO-Code: 1 = Deutschland, 2 = \u00d6sterreich, 4 = Schweiz. Mit \u201eDE\u201c bricht der Import ab.' },
+    { spalte: 'email', zielfeld: 'Hersteller \u00bb E-Mail', beschreibung: 'Produktsicherheitskontakt aus dem VLB.' },
+    { spalte: 'eu_name', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Name', beschreibung: 'Sitzt der Verlag in der EU, steht hier er selbst \u2014 er ist dann die verantwortliche Person nach Art. 16.' },
+    { spalte: 'eu_strasse', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Stra\u00dfe', beschreibung: 'Ohne Hausnummer.' },
+    { spalte: 'eu_hausnummer', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Haus-Nr.', beschreibung: 'Abgetrennt wie oben.' },
+    { spalte: 'eu_plz', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher PLZ', beschreibung: 'Postleitzahl der verantwortlichen Person.' },
+    { spalte: 'eu_ort', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Ort', beschreibung: 'Ort der verantwortlichen Person.' },
+    { spalte: 'eu_email', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Email', beschreibung: 'E-Mail der verantwortlichen Person.' },
+    { spalte: 'eu_land_iso', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Land (ISO-Code)', beschreibung: 'Hier der Code \u2014 \u201eDE\u201c. Anders als beim Hersteller oben.' },
+    { spalte: 'eu_land_id', zielfeld: 'Hersteller \u00bb EU-Verantwortlicher Land', beschreibung: 'Und daneben die Zahl. PlentyONE f\u00fchrt beide Felder; land_id geh\u00f6rt NICHT hierher.' },
+  ],
+  eu: 'Der EU-Block ist immer gef\u00fcllt. Sitzt der Verlag in der EU, mit seinen eigenen Daten \u2014 er ist dann selbst die verantwortliche Person, und ein leeres Feld hie\u00dfe f\u00fcr den Marktplatz \u201ekeine benannt\u201c. Nur wo der Verlag au\u00dferhalb sitzt, steht dort ein echter Bevollm\u00e4chtigter: Diogenes (Z\u00fcrich) wird von der truepages UG in M\u00fcnchen vertreten.',
+}
+
 export const EIGENSCHAFTEN_IMPORT = {
   datei: 'plentyONE_Eigenschaften.csv',
   hinweis:
@@ -175,7 +200,7 @@ export const IMPORT_SCHRITTE = [
   },
   {
     titel: 'Hersteller anlegen',
-    text: 'Die Datei plentyONE_Hersteller.csv fällt seit dem 07.09.2026 in jedem Migrationslauf mit ab — oben herunterladen und als Import-Typ „Hersteller“ importieren (Spalten: name, strasse, plz, ort, land, email). Das muss VOR dem Artikelimport passieren: erst danach lässt sich Spalte 33 auf die Hersteller-ID mappen. Ohne Hersteller bleibt das Feld leer — und ohne Herstellerangabe darf nach Art. 19 GPSR kein Angebot online.',
+    text: 'plentyONE_Hersteller.csv oben herunterladen und als Import-Typ „Hersteller“ importieren — die 16 Zuordnungen stehen in der Tabelle unten. Muss VOR dem Artikelimport laufen: erst danach lässt sich Spalte 33 auf die Hersteller-ID mappen. Ohne Hersteller bleibt das Feld leer — und ohne Herstellerangabe darf nach Art. 19 GPSR kein Angebot online.',
   },
   {
     titel: 'Artikelimport anlegen und auf URL umstellen',
