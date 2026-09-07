@@ -46,7 +46,7 @@ const BUECHER = [
 // laesst er genau die Titel durch, an denen eBay scheitert.
 const bytes = (s) => Buffer.byteLength(String(s), 'utf8')
 
-function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false, gpsrZuordnungFehlt = false, bilderFehler = false }) {
+function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp = [], ohneAutor = [], ohneBild = [], verifiedFehler = 0, ohnePruefung = 0, preisFehler = false, bilderFehlen = false, bestandNull = [], bestandAlt = false, bestandFehlt = false, bestandLeer = false, gpsrOhne = [], gpsrLuecke = [], gpsrCh = [], gpsrKeine = false, gpsrFehlt = false, laenderFehlen = false, gpsrFeldFehlt = false, gpsrZuordnungFehlt = false, bilderFehler = false, vertreterFehlt = false, vertreterAusserhalb = false }) {
   const items = [], variations = [], listings = [], markets = [], relations = [], preise = [], barcodes = [], bestand = [], bilder = []
   // Hersteller, wie /rest/items/manufacturers sie liefert. 1 = vollstaendig (DE),
   // 2 = ohne Anschrift und Mail, 3 = vollstaendig aber Sitz Schweiz (Nicht-EU).
@@ -55,8 +55,16 @@ function baueStand({ mitListings, ohneMarketListing = 0, ohnePreis = [], nurUvp 
       town: 'Hamburg', countryId: 1, email: 'produktsicherheit@rowohlt.de' },
     { id: 2, name: 'Verlag ohne Kontakt', street: '', postcode: '', town: '',
       countryId: 1, email: '' },
+    // Schweizer Verlag: braucht nach Art. 16 GPSR eine verantwortliche Person
+    // IN der EU. Feldnamen wie in der REST-Antwort.
     { id: 3, name: 'Diogenes Verlag AG', street: 'Sprecherstrasse 8', postcode: '8032',
-      town: 'Zuerich', countryId: 4, email: 'info@diogenes.ch' },
+      town: 'Zuerich', countryId: 4, email: 'info@diogenes.ch',
+      ...(vertreterFehlt ? {} : {
+        responsibleName: 'truepages UG', responsibleStreet: 'Westermuehlstrasse',
+        responsibleHouseNo: '29', responsiblePostCode: '80469',
+        responsibleTown: 'Muenchen', responsibleEmail: 'info@truepages.de',
+        responsibleCountry: vertreterAusserhalb ? 4 : 1,
+      }) },
   ]
   const laender = [{ id: 1, isoCode2: 'DE' }, { id: 4, isoCode2: 'CH' }]
   // 0 = kein Hersteller am Artikel; sonst die ID von oben.
@@ -409,8 +417,8 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
 
   // Ohne Laenderliste laeuft der Guard weiter, nur die EU-Pruefung entfaellt.
   const gLand = await lauf(baueStand({ mitListings: false, gpsrCh: [0], laenderFehlen: true }), 'bericht')
-  pruefe(/Land-IDs nicht lesbar/.test(gLand.inhalt),
-         'ohne Laenderliste sagt der Bericht das auch fuer die Land-IDs')
+  pruefe(/Rueckfallliste/.test(gLand.inhalt),
+         'ohne Laenderliste greift die Rueckfallebene und sagt es an')
 
   // Der Hersteller-Import verlangt am Feld Land die ID, nicht 'DE'. Welche
   // Zahl das ist, weiss nur das eigene System - der Bericht sagt es an.
@@ -418,8 +426,11 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   pruefe(/Land-IDs fuer den Hersteller-Import/.test(gIds.inhalt)
          && /DE=1/.test(gIds.inhalt) && /CH=4/.test(gIds.inhalt),
          'der Bericht nennt die Land-IDs im Klartext')
-  pruefe(gLand.zahlen.gpsr_ausserhalb_eu === 0 && gLand.zahlen.ohne_gpsr === 0,
-         'fehlende Laenderliste legt den Guard nicht lahm')
+  // Frueher fiel hier die EU-Erkennung ganz aus und ein Schweizer Verlag galt
+  // als deutscher - genau der Fall, in dem ein Vertreter Pflicht ist.
+  pruefe(gLand.zahlen.gpsr_ausserhalb_eu === 1 && gLand.zahlen.ohne_gpsr === 0,
+         `die Rueckfallebene erkennt den Schweizer Sitz weiterhin, erhalten`
+         + ` ${gLand.zahlen.gpsr_ausserhalb_eu}`)
 
   // Heisst das Hersteller-Feld anders als erwartet, darf der Guard NICHT alles
   // filtern - das waere der teuerste Fehler, den er machen koennte.
@@ -473,6 +484,37 @@ const pruefe = (ok, text) => { console.log((ok ? '  OK   ' : '  FEHL ') + text);
   const gEinzeln = await lauf(baueStand({ mitListings: true, gpsrOhne: [0] }), 'bericht')
   pruefe(gEinzeln.zahlen.listings_ohne_gpsr === 1 && gEinzeln.zahlen.gpsr_zugeordnet > 0,
          `einzelner Ausreisser wird weiterhin gemeldet, erhalten ${gEinzeln.zahlen.listings_ohne_gpsr}`)
+
+  console.log('\n=== EU-Verantwortlicher bei Nicht-EU-Herstellern ===')
+  // Art. 19 verlangt bei einem Hersteller ausserhalb der EU zusaetzlich eine
+  // verantwortliche Person IN der EU. Ist sie da, ist alles in Ordnung.
+  const vOk = await lauf(baueStand({ mitListings: true, gpsrCh: [0] }), 'bericht')
+  pruefe(vOk.zahlen.listings_ohne_eu_vertreter === 0,
+         `vollstaendiger Vertreter wird nicht bemaengelt, erhalten ${vOk.zahlen.listings_ohne_eu_vertreter}`)
+  pruefe(vOk.zahlen.gpsr_ausserhalb_eu === 1, 'der Nicht-EU-Sitz wird trotzdem gezaehlt')
+
+  const vFehlt = await lauf(baueStand({ mitListings: true, gpsrCh: [0],
+                                        vertreterFehlt: true }), 'bericht')
+  pruefe(vFehlt.zahlen.listings_ohne_eu_vertreter === 1,
+         `fehlender Vertreter wird gezaehlt, erhalten ${vFehlt.zahlen.listings_ohne_eu_vertreter}`)
+  pruefe(vFehlt.ok === false, 'und macht den Bericht rot')
+  pruefe(JSON.parse(vFehlt.koerper).probleme.some(
+           x => /keinen EU-Verantwortlichen/.test(x.grund || '')),
+         'das Listing steht mit MLID und Grund unter Probleme')
+
+  // Ein 'Vertreter', der selbst ausserhalb der EU sitzt, erfuellt Art. 16 nicht -
+  // das ist keine verantwortliche Person, sondern eine zweite Auslandsadresse.
+  const vAus = await lauf(baueStand({ mitListings: true, gpsrCh: [0],
+                                      vertreterAusserhalb: true }), 'bericht')
+  pruefe(vAus.zahlen.listings_ohne_eu_vertreter === 1,
+         'ein Vertreter ausserhalb der EU zaehlt nicht als Vertreter')
+  pruefe(/nicht in der EU ansaessig/.test(vAus.koerper),
+         'und der Grund sagt genau das')
+
+  // Ein deutscher Verlag braucht keinen - er ist selbst die verantwortliche Person.
+  const vDe = await lauf(baueStand({ mitListings: true }), 'bericht')
+  pruefe(vDe.zahlen.listings_ohne_eu_vertreter === 0,
+         'EU-Verlage werden nicht nach einem Vertreter gefragt')
 
   console.log('\n=== FBA-Bestand im Bericht ===')
   // Bestand 0 ist Normalfall (ausverkauft) und macht nie rot. Rot wird es nur,

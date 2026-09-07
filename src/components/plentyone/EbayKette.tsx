@@ -63,6 +63,7 @@ const ZAHL_LABEL: Record<string, string> = {
   gpsr_zugeordnet: 'Artikel mit Hersteller',
   ohne_gpsr: 'ohne GPSR-Herstellerangabe (nicht gelistet)',
   listings_ohne_gpsr: 'LAUFENDE Listings ohne Herstellerangabe',
+  listings_ohne_eu_vertreter: 'LAUFENDE Listings ohne EU-Verantwortlichen',
   gpsr_ausserhalb_eu: 'Hersteller außerhalb der EU',
   mit_ersatzpreis: 'über den freien eBay-Preis',
   verwaiste_listings: 'Listing ohne Market-Listing',

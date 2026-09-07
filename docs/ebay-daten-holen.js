@@ -61,11 +61,25 @@ try {
 // Laendercodes, um Hersteller ausserhalb der EU zu erkennen (CH, US, UK).
 // Scheitert der Abruf, entfaellt nur diese Zusatzpruefung.
 const isoByLand = {};
-try {
-  for (const c of await pageAll('/rest/orders/shipping/countries')) {
-    isoByLand[String(c.id)] = String(c.isoCode2 || '').toUpperCase();
-  }
-} catch (e) { /* ohne Laenderliste wird nur nicht auf EU geprueft */ }
+let landPruefung = 'ok';
+for (const weg of ['/rest/orders/shipping/countries', '/rest/system/countries']) {
+  try {
+    for (const c of await pageAll(weg)) {
+      const iso = String(c.isoCode2 || c.isoCode || '').toUpperCase();
+      if (c.id !== undefined && iso) isoByLand[String(c.id)] = iso;
+    }
+  } catch (e) { /* naechsten Weg probieren */ }
+  if (Object.keys(isoByLand).length) break;
+}
+// Rueckfallebene: die drei IDs, die aus PlentyONE abgelesen sind. Ohne sie
+// koennte der Guard kein Land aufloesen und wuerde einen Schweizer Verlag fuer
+// einen deutschen halten - genau der Fall, in dem ein EU-Vertreter Pflicht ist.
+if (!Object.keys(isoByLand).length) {
+  landPruefung = 'rueckfall';
+  isoByLand['1'] = 'DE';
+  isoByLand['2'] = 'AT';
+  isoByLand['4'] = 'CH';
+}
 const EU_LAENDER = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR',
                     'HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK',
                     'SI','ES','SE'];
@@ -91,8 +105,24 @@ for (const h of hersteller) {
   const iso = isoByLand[String(h.countryId || '')] || '';
   const fehlt = [name ? null : 'Name', strasse ? null : 'Strasse', plz ? null : 'PLZ',
                  ort ? null : 'Ort', mail ? null : 'E-Mail'].filter(x => x !== null);
+  // Zweiter Adressblock: die verantwortliche Person in der EU (Art. 16 GPSR).
+  // Feldnamen aus der REST-Antwort, angesagt vom Bericht am 07.09.2026.
+  const vName = String(h.responsibleName || '').trim();
+  const vOrt = String(h.responsibleTown || '').trim();
+  const vPlz = String(h.responsiblePostCode || '').trim();
+  const vStr = String(h.responsibleStreet || '').trim();
+  const vMail = String(h.responsibleEmail || '').trim();
+  const vIso = isoByLand[String(h.responsibleCountry || '')] || '';
+  const vFehlt = [vName ? null : 'Name', vStr ? null : 'Strasse', vPlz ? null : 'PLZ',
+                  vOrt ? null : 'Ort', vMail ? null : 'E-Mail'].filter(x => x !== null);
   gpsrById[String(h.id)] = {
     name: name || ('Hersteller ' + h.id),
+    vertreterName: vName,
+    vertreterVollstaendig: vFehlt.length === 0,
+    vertreterFehlt: vFehlt.join(', '),
+    // Ein Vertreter ausserhalb der EU erfuellt Art. 16 nicht - dann ist es
+    // keiner, sondern nur eine zweite Auslandsadresse.
+    vertreterInEu: vIso !== '' && EU_LAENDER.indexOf(vIso) !== -1,
     vollstaendig: fehlt.length === 0,
     fehlt: fehlt.join(', '),
     iso: iso,
@@ -536,6 +566,7 @@ let bestandKaufbar = 0;
 let bestandNull = 0;
 let listingsOhneGpsr = 0;
 let listingsAusserhalbEu = 0;
+let listingsOhneVertreter = 0;
 
 for (const ml of marketListings) {
   const itemId = itemByVar[ml.variationId];
@@ -563,6 +594,21 @@ for (const ml of marketListings) {
                           + ' - es fehlt: ' + gl.fehlt });
     } else if (gl.ausserhalbEu) {
       listingsAusserhalbEu++;
+      // Sitzt der Hersteller ausserhalb der EU, verlangt Art. 19 zusaetzlich
+      // eine verantwortliche Person IN der EU. Fehlt sie, ist das Angebot
+      // ebenso angreifbar wie ohne Herstellerangabe.
+      if (!gl.vertreterVollstaendig || !gl.vertreterInEu) {
+        listingsOhneVertreter++;
+        probleme.push({ mlid: ml.id, item_id: itemId,
+                        titel: String(titelRoh || '').slice(0, 90),
+                        grund: 'LIVE: Hersteller "' + gl.name + '" sitzt ausserhalb der EU'
+                          + (gl.vertreterName
+                              ? ', der EU-Verantwortliche "' + gl.vertreterName + '" ist'
+                                + (gl.vertreterVollstaendig
+                                    ? ' nicht in der EU ansaessig'
+                                    : ' unvollstaendig: es fehlt ' + gl.vertreterFehlt)
+                              : ' und hat keinen EU-Verantwortlichen (Art. 16 GPSR)') });
+      }
     }
   }
 
@@ -614,6 +660,7 @@ const zahlen = {
   gpsr_zugeordnet: gpsrZugeordnet,
   ohne_gpsr: ohneGpsr.length,
   listings_ohne_gpsr: listingsOhneGpsr,
+  listings_ohne_eu_vertreter: listingsOhneVertreter,
   gpsr_ausserhalb_eu: gpsrAusserhalbEu + listingsAusserhalbEu,
   mit_ersatzpreis: mitErsatzpreis,
   verwaiste_listings: verwaiste.length,
@@ -669,6 +716,10 @@ const text = [
   landIdText
     ? 'Land-IDs fuer den Hersteller-Import (das Feld Land verlangt die Zahl,'
       + ' nicht den ISO-Code): ' + landIdText
+      + (landPruefung === 'rueckfall'
+          ? ' [aus der Rueckfallliste - PlentyONE gab keine Laender heraus,'
+            + ' andere Laender bleiben unbekannt]'
+          : '')
     : 'Land-IDs nicht lesbar - die Laenderliste kam nicht durch.',
   // Einmalige Diagnose: welche Felder bringt ein Hersteller ueberhaupt mit?
   // Der zweite Adressblock (verantwortliche Person in der EU) steht in keiner
@@ -687,6 +738,10 @@ const text = [
   listingsOhneGpsr
     ? 'ACHTUNG: ' + listingsOhneGpsr + ' LAUFENDE(S) Listing(s) ohne vollstaendige'
       + ' Herstellerangabe - abmahnbar, solange sie online sind (siehe Probleme)'
+    : null,
+  listingsOhneVertreter
+    ? 'ACHTUNG: ' + listingsOhneVertreter + ' LAUFENDE(S) Listing(s) mit Hersteller'
+      + ' ausserhalb der EU, ohne verantwortliche Person IN der EU (Art. 16 GPSR)'
     : null,
   'Ueber den freien eBay-Preis statt der Buchpreisbindung: ' + zahlen.mit_ersatzpreis,
   bestandPruefung === 'ok'
@@ -722,6 +777,7 @@ const text = [
 const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
         && verwaiste.length === 0 && preisPruefung === 'ok' && bildPruefung === 'ok'
         && gpsrPruefung === 'ok' && listingsOhneGpsr === 0
+        && listingsOhneVertreter === 0
         && (!bestandUeberwacht || (bestandPruefung === 'ok' && bestandAlterMin <= bestandMaxAlterMin));
 
 const koerper = JSON.stringify({
