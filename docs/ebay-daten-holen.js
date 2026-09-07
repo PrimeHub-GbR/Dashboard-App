@@ -670,6 +670,13 @@ const text = [
     ? 'Land-IDs fuer den Hersteller-Import (das Feld Land verlangt die Zahl,'
       + ' nicht den ISO-Code): ' + landIdText
     : 'Land-IDs nicht lesbar - die Laenderliste kam nicht durch.',
+  // Einmalige Diagnose: welche Felder bringt ein Hersteller ueberhaupt mit?
+  // Der zweite Adressblock (verantwortliche Person in der EU) steht in keiner
+  // REST-Doku - ohne seine Feldnamen kann der Guard ihn nicht pruefen.
+  hersteller.length
+    ? 'Felder am Hersteller (fuer den EU-Verantwortlichen-Guard): '
+      + Object.keys(hersteller[0]).join(', ')
+    : null,
   'Hersteller in PlentyONE: ' + hersteller.length + ', davon zugeordnete Artikel: '
     + gpsrZugeordnet + ' von ' + items.length
     + (hersteller.length
