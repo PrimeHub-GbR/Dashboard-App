@@ -13,8 +13,19 @@ const eintrag = z.object({
   grund: z.string().max(500).optional(),
 })
 
+/**
+ * Hersteller aus PlentyONE. Der Artikelimport braucht die numerische ID — sein
+ * Zielfeld lehnt den Verlagsnamen ab —, und vergeben werden die IDs von
+ * PlentyONE. Der Migrationslauf kommt nicht an sie heran, der eBay-Knoten schon.
+ */
+const hersteller = z.object({
+  name: z.string().min(1).max(300),
+  id: z.union([z.number().int().positive(), z.string().regex(/^\d+$/)]),
+})
+
 const berichtSchema = z.object({
   ok: z.boolean().optional(),
+  hersteller: z.array(hersteller).max(2000).optional(),
   zahlen: z.record(z.string(), z.number()).default({}),
   probleme: z.array(eintrag).max(500).default([]),
   uebersprungen: z.array(eintrag).max(500).default([]),
@@ -63,7 +74,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Bericht konnte nicht gespeichert werden' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, bericht: data }, { status: 201 })
+  // Herstellerliste nachziehen, damit der naechste Migrationslauf die IDs kennt.
+  // Scheitert das, ist der Bericht trotzdem gespeichert — er ist das Wichtigere,
+  // und die Liste holt der uebernaechste Lauf nach.
+  let herstellerGepflegt = 0
+  if (d.hersteller?.length) {
+    const zeilen = d.hersteller.map((h) => ({
+      name: h.name.trim(),
+      plenty_id: Number(h.id),
+      gesehen_am: new Date().toISOString(),
+    }))
+    const { error: hError } = await svc
+      .from('plentyone_hersteller_ids')
+      .upsert(zeilen, { onConflict: 'name' })
+    if (hError) console.error('plentyone hersteller_ids upsert:', hError)
+    else herstellerGepflegt = zeilen.length
+  }
+
+  return NextResponse.json({ ok: true, bericht: data, hersteller: herstellerGepflegt },
+    { status: 201 })
 }
 
 /** Die letzten Berichte für die Anzeige im Dashboard. */

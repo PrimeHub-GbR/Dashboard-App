@@ -780,6 +780,12 @@ const ok = geprueftFehler === 0 && nichtGeprueft === 0 && ohnePreis.length === 0
 
 const koerper = JSON.stringify({
   ok,
+  // Name und ID jedes Herstellers. Das Dashboard schreibt sie in seine
+  // Liste, damit der Migrationslauf die numerische Hersteller-ID kennt -
+  // der Artikelimport lehnt den Verlagsnamen ab, und an die IDs kommt nur
+  // dieser Knoten heran.
+  hersteller: hersteller.map(h => ({ name: String(h.name || '').trim(),
+                                     id: h.id })).filter(h => h.name && h.id),
   zahlen,
   probleme: probleme.concat(verwaiste).slice(0, 500),
   uebersprungen: uebersprungen.concat(ohnePreis).concat(ohneBild).concat(ohneGpsr).slice(0, 500),
