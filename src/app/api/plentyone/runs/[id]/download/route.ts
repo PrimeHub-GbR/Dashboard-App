@@ -38,7 +38,7 @@ export async function GET(
 
   const { data: run } = await svc
     .from('plentyone_runs')
-    .select('csv_path, eigenschaften_path, cover_pakete')
+    .select('csv_path, eigenschaften_path, hersteller_path, cover_pakete')
     .eq('id', id)
     .single()
   if (!run) return NextResponse.json({ error: 'Lauf nicht gefunden' }, { status: 404 })
@@ -48,6 +48,8 @@ export async function GET(
     pfad = run.csv_path
   } else if (gesucht === 'eigenschaften') {
     pfad = run.eigenschaften_path
+  } else if (gesucht === 'hersteller') {
+    pfad = run.hersteller_path
   } else {
     const paket = ((run.cover_pakete ?? []) as Array<{ name?: string; datei?: string }>).find(
       (p) => p?.name === gesucht

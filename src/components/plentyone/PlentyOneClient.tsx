@@ -34,6 +34,7 @@ interface Run {
   csv_status: Strang
   csv_path: string | null
   eigenschaften_path: string | null
+  hersteller_path: string | null
   csv_error: string | null
   cover_status: Strang
   cover_error: string | null
@@ -278,6 +279,9 @@ export function PlentyOneClient() {
                         ['mit BPB-Preis', aktuell.stats.mit_bpb_preis],
                         ['mit GPSR', aktuell.stats.mit_gpsr],
                         ['Verlage', aktuell.stats.verlage],
+                        ['Hersteller importierbar', aktuell.stats.hersteller],
+                        ['Verlage ohne GPSR', aktuell.stats.hersteller_ohne_gpsr],
+                        ['Hersteller außerhalb EU', aktuell.stats.hersteller_ausserhalb_eu],
                         ['Gewicht geschätzt', aktuell.stats.gewicht_pauschal],
                       ] as const).map(([k, v]) =>
                         v === undefined ? null : (
@@ -295,6 +299,19 @@ export function PlentyOneClient() {
                       </p>
                     )}
                     <div className="space-y-1.5">
+                      {aktuell.hersteller_path && (
+                        <Button asChild size="sm" variant="secondary" className="w-full justify-between gap-2">
+                          <a href={dl(aktuell.id, 'hersteller')}>
+                            <span className="flex items-center gap-2">
+                              <Download className="h-4 w-4" aria-hidden />
+                              plentyONE_Hersteller.csv
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {aktuell.stats.hersteller ? `${aktuell.stats.hersteller} Verlage` : 'zuerst'}
+                            </span>
+                          </a>
+                        </Button>
+                      )}
                       <Button asChild size="sm" variant="secondary" className="w-full gap-2">
                         <a href={dl(aktuell.id, 'csv')}>
                           <Download className="h-4 w-4" aria-hidden />
@@ -317,8 +334,18 @@ export function PlentyOneClient() {
                         </Button>
                       )}
                       <p className="text-xs leading-relaxed text-muted-foreground">
-                        Zwei Dateien, zwei Importe: Artikel zuerst, danach die Eigenschaften.
+                        Reihenfolge einhalten: <strong>Hersteller zuerst</strong>, dann Artikel,
+                        dann Eigenschaften. Ohne angelegte Hersteller bleibt „Artikel »
+                        Hersteller-ID“ leer — und ohne Herstellerangabe darf nach Art. 19 GPSR
+                        kein Angebot online.
                       </p>
+                      {Number(aktuell.stats.hersteller_ohne_gpsr) > 0 && (
+                        <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                          {aktuell.stats.hersteller_ohne_gpsr} Verlag(e) haben keine
+                          GPSR-Kontaktdaten und fehlen in der Hersteller-Datei. Deren Bücher hält
+                          der eBay-Guard zurück — siehe Hinweise unten.
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -492,6 +519,15 @@ export function PlentyOneClient() {
                               >
                                 <Download className="h-3 w-3" aria-hidden />
                                 Eigenschaften
+                              </a>
+                            )}
+                            {r.hersteller_path && (
+                              <a
+                                href={dl(r.id, 'hersteller')}
+                                className="inline-flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 underline-offset-2 hover:underline"
+                              >
+                                <Download className="h-3 w-3" aria-hidden />
+                                Hersteller
                               </a>
                             )}
                           </span>

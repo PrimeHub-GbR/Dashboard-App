@@ -86,7 +86,7 @@ export const MAPPING_SPALTEN: MappingZeile[] = [
   { spalte: 'vlb_autor', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: '→ Eigenschaften-Import, ID 10',
     beschreibung: 'Autoren als „Nachname, Vorname", mehrere mit Semikolon getrennt.' },
   { spalte: 'vlb_verlag', zielfeld: 'Artikel » Hersteller-ID', herkunft: 'vlb', block: 'C', zusatz: 'erst nach dem Hersteller-Import',
-    beschreibung: 'Verlagsname. Kaufland verlangt ihn als „manufacturer", eBay als „Marke". Solange keine Hersteller angelegt sind: Zeile ausschalten.' },
+    beschreibung: 'Verlagsname (Imprint) — Kaufland verlangt ihn als „manufacturer“, eBay als „Marke“. Wird über den Namen gegen die angelegten Hersteller aufgelöst, legt aber keine an. Solange der Hersteller-Import nicht gelaufen ist: Zeile ausschalten.' },
   { spalte: 'vlb_erscheinungsdatum', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: '→ Eigenschaften-Import, ID 11',
     beschreibung: 'Erscheinungsdatum als JJJJ-MM-TT. Bei unvollständigen VLB-Angaben auf Monats- bzw. Jahresanfang gesetzt.' },
   { spalte: 'vlb_sprache', zielfeld: null, herkunft: 'vlb', block: 'C', zusatz: 'Klartext, nur zum Lesen',
@@ -175,7 +175,7 @@ export const IMPORT_SCHRITTE = [
   },
   {
     titel: 'Hersteller anlegen',
-    text: 'Aus der Artikel-CSV die Spalten vlb_verlag und gpsr_* ziehen und als Import-Typ „Hersteller" anlegen. Erst danach lässt sich Spalte 33 auf die Hersteller-ID mappen. Ohne Hersteller lehnen Kaufland und eBay die Artikel ab.',
+    text: 'Die Datei plentyONE_Hersteller.csv fällt seit dem 07.09.2026 in jedem Migrationslauf mit ab — oben herunterladen und als Import-Typ „Hersteller“ importieren (Spalten: name, strasse, plz, ort, land, email). Das muss VOR dem Artikelimport passieren: erst danach lässt sich Spalte 33 auf die Hersteller-ID mappen. Ohne Hersteller bleibt das Feld leer — und ohne Herstellerangabe darf nach Art. 19 GPSR kein Angebot online.',
   },
   {
     titel: 'Artikelimport anlegen und auf URL umstellen',
