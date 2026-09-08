@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -27,6 +29,13 @@ const BLOCK_STIL: Record<Block, string> = {
 export function MappingTabelle() {
   const [suche, setSuche] = useState('')
   const [nurGemappt, setNurGemappt] = useState(false)
+  // Alle drei zugeklappt: zusammen sind es ueber neunzig Zeilen, und meist
+  // sucht man genau eine davon.
+  const [offen, setOffen] = useState<Record<string, boolean>>({})
+  const klappe = (id: string) => ({
+    open: offen[id] ?? false,
+    onOpenChange: (v: boolean) => setOffen((z) => ({ ...z, [id]: v })),
+  })
 
   const q = suche.trim().toLowerCase()
   const zeilen = MAPPING_SPALTEN
@@ -44,21 +53,31 @@ export function MappingTabelle() {
 
   return (
     <div className="space-y-6">
+      <Collapsible asChild {...klappe('artikel')}>
       <Card>
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-foreground">Mapping-Tabelle — Artikelimport</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
-                In der <strong className="text-foreground">Reihenfolge der CSV-Spalten</strong> —
-                so wie sie im Import untereinander stehen. {MAPPING_SPALTEN.length} Spalten,
-                davon {gemappt} gemappt.
-              </p>
-            </div>
+            <CollapsibleTrigger className="group flex flex-1 items-start gap-2 text-left">
+              <ChevronDown
+                className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                aria-hidden
+              />
+              <div>
+                <CardTitle className="text-foreground">Mapping-Tabelle — Artikelimport</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  In der <strong className="text-foreground">Reihenfolge der CSV-Spalten</strong> —
+                  so wie sie im Import untereinander stehen. {MAPPING_SPALTEN.length} Spalten,
+                  davon {gemappt} gemappt.
+                </p>
+              </div>
+            </CollapsibleTrigger>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setNurGemappt((v) => !v)}
+                onClick={() => {
+                  setNurGemappt((v) => !v)
+                  setOffen((z) => ({ ...z, artikel: true }))
+                }}
                 className={`h-9 rounded-md border px-3 text-sm transition-colors ${
                   nurGemappt
                     ? 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300'
@@ -69,7 +88,10 @@ export function MappingTabelle() {
               </button>
               <Input
                 value={suche}
-                onChange={(e) => setSuche(e.target.value)}
+                onChange={(e) => {
+                  setSuche(e.target.value)
+                  if (e.target.value) setOffen((z) => ({ ...z, artikel: true }))
+                }}
                 placeholder="Spalte oder Inhalt suchen…"
                 className="h-9 w-full max-w-xs"
                 aria-label="Mapping-Tabelle durchsuchen"
@@ -78,6 +100,7 @@ export function MappingTabelle() {
           </div>
         </CardHeader>
 
+        <CollapsibleContent asChild>
         <CardContent className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-left text-sm">
             <thead>
@@ -133,18 +156,30 @@ export function MappingTabelle() {
             </p>
           )}
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
       {/* ------------------------------------------------ zweiter Import */}
+      <Collapsible asChild {...klappe('hersteller')}>
       <Card>
         <CardHeader className="gap-2">
-          <CardTitle className="text-foreground">
-            Mapping-Tabelle — Hersteller-Import
-          </CardTitle>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {HERSTELLER_IMPORT.hinweis}
-          </p>
+          <CollapsibleTrigger className="group flex w-full items-start gap-2 text-left">
+            <ChevronDown
+              className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+              aria-hidden
+            />
+            <div>
+              <CardTitle className="text-foreground">
+                Mapping-Tabelle — Hersteller-Import
+              </CardTitle>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {HERSTELLER_IMPORT.hinweis}
+              </p>
+            </div>
+          </CollapsibleTrigger>
         </CardHeader>
+        <CollapsibleContent asChild>
         <CardContent className="space-y-6">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] border-collapse text-left text-sm">
@@ -176,17 +211,29 @@ export function MappingTabelle() {
             {HERSTELLER_IMPORT.eu}
           </p>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
 
+      <Collapsible asChild {...klappe('eigenschaften')}>
       <Card>
         <CardHeader className="gap-2">
-          <CardTitle className="text-foreground">
-            Mapping-Tabelle — Eigenschaften-Import
-          </CardTitle>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {EIGENSCHAFTEN_IMPORT.hinweis}
-          </p>
+          <CollapsibleTrigger className="group flex w-full items-start gap-2 text-left">
+            <ChevronDown
+              className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+              aria-hidden
+            />
+            <div>
+              <CardTitle className="text-foreground">
+                Mapping-Tabelle — Eigenschaften-Import
+              </CardTitle>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {EIGENSCHAFTEN_IMPORT.hinweis}
+              </p>
+            </div>
+          </CollapsibleTrigger>
         </CardHeader>
+        <CollapsibleContent asChild>
         <CardContent className="space-y-6">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] border-collapse text-left text-sm">
@@ -269,7 +316,9 @@ export function MappingTabelle() {
             </p>
           </div>
         </CardContent>
+        </CollapsibleContent>
       </Card>
+      </Collapsible>
     </div>
   )
 }
