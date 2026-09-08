@@ -1422,6 +1422,110 @@ sich prüfen lässt, ob REST dieselben sieht wie die Oberfläche.
 
 ---
 
+## 13c Rechnungen für eBay
+
+Eingerichtet am 08./09.09.2026. **Der Testkauf steht noch aus** — bis dahin ist die
+Kette gebaut, aber nicht bewiesen.
+
+### Warum eBay der einfachere Fall ist
+
+Bei Amazon rät PlentyONE den Steuersatz, wenn der Artikel im System fehlt: von 50
+Auftragspositionen trugen 34 den Normalsatz (19 % DE / 20 % AT) statt 7 % / 10 %,
+weil erst 50 der rund 2.000 Bücher importiert sind. Nachweisbar mit
+`node scripts/plentyone-auftrag.mjs`.
+
+Bei eBay kann das nicht passieren. **Ein eBay-Listing existiert nur zu einem Artikel,
+der in PlentyONE liegt** — die Auftragsposition findet ihre Variante also immer, und
+der Satz kommt aus deren `vatId`. Alle 49 Varianten stehen auf `vatId 1`.
+
+> `vatId` ist keine Prozentzahl, sondern die **Position** in der Steuertabelle des
+> Mandanten (`GET /rest/vat`): DE 0 = 19 %, 1 = 7 %; AT 0 = 20 %, 1 = 10 %.
+> Dieselbe Falle wie bei den Verkaufspreisen.
+
+### Der Flow
+
+*Automation » Flow Studio* → `eBay: Rechnung erzeugen und an Käufer senden`
+
+| | |
+|---|---|
+| Auslöser | Ereignisauswahl **Zahlungsstatus**, Status **Vollständig** |
+| Ausführungsmodus | Ein Flow pro Objekt |
+| „Flow verfügbar in" | **leer** — das Feld fügt den Flow nur als manuell auslösbare Gruppenfunktion in der Auftrags-UI hinzu; genau so entstand die fehlerhafte Rechnung 50000 |
+| Filter | **Herkunft · Ist in (IN) · 2.08 \| eBay Germany** |
+| Aktion 1 | Dokument erstellen → **Rechnung**, Reaktion auf Fehler: *Fehler-Event auslösen* |
+| Aktion 2 | E-Mail senden → Vorlage `[61] eBay: Ihre Rechnung`, Empfänger **Kunde** |
+| Aktion 3 | Tag **21 „Rechnung erzeugt"** |
+
+**Der Herkunftsfilter ist die wichtigste Zeile.** Ohne ihn greift der Flow auch auf
+Amazon-Aufträge — die erreichen ebenfalls den Zahlungsstatus „Vollständig" — während
+dort noch die alte Ereignisaktion läuft. Ergebnis wären doppelte Rechnungen mit
+geratenem Steuersatz.
+
+Das zweite, leere `Vorlage`-Feld in der E-Mail-Aktion ist **kein Anhangfeld**, sondern
+eine Wiederholung für weitere Vorlagen an weitere Empfänger. Die Rechnung hängt in der
+EmailBuilder-Vorlage `[61]` selbst.
+
+### Vorlage und Nummernkreis — wo das definiert wird
+
+Der Flow-Schritt „Dokument erstellen" kennt **keine Vorlagenauswahl**. Welche Vorlage
+greift, entscheidet sich in der Vorlage selbst:
+
+*Einrichtung » Dokumente » DocumentBuilder* → Vorlage → **Auftragseinstellungen**:
+Sprache, Mandant/Standort, **Herkunft**, Zahlungsart, **Lieferland**, Netto/Brutto,
+Kundenklasse.
+
+**Jede Auswahl dort ist eine Einschränkung, kein Freischalten.** Im Zweifel leer lassen.
+Stünde unter Herkunft nur Amazon, bekäme ein eBay-Auftrag keine Rechnung.
+
+Der **Nummernkreis hängt am Dokumenttyp**, nicht am Marktplatz — mit „Rechnung" kommt er
+automatisch. eBay läuft deshalb im selben Kreis weiter (Stand 09.09.2026: bis 50024).
+Die Kreise selbst: *Einrichtung » Dokumente » Nummernkreise*.
+
+### Lieferland: nicht einschränken, auch nicht auf Deutschland
+
+`GET /rest/orders/shipping/countries` zeigt **nur DE mit `active=1`**, alle anderen 0 —
+auch Österreich. Das ist folgenlos: Die Rechnungen 50000, 50020 und 50024 gingen nach
+Österreich (`countryVatId 2`), obwohl das Land inaktiv ist. Das Kennzeichen steuert
+Auswahllisten und den eigenen Shop, nicht Marktplatzaufträge.
+
+Würde man dort Deutschland auswählen, bekäme ein eBay-Verkauf nach Österreich **keine**
+Rechnung mehr. Feld leer lassen.
+
+### Kein Rechnungsupload zu eBay
+
+Bewusst verworfen. Die eBay-Funktion „Rechnung senden" / „Zahlungsinformationen senden"
+ist eine **Zahlungsaufforderung**, keine steuerliche Rechnung zum Download. Für Amazon
+existiert ein dedizierter Upload („Amazon IDU"), für eBay ist kein Gegenstück
+dokumentiert. Ein Eigenbau über die eBay-API wäre neue Prozesslogik und brächte
+gegenüber der E-Mail nichts — der Käufer hat das PDF im Postfach, und genau das
+verspricht das Listing-Layout.
+
+### Frist: Aktionsmanager wird am 1.10.2026 abgeschaltet
+
+Die **Amazon**-Rechnungsautomatik läuft in *Einrichtung » Aufträge » Ereignisse*, nicht
+in Flow (am 08.09.2026 nachgesehen). Das Handbuch nennt den 1.10.2026 als Abschalttermin
+für den Aktionsmanager. **Sie muss vorher nach Flow migriert werden**, sonst stoppt die
+Amazon-Fakturierung ohne Vorwarnung. Vorgehen: Flow nachbauen, beide eine Woche parallel
+laufen lassen, dann die alte Aktion deaktivieren.
+
+### Prüfen
+
+```
+node scripts/plentyone-auftrag.mjs      Steuersatz und Artikelzuordnung
+node scripts/plentyone-zahlungen.mjs    Zahlung erfasst (paidAmount)
+node scripts/plentyone-rechnungen.mjs   Rechnungen, manuelle ausgeblendet
+```
+
+Basiswerte vor dem Testkauf (09.09.2026 00:18): **2.674 Aufträge, alle `104.01`
+(Amazon), null eBay, höchste Rechnungsnummer 50024.** Daran lässt sich hinterher
+belegen, was der Testkauf verursacht hat — und dass Amazon unberührt blieb.
+
+Faustregel beim Draufschauen: Trägt der Positionsname ein SKU-Präfix in eckigen Klammern
+(`[APR-4567-04-08-2026] Titel`), kennt PlentyONE den Artikel **nicht**. Bei zugeordneten
+Positionen steht dort der eigene Artikelname.
+
+---
+
 ## 14 Offene Punkte
 
 Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft).
@@ -1443,6 +1547,8 @@ Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft)
 | **Zeitpläne scharf schalten** | Die vier Importe stehen auf Handstart. Für den echten Zyklus: Artikelimport 02:00, Eigenschaftsimport 02:30, Import 23 um 03:00, Import 22 um 04:00. **Erinnerung an den Nutzer eingeplant** |
 | **Vollimport ~2.000 Bücher** | bisher 49 Listings gebaut und geprüft |
 | **Lager-ID 2** | zeigt laut API auf „Amazon FBA-Lager BuchDepot24"; prüfen, ob das für eBay-Versand richtig ist oder Lager 1 („Sales") gehört |
+| **Testkauf über eBay** | Der Rechnungs-Flow (§13c) ist gebaut und aktiv, aber unbewiesen. Ein eigener Kauf am aktiven Testlisting muss zeigen: Auftrag mit Herkunft 2.08, Artikel verknüpft, **7 %**, Zahlung erfasst, Rechnung erzeugt, PDF im Postfach — und Amazon unverändert |
+| **Amazon-Automatik nach Flow migrieren** | **Frist 1.10.2026**, dann wird der Aktionsmanager abgeschaltet (§13c). Ohne Migration stoppt die Amazon-Fakturierung ohne Vorwarnung |
 
 ### Verbesserung für später — Prüfung aus n8n statt aus dem Browser
 
