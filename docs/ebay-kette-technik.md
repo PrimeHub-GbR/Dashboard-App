@@ -1500,13 +1500,24 @@ dokumentiert. Ein Eigenbau über die eBay-API wäre neue Prozesslogik und bräch
 gegenüber der E-Mail nichts — der Käufer hat das PDF im Postfach, und genau das
 verspricht das Listing-Layout.
 
-### Frist: Aktionsmanager wird am 1.10.2026 abgeschaltet
+### Amazon läuft ohne Flow — und ist von der 1.10.-Frist nicht betroffen
 
-Die **Amazon**-Rechnungsautomatik läuft in *Einrichtung » Aufträge » Ereignisse*, nicht
-in Flow (am 08.09.2026 nachgesehen). Das Handbuch nennt den 1.10.2026 als Abschalttermin
-für den Aktionsmanager. **Sie muss vorher nach Flow migriert werden**, sonst stoppt die
-Amazon-Fakturierung ohne Vorwarnung. Vorgehen: Flow nachbauen, beide eine Woche parallel
-laufen lassen, dann die alte Aktion deaktivieren.
+Die Amazon-Rechnungen entstehen **nativ in der Marktanbindung**, über die Einstellung
+*Einrichtung » Märkte » Amazon » Einstellungen* → „Rechnung erzeugen" = **VCS
+plentymarkets**. Weder Flow noch Aktionsmanager sind daran beteiligt. Der Abschalttermin
+des Aktionsmanagers (1.10.2026) trifft die Amazon-Fakturierung deshalb nicht, und es gibt
+nichts zu migrieren.
+
+Das erklärt die Beobachtung vom 08.09.2026 besser als die zunächst vermutete Kopplung an
+den Zahlungsstatus: **11 der 12 automatisch erzeugten Rechnungen gehörten zu Aufträgen mit
+VCS-Steuerdaten.** Die native Anbindung fakturiert, wenn Amazon die Steuerdaten geliefert
+hat — und genau deshalb war keine dieser Rechnungen falsch.
+
+Für eBay gibt es kein Gegenstück; dort ist der Flow aus diesem Abschnitt der Weg.
+
+> Der Aktionsmanager wird trotzdem am 1.10.2026 abgeschaltet. Falls dort noch **andere**
+> Automatisierungen liegen, müssen die vorher nach Flow. Für die Rechnungsstellung ist
+> nichts zu tun.
 
 ### Prüfen
 
@@ -1548,7 +1559,7 @@ Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft)
 | **Vollimport ~2.000 Bücher** | bisher 49 Listings gebaut und geprüft |
 | **Lager-ID 2** | zeigt laut API auf „Amazon FBA-Lager BuchDepot24"; prüfen, ob das für eBay-Versand richtig ist oder Lager 1 („Sales") gehört |
 | **Testkauf über eBay** | Der Rechnungs-Flow (§13c) ist gebaut und aktiv, aber unbewiesen. Ein eigener Kauf am aktiven Testlisting muss zeigen: Auftrag mit Herkunft 2.08, Artikel verknüpft, **7 %**, Zahlung erfasst, Rechnung erzeugt, PDF im Postfach — und Amazon unverändert |
-| **Amazon-Automatik nach Flow migrieren** | **Frist 1.10.2026**, dann wird der Aktionsmanager abgeschaltet (§13c). Ohne Migration stoppt die Amazon-Fakturierung ohne Vorwarnung |
+| **Aktionsmanager vor dem 1.10.2026 räumen** | Nur falls dort noch Automatisierungen liegen. Die **Rechnungsstellung ist nicht betroffen** — Amazon fakturiert nativ über die Marktanbindung, eBay über den Flow aus §13c |
 
 ### Verbesserung für später — Prüfung aus n8n statt aus dem Browser
 
