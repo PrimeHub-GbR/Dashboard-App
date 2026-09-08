@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   MAPPING_SPALTEN, HERKUNFT_LABEL, BLOCK_LABEL, EIGENSCHAFTEN_IMPORT,
-  HERSTELLER_IMPORT, EBAY_LISTING_IMPORT,
+  HERSTELLER_IMPORT, EBAY_LISTING_IMPORT, EBAY_MERKMALE_IMPORT,
   type Herkunft, type Block,
 } from '@/lib/plentyone-mapping'
 
@@ -254,6 +254,69 @@ export function MappingTabelle() {
                       </code>
                     </td>
                     <td className="py-2.5 pr-3 text-foreground">{m.zielfeld}</td>
+                    <td className="py-2.5 pr-3">
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-[12px] text-foreground">
+                        {m.wert}
+                      </code>
+                    </td>
+                    <td className="py-2.5 leading-relaxed text-muted-foreground">{m.beschreibung}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+        </CollapsibleContent>
+      </Card>
+      </Collapsible>
+
+      <Collapsible asChild {...klappe('ebaymerkmale')}>
+      <Card>
+        <CardHeader className="gap-2">
+          <CollapsibleTrigger className="group flex w-full items-start gap-2 text-left">
+            <ChevronDown
+              className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+              aria-hidden
+            />
+            <div>
+              <CardTitle className="text-foreground">
+                Mapping-Tabelle — eBay-Merkmale Bücher (Import 22)
+              </CardTitle>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {EBAY_MERKMALE_IMPORT.hinweis}
+              </p>
+            </div>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent asChild>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="w-44 py-2 pr-3 font-medium">Spalte</th>
+                  <th scope="col" className="w-64 py-2 pr-3 font-medium">Zielfeld</th>
+                  <th scope="col" className="w-52 py-2 pr-3 font-medium">Auswahl</th>
+                  <th scope="col" className="w-28 py-2 pr-3 font-medium">Wert</th>
+                  <th scope="col" className="py-2 font-medium">Bedeutung</th>
+                </tr>
+              </thead>
+              <tbody>
+                {EBAY_MERKMALE_IMPORT.mapping.map((m) => (
+                  <tr key={m.spalte} className="border-b border-border align-top">
+                    <td className="py-2.5 pr-3">
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-[13px] text-foreground">
+                        {m.spalte}
+                      </code>
+                    </td>
+                    <td className={`py-2.5 pr-3 ${
+                      m.zielfeld.startsWith('Market-Listing-Eigenschaft')
+                        ? 'text-muted-foreground'
+                        : 'font-medium text-foreground'
+                    }`}>
+                      {m.zielfeld}
+                    </td>
+                    <td className="py-2.5 pr-3 text-foreground">{m.auswahl || '—'}</td>
                     <td className="py-2.5 pr-3">
                       <code className="rounded bg-muted px-1.5 py-0.5 text-[12px] text-foreground">
                         {m.wert}

@@ -188,6 +188,37 @@ export const EBAY_LISTING_IMPORT = {
   ],
 }
 
+/**
+ * Import 22 — setzt Merkmale und Einstellungen an bestehenden Market-Listings.
+ * Quelle ist CSV B aus der eBay-Kette; sie enthält nur Listings, die bereits
+ * eine MLID haben. Deshalb sind zwei Läufe nötig: erst Import 23 (legt an),
+ * dann Import 22 (füllt).
+ */
+export const EBAY_MERKMALE_IMPORT = {
+  datei: 'ebay_merkmale.csv',
+  hinweis:
+    'Fast alle Zeilen zeigen auf dasselbe Zielfeld — „Market-Listing-Eigenschaft » Wert“. Unterschieden werden sie über die Auswahl in der dritten Spalte, nicht über das Zielfeld. Zwei Ausreißer fallen aus dem Muster: „An Artikelpreis binden“ hängt eine Ebene höher an „Listing-Eigenschaft“, die Bestandsabhängigkeit an einem eigenen Zahlenfeld.',
+  mapping: [
+    { spalte: 'MLID', zielfeld: 'Market-Listing » Id', auswahl: '', wert: 'je Listing', beschreibung: 'Abgleichschlüssel. Entsteht erst mit Import 23 — deshalb die zwei Läufe.' },
+    { spalte: 'Name', zielfeld: 'Market-Listing-Merkmal » Name', auswahl: '', wert: 'Autor / Buchtitel / Sprache', beschreibung: 'Der Merkmalsname. Drei Zeilen je Listing — eBay verlangt sie als Artikelmerkmale.' },
+    { spalte: 'Wert', zielfeld: 'Market-Listing-Merkmal » Wert', auswahl: '', wert: 'je Buch', beschreibung: 'Der zugehörige Wert, aus den VLB-Daten.' },
+    { spalte: 'kategorie_id', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Kategorie-ID 1', wert: '261186', beschreibung: 'eBay-Kategorie „Bücher“.' },
+    { spalte: 'versandprofil_id', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Versandprofil-ID', wert: '1', beschreibung: 'Versandprofil „Bücher DE“. Eigener Zahlenraum — nicht mit der Versandprofil-Liste im Auftragswesen verwechseln.' },
+    { spalte: 'layout_id', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Layout-Vorlagen-ID', wert: '1', beschreibung: 'Layout-Vorlage „Bücher“.' },
+    { spalte: 'lager_id', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Lager-ID', wert: '2', beschreibung: 'Das FBA-Lager. Aus ihm speist sich die eBay-Menge.' },
+    { spalte: 'preisbindung', zielfeld: 'Listing-Eigenschaft » Wert', auswahl: 'An Artikelpreis binden', wert: 'Y', beschreibung: 'Ausreißer: hängt an „Listing-Eigenschaft“, nicht an „Market-Listing-Eigenschaft“. Und will ein Y — 7 und 1 wurden mit „Use Item Price invalid“ abgewiesen (Läufe 45 und 47, je 11 Fehler), Y lief durch.' },
+    { spalte: 'zustand_id', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'eBay-Zustands-ID', wert: '1000', beschreibung: 'eBay-Standardcode für „Neu“.' },
+    { spalte: 'mwst', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Mehrwertsteuersatz', wert: '7', beschreibung: 'Der Base-Reiter hat zwei Steuerfelder. Mit „mwst“ allein bleiben Satz UND Land leer — belegt an den vorlagenfreien Listings MLID 12–21.' },
+    { spalte: 'mwst_land', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'MwSt.-Land', wert: '1', beschreibung: 'Deutschland. Das zweite der beiden Steuerfelder — ohne diese Zeile bleibt auch der Satz leer.' },
+    { spalte: 'sprache_code', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Sprache', wert: 'de', beschreibung: 'Je Zeile aus der VLB-Sprache abgeleitet.' },
+    { spalte: 'uvp', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'eBay UVP übertragen', wert: 'N', beschreibung: 'Kein UVP an eBay. Buchstabe, nicht 0/1.' },
+    { spalte: 'preisvorschlag', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'eBay-Preisvorschlag', wert: 'N', beschreibung: 'Kein Preisvorschlag — bei gebundenen Ladenpreisen rechtlich ausgeschlossen.' },
+    { spalte: 'bilder', zielfeld: 'Market-Listing-Eigenschaft » Wert', auswahl: 'Anzahl der Bilder', wert: '1', beschreibung: 'Ein Bild je Angebot: das Cover.' },
+    { spalte: 'titel_ebay', zielfeld: 'Market-Listing-Text » Titel', auswahl: 'data/elastic-sync/lang.de', wert: 'je Buch', beschreibung: 'Der Angebotstitel, auf 80 Zeichen gekürzt. Die Auswahl daneben ist die Sprache.' },
+    { spalte: 'bestandsabhaengigkeit', zielfeld: 'Listing » Bestandsabhängigkeits-ID', auswahl: '', wert: '2', beschreibung: 'Zweiter Ausreißer: eigenes Zahlenfeld am Listing. Import 23 setzt den Wert bei der Anlage, diese Zeile zieht Altbestand nach. Import-Skala 2 = beschränkt ohne Reservierung; REST meldet dafür 3.' },
+  ],
+}
+
 export const EIGENSCHAFTEN_IMPORT = {
   datei: 'plentyONE_Eigenschaften.csv',
   hinweis:
