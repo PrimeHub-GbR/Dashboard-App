@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ShoppingBag, CheckCircle2, XCircle, AlertTriangle, Copy, Check,
-  RefreshCw, Loader2, Clock,
+  RefreshCw, Loader2, Clock, ChevronDown,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 export interface EbayBericht {
   id: string
@@ -130,6 +131,8 @@ export function EbayKette({
   const [rechnet, setRechnet] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [basis, setBasis] = useState('https://dashboard.primehubgbr.com')
+  // Die Abhol-URLs braucht man einmal beim Einrichten, danach nie wieder.
+  const [urlsOffen, setUrlsOffen] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') setBasis(window.location.origin)
@@ -355,18 +358,28 @@ export function EbayKette({
         </section>
 
         {/* --------------------------------------------------- Abhol-URLs */}
+        <Collapsible asChild open={urlsOffen} onOpenChange={setUrlsOffen}>
         <section className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              Abhol-URLs für PlentyONE
-            </h3>
+            <CollapsibleTrigger className="group flex w-full items-center gap-2 text-left">
+              <ChevronDown
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                aria-hidden
+              />
+              <h3 className="text-sm font-semibold text-foreground">
+                Abhol-URLs für PlentyONE
+              </h3>
+              <span className="text-xs text-muted-foreground">({ABHOLUNGEN.length})</span>
+            </CollapsibleTrigger>
+          </div>
+
+          <CollapsibleContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Einmalig eintragen: Daten » Import » jeweilige Definition » Datenquelle
               „HTTPS / URL" und Zeitplan. <code className="rounded bg-muted px-1">DEIN_TOKEN</code>{' '}
               durch den Wert von <code className="rounded bg-muted px-1">PLENTYONE_EXPORT_TOKEN</code>{' '}
               aus den Vercel-Umgebungsvariablen ersetzen.
             </p>
-          </div>
 
           <ul className="space-y-3">
             {ABHOLUNGEN.map((a) => (
@@ -389,7 +402,9 @@ export function EbayKette({
             Layout, Lager, MwSt, Sprache, Bilder, Preisbindung und den eBay-Titel selbst. Die Vorlage
             „Bücher (1)" ist damit überflüssig und kann nach dem Vollimport gelöscht werden.
           </p>
+            </CollapsibleContent>
         </section>
+        </Collapsible>
       </CardContent>
     </Card>
   )

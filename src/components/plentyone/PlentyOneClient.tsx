@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Upload, FileSpreadsheet, Images, CheckCircle2, XCircle, Loader2,
-  AlertTriangle, Download, Link2,
+  AlertTriangle, Download, Link2, ChevronDown
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -111,6 +112,13 @@ function StrangKarte({
 export function PlentyOneClient() {
   const [runs, setRuns] = useState<Run[]>([])
   const [laden, setLaden] = useState(true)
+  // Nachschlagewerke, keine Dauerinhalte: die Hinweisliste kann hunderte
+  // Zeilen lang sein, die Anleitung braucht man einmal beim Einrichten.
+  const [offen, setOffen] = useState<Record<string, boolean>>({})
+  const klappe = (id: string) => ({
+    open: offen[id] ?? false,
+    onOpenChange: (v: boolean) => setOffen((z) => ({ ...z, [id]: v })),
+  })
   const [starten, setStarten] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [datei, setDatei] = useState<File | null>(null)
@@ -421,17 +429,45 @@ export function PlentyOneClient() {
 
           {/* ------------------------------------------------------- Schritt 3 */}
           {aktuell.csv_status === 'success' && (
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">3 · Unvollständige Titel</h2>
-              <HinweisListe hinweise={aktuell.hinweise ?? []} gesamt={aktuell.hinweise_gesamt} />
-            </section>
+            <Collapsible asChild {...klappe('hinweise')}>
+              <section className="space-y-3">
+                <CollapsibleTrigger className="group flex w-full items-center gap-2 text-left">
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                    aria-hidden
+                  />
+                  <h2 className="text-lg font-semibold text-foreground">
+                    3 · Unvollständige Titel
+                  </h2>
+                  {aktuell.hinweise_gesamt ? (
+                    <span className="text-sm text-muted-foreground">
+                      ({aktuell.hinweise_gesamt})
+                    </span>
+                  ) : null}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <HinweisListe hinweise={aktuell.hinweise ?? []} gesamt={aktuell.hinweise_gesamt} />
+                </CollapsibleContent>
+              </section>
+            </Collapsible>
           )}
 
           {/* ------------------------------------------------------- Schritt 4 */}
+          <Collapsible asChild {...klappe('einrichtung')}>
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">
-              4 · Einmalige Einrichtung in PlentyONE
-            </h2>
+            <CollapsibleTrigger className="group flex w-full items-center gap-2 text-left">
+              <ChevronDown
+                className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                aria-hidden
+              />
+              <h2 className="text-lg font-semibold text-foreground">
+                4 · Einmalige Einrichtung in PlentyONE
+              </h2>
+              <span className="text-sm text-muted-foreground">
+                ({IMPORT_SCHRITTE.length} Schritte)
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent asChild>
             <Card>
               <CardContent className="py-5">
                 <ol className="space-y-4">
@@ -452,7 +488,9 @@ export function PlentyOneClient() {
                 </ol>
               </CardContent>
             </Card>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
         </>
       )}
 

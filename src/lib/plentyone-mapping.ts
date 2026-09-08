@@ -252,22 +252,30 @@ export const EIGENSCHAFTEN_IMPORT = {
 export const IMPORT_SCHRITTE = [
   {
     titel: 'Cover hochladen',
-    text: 'ZIP-Pakete entpacken und alle .jpg in Shop » Dateimanager » Ordner „cover" hochladen. Dateinamen nicht ändern — die Bild-URL in Spalte 28 zeigt genau darauf. Fällt weg, sobald die VLB die Cover-Nutzung für Marktplätze freigegeben hat und die Bilder direkt per URL kommen.',
+    text: 'Die ZIP-Pakete von oben auspacken. Alle Bilder daraus hochladen nach: Shop » Dateimanager » Ordner „cover". Die Dateinamen nicht ändern — sonst findet der Artikel sein Bild nicht.',
   },
   {
-    titel: 'Hersteller anlegen',
-    text: 'plentyONE_Hersteller.csv oben herunterladen und als Import-Typ „Hersteller“ importieren — die 16 Zuordnungen stehen in der Tabelle unten. Muss VOR dem Artikelimport laufen: erst danach lässt sich Spalte 33 auf die Hersteller-ID mappen. Ohne Hersteller bleibt das Feld leer — und ohne Herstellerangabe darf nach Art. 19 GPSR kein Angebot online.',
+    titel: 'Hersteller importieren',
+    text: 'Daten » Import » Import erstellen. Typ „Hersteller", Dateiformat CSV, Trennzeichen Semikolon. plentyONE_Hersteller.csv hochladen und die 16 Spalten zuordnen (Tabelle unten). Unter Einstellungen: „Neue Daten importieren, bestehende aktualisieren" und als Kennung name → Herstellername. Dieser Import muss vor dem Artikelimport laufen — sonst finden die Artikel ihren Verlag nicht.',
   },
   {
-    titel: 'Artikelimport anlegen und auf URL umstellen',
-    text: 'Daten » Import, Kopie von „Amazon Import 3.0". Trennzeichen ;, UTF-8, Abgleich über Variantennr. Mapping nach der Tabelle unten — die Spalten stehen in der Reihenfolge der Datei. Zeilenreihenfolge der CSV nicht verändern: die Hauptvariante muss vor ihren Geschwistervarianten stehen. Datenquelle danach auf „HTTPS / URL" umstellen (Adresse siehe Abschnitt 5).',
+    titel: 'Artikel importieren',
+    text: 'Wieder Import erstellen, Typ „Artikel". plentyONE_Import_final.csv hochladen, Abgleich über die Variantennummer, Spalten zuordnen (Tabelle unten). Die Zeilenreihenfolge der Datei nicht verändern: die Hauptvariante steht vor ihren Geschwistern.',
   },
   {
-    titel: 'Eigenschaftsimport anlegen und auf URL umstellen',
-    text: 'Zweiter Import mit plentyONE_Eigenschaften.csv, ebenfalls Abgleich über Variantennr. Sieben Mappings, siehe eigener Abschnitt unten. Auch hier Datenquelle „HTTPS / URL".',
+    titel: 'Eigenschaften importieren',
+    text: 'Dritter Import, Typ „Eigenschaften". plentyONE_Eigenschaften.csv hochladen, sechs Zuordnungen (Tabelle unten). Eigene Datei, weil PlentyONE je Zeile nur eine Eigenschaft annimmt.',
   },
   {
-    titel: 'Erst mit wenigen Zeilen testen',
-    text: 'Zeitplan zuletzt setzen. Prüfen: entsteht ein Artikel mit mehreren Varianten oder mehrere Artikel? Kommen Sprache und Bindung als Auswahlwert an?',
+    titel: 'Die zwei eBay-Importe anlegen',
+    text: 'Import 23 legt die Angebote an, Import 22 füllt sie mit Merkmalen. Beide vom Typ „Elastic Export" mit Tab als Trennzeichen. Die Zuordnungen stehen unten; die Dateien holt PlentyONE selbst — siehe nächster Schritt.',
+  },
+  {
+    titel: 'Auf Selbstabholung umstellen',
+    text: 'In jedem der fünf Importe: Datenquelle von „CSV-Upload" auf „HTTPS / URL" ändern und die passende Adresse aus Abschnitt 5 eintragen. Danach den Zeitplan einschalten. Ab jetzt holt PlentyONE alles allein — du lädst oben nur noch den Amazon-Bericht hoch.',
+  },
+  {
+    titel: 'Erst klein testen',
+    text: 'Oben bei „Testlauf" eine 5 eintippen und starten. Danach in PlentyONE nachsehen: Ist ein Artikel mit mehreren Varianten entstanden — und nicht mehrere Artikel? Stehen Sprache und Bindung als Auswahlwert da? Erst wenn das sitzt, den ganzen Bestand laufen lassen.',
   },
 ]
