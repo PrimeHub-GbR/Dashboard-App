@@ -166,6 +166,28 @@ export const HERSTELLER_IMPORT = {
   eu: 'Der EU-Block ist immer gef\u00fcllt. Sitzt der Verlag in der EU, mit seinen eigenen Daten \u2014 er ist dann selbst die verantwortliche Person, und ein leeres Feld hie\u00dfe f\u00fcr den Marktplatz \u201ekeine benannt\u201c. Nur wo der Verlag au\u00dferhalb sitzt, steht dort ein echter Bevollm\u00e4chtigter: Diogenes (Z\u00fcrich) wird von der truepages UG in M\u00fcnchen vertreten.',
 }
 
+/**
+ * Import 23 \u2014 legt die eBay-Listings an. Quelle ist CSV A aus der eBay-Kette,
+ * die PlentyONE selbst per Abhol-URL zieht. Neun Spalten, alle bis auf die
+ * erste feste Werte aus dem Konfigurationsknoten.
+ */
+export const EBAY_LISTING_IMPORT = {
+  datei: 'ebay_listing_erstellung.csv',
+  hinweis:
+    'Legt Listing und Market-Listing in einem Zug an. Enth\u00e4lt nur Buch-Artikel, die noch kein Listing haben \u2014 die Kette rechnet das bei jedem Abruf neu aus, deshalb ist ein doppelter Lauf folgenlos. Tab-getrennt.',
+  mapping: [
+    { spalte: 'ItemID', zielfeld: 'Listing \u00bb Artikel-ID', wert: 'je Artikel', beschreibung: 'PlentyONE-Artikel-ID. Die einzige Spalte, die sich von Zeile zu Zeile \u00e4ndert.' },
+    { spalte: 'MarketID', zielfeld: 'Market-Listing \u00bb Plattform-ID', wert: '1008', beschreibung: 'eBay Deutschland.' },
+    { spalte: 'UserID', zielfeld: 'Market-Listing \u00bb Konto-ID', wert: '10', beschreibung: 'Das verkn\u00fcpfte eBay-Konto primehub_gbr.' },
+    { spalte: 'TypeID', zielfeld: 'Listing \u00bb Listing-Typ-ID', wert: '2', beschreibung: 'Festpreisangebot.' },
+    { spalte: 'StockDependenceTypeID', zielfeld: 'Listing \u00bb Bestandsabh\u00e4ngigkeits-ID', wert: '2', beschreibung: 'Import-Skala: 2 = beschr\u00e4nkt ohne Reservierung. Voraussetzung f\u00fcr die Bestandsautomatik und die Option \u201eNicht mehr vorr\u00e4tig\u201c. Achtung: REST z\u00e4hlt anders und meldet daf\u00fcr 3.' },
+    { spalte: 'UnitCombinationID', zielfeld: 'Listing \u00bb Inhalts-ID', wert: '1', beschreibung: 'Mengeneinheit \u201eSt\u00fcck\u201c.' },
+    { spalte: 'DirectoryID', zielfeld: 'Market-Listing \u00bb Verzeichnis-ID', wert: '1', beschreibung: 'eBay-Verzeichnis.' },
+    { spalte: 'Enabled', zielfeld: 'Market-Listing \u00bb Freigeschaltet', wert: 'Y', beschreibung: 'Das Listing ist freigeschaltet \u2014 gestartet wird es davon noch nicht. Der Livegang bleibt ein eigener Schritt.' },
+    { spalte: 'Duration', zielfeld: 'Market-Listing \u00bb Dauer', wert: 'GTC', beschreibung: 'Good \u2019Til Cancelled \u2014 l\u00e4uft, bis der Bestand null wird oder das Angebot beendet wird. Pflicht f\u00fcr die Bestandsautomatik.' },
+  ],
+}
+
 export const EIGENSCHAFTEN_IMPORT = {
   datei: 'plentyONE_Eigenschaften.csv',
   hinweis:
@@ -175,10 +197,12 @@ export const EIGENSCHAFTEN_IMPORT = {
     { spalte: 'gruppen_id', zielfeld: 'Eigenschaften » Gruppen-ID', beschreibung: 'Immer 7 = Gruppe „VLB Buchdaten".' },
     { spalte: 'eigenschaft_id', zielfeld: 'Eigenschaften » ID', beschreibung: 'Welche Eigenschaft gemeint ist: 10–16.' },
     { spalte: 'wert', zielfeld: 'Eigenschaften » Wert', beschreibung: 'Für Text-, Zahl- und Datums-Eigenschaften. Bei Auswahl-Eigenschaften leer.' },
-    { spalte: 'auswahl_id', zielfeld: 'Eigenschaften » Eigenschaften-Auswahl-ID', beschreibung: 'Für Sprache und Bindung. Bei allen anderen leer.' },
+    { spalte: 'auswahl_id', zielfeld: 'Eigenschaften » Auswahl-ID', beschreibung: 'Für Sprache und Bindung. Bei allen anderen leer.' },
     { spalte: 'sprache', zielfeld: 'Eigenschaften » Sprache', beschreibung: 'Immer „de".' },
   ],
   nichtGemappt: 'eigenschaft_name',
+  nichtGemapptHinweis:
+    'Steht in der Zuordnung auf \u201eArtikelsets \u00bb Bestandteile hinzuf\u00fcgen\u201c, aber mit ausgeschaltetem Import-Schalter \u2014 das Zielfeld ist Pflicht, der Schalter entscheidet. Bleibt so: die Spalte dient nur der Lesbarkeit der Datei.',
   eigenschaften: [
     { id: 10, name: 'Autor', typ: 'Text', quelle: 'vlb_autor', ziel: 'wert' },
     { id: 11, name: 'Erscheinungsdatum', typ: 'Datum', quelle: 'vlb_erscheinungsdatum', ziel: 'wert' },
