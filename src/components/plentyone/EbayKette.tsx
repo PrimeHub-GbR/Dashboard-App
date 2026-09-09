@@ -32,7 +32,7 @@ const ABHOLUNGEN = [
   },
   {
     datei: 'hersteller.csv',
-    zeit: '01:30',
+    zeit: '01:45',
     import: 'Herstellerimport',
     zweck: 'Verlage mit GPSR-Kontakt — muss VOR dem Artikelimport laufen',
   },
@@ -44,13 +44,13 @@ const ABHOLUNGEN = [
   },
   {
     datei: 'ebay-listings.csv',
-    zeit: '03:00',
+    zeit: '02:30',
     import: 'Import 23 — eBay-Listings anlegen',
     zweck: 'eine Zeile je Buch-Artikel ohne Listing',
   },
   {
     datei: 'ebay-merkmale.csv',
-    zeit: '04:00',
+    zeit: '03:00',
     import: 'Import 22 — eBay-Merkmale',
     zweck: 'Autor, Buchtitel, Sprache je Market-Listing',
   },

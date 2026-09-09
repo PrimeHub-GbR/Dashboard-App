@@ -655,7 +655,8 @@ Gleiche Machart, andere URLs:
 …/api/plentyone/export/eigenschaften.csv?t=<TOKEN>
 ```
 
-Vorgesehene Zeitpläne: 01:30, 02:00 und 02:30. Der Herstellerimport steht bewusst
+Vorgesehene Zeitpläne: 01:45, 02:00 und 02:30 (Eigenschaften gemeinsam mit Import 23,
+siehe §7a). Der Herstellerimport steht bewusst
 **vorn** — sonst findet der Artikelimport seinen Verlag nicht und lässt
 *Artikel » Hersteller-ID* leer. Der Export liefert nur innerhalb des
 Freigabefensters echte Daten, sonst die Kopfzeile — ein Zeitplan ist damit
@@ -674,6 +675,25 @@ gefahrlos.
 | `artikel.csv` | Supabase Storage `workflow-results`, Feld `csv_path` des letzten Laufs |
 | `eigenschaften.csv` | dito, Feld `eigenschaften_path` |
 | `hersteller.csv` | dito, Feld `hersteller_path` |
+
+### `POST /api/plentyone/runs` — zwei Türen, ein Ablauf
+
+Der Endpunkt nimmt den Amazon-Bericht auf zwei Wegen an:
+
+| Weg | Auth | `user_id` des Laufs |
+|---|---|---|
+| Upload im Dashboard | Login-Cookie, Rolle admin/manager | der angemeldete Benutzer |
+| n8n `plentyone-amazon-abruf` | `Authorization: Bearer <PLENTYONE_EXPORT_TOKEN>` | `PLENTYONE_SYSTEM_USER_ID` |
+
+Dahinter läuft **beides identisch**: Retention auf 3 Läufe, Lauf anlegen, Datei in
+`workflow-uploads`, beide n8n-Stränge anstoßen, Callback. Deshalb gibt es keinen
+zweiten Lauf-Anleger und keine zweite Storage-Logik — nur eine zusätzliche Abfrage
+ganz vorn. Erkennbar ist die Herkunft am `input_name`: der Abruf schickt
+`amazon-alle-angebote-<Datum>.tsv`.
+
+**Grenze:** Vercel nimmt rund 4,5 MB Body. Der Bericht für ~2.000 Bücher liegt bei
+1–2 MB. Würde das Sortiment stark wachsen, wäre der Ausweg, dass n8n die Datei selbst
+in den Storage legt und nur den Pfad meldet.
 | `ebay-listings.csv` | Proxy auf `N8N_EBAY_LISTINGS_URL` |
 | `ebay-merkmale.csv` | Proxy auf `N8N_EBAY_MERKMALE_URL` |
 

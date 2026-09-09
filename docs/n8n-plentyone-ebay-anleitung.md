@@ -85,11 +85,15 @@ unter `/dashboard/plentyone` → **5 · Weiter zu eBay** und lassen sich dort ko
 
 | Import in PlentyONE | Adresse | Uhrzeit |
 |---|---|---|
-| Herstellerimport | `…/api/plentyone/export/hersteller.csv?t=TOKEN-A` | 01:30 |
+| Herstellerimport | `…/api/plentyone/export/hersteller.csv?t=TOKEN-A` | 01:45 |
 | Artikelimport (Kopie von „Amazon Import 3.0") | `…/api/plentyone/export/artikel.csv?t=TOKEN-A` | 02:00 |
 | Eigenschaftsimport | `…/api/plentyone/export/eigenschaften.csv?t=TOKEN-A` | 02:30 |
-| **Import 23** eBay-Listings anlegen | `…/api/plentyone/export/ebay-listings.csv?t=TOKEN-A` | 03:00 |
-| **Import 22** eBay-Merkmale | `…/api/plentyone/export/ebay-merkmale.csv?t=TOKEN-A` | 04:00 |
+| **Import 23** eBay-Listings anlegen | `…/api/plentyone/export/ebay-listings.csv?t=TOKEN-A` | **02:30** |
+| **Import 22** eBay-Merkmale | `…/api/plentyone/export/ebay-merkmale.csv?t=TOKEN-A` | 03:00 |
+
+> **02:30 steht zweimal, und das ist Absicht.** Der Eigenschaftsimport und Import 23
+> brauchen beide nur die Artikel und stoeren einander nicht. Import 22 muss dagegen
+> hinten bleiben: Er fuellt Listings, die Import 23 erst anlegt.
 
 So geht es je Import:
 

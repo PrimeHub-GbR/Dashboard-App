@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { plentyoneTokenPruefen } from '@/lib/plentyone-token'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -51,15 +52,33 @@ export async function GET() {
 // POST /api/plentyone/runs — Amazon-Export hochladen und beide Stränge starten
 export async function POST(request: NextRequest) {
   try {
-    const auth = await createSupabaseServerClient()
-    const { data: { user } } = await auth.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
+    // Zwei Wege herein, ein Ablauf dahinter:
+    //   Mensch  — Login-Cookie, Rolle admin/manager (Upload im Dashboard)
+    //   Maschine — x-primehub-token bzw. Bearer (n8n holt den Bericht per SP-API)
+    // Der Lauf gehoert dann dem System-Benutzer, weil plentyone_runs.user_id auf
+    // auth.users zeigt und NOT NULL ist.
+    let userId: string
+    if (plentyoneTokenPruefen(request)) {
+      const systemUser = process.env.PLENTYONE_SYSTEM_USER_ID
+      if (!systemUser) {
+        return NextResponse.json(
+          { error: 'PLENTYONE_SYSTEM_USER_ID ist nicht konfiguriert' },
+          { status: 500 }
+        )
+      }
+      userId = systemUser
+    } else {
+      const auth = await createSupabaseServerClient()
+      const { data: { user } } = await auth.auth.getUser()
+      if (!user) return NextResponse.json({ error: 'Nicht authentifiziert' }, { status: 401 })
 
-    if (!(await rolleOderNull(user.id))) {
-      return NextResponse.json(
-        { error: 'Nur Geschäftsführung und Manager können einen Migrationslauf starten.' },
-        { status: 403 }
-      )
+      if (!(await rolleOderNull(user.id))) {
+        return NextResponse.json(
+          { error: 'Nur Geschäftsführung und Manager können einen Migrationslauf starten.' },
+          { status: 403 }
+        )
+      }
+      userId = user.id
     }
 
     const svc = createSupabaseServiceClient()
@@ -121,7 +140,7 @@ export async function POST(request: NextRequest) {
     const { data: run, error: insertError } = await svc
       .from('plentyone_runs')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         input_path: 'wird-gleich-gesetzt',
         input_name: file.name,
         zeilen_limit: zeilenLimit,
