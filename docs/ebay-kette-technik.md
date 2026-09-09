@@ -1537,6 +1537,126 @@ Positionen steht dort der eigene Artikelname.
 
 ---
 
+## 13d Die fünf Flows: von der Zahlung bis zum Paket
+
+Eingerichtet am 09.09.2026. **Alle noch ungetestet** — der Testkauf steht aus.
+
+Die Kette hängt an einem Befund, den kein Handbuch hergibt: **eBay-Aufträge kommen mit
+Status [3] „Warten auf Zahlung" an**, nicht mit [5]. Das steht im Market-Listing unter
+*Auftragsstatus* und ist der Grund, warum es Flow 1 überhaupt gibt — ohne ihn erreichte
+kein Auftrag je die Versandfreigabe.
+
+```
+eBay-Kauf → Auftragsabruf (stündlich, holt Auftrag + Managed-Payments-Zahlung)
+  → Flow 1: Zahlung vollständig        → Status [5]
+  → Flow 2: Status [5]                 → Versandfreigabe an Amazon FBA
+  → Amazon liefert neutral verpackt
+  → Paketnummer (täglich) → Warenausgang gebucht → eBay sieht „versendet"
+  → Flow 3: Warenausgang gebucht       → Rechnung + E-Mail + Tag 21
+```
+
+| # | Name | Auslöser | Aktionen |
+|---|---|---|---|
+| 1 | eBay: Versandfreigabe nach Zahlung | Zahlungsstatus **Vollständig** | Auftragsstatus → **[5]** |
+| 2 | eBay: Versand über Amazon MCF | Auftragsstatus geändert → **[5]** | Multichannel » Amazon » **Versandfreigabe an FBA erteilen** |
+| 3 | eBay: Rechnung an Käufer | **Warenausgang gebucht** | Rechnung · E-Mail `[61]` · Tag 21 |
+| 4 | eBay: Fehler bei Auftragsaktion | **Allgemeiner Fehler bei Auftragsaktion** | Auftragsnotiz · Tag `Prüfen` |
+| 5 | eBay: liegengebliebene Aufträge | **zeitgesteuert**, täglich | Suche + Notiz + Tag (Storno erst nach Trockenlauf) |
+
+**Jeder Flow filtert auf Herkunft `2.08 eBay Germany`.** Ohne diese Zeile greifen sie auch
+auf die 2.674 Amazon-Aufträge — bei Flow 2 wäre das ein zweites echtes Paket, bei Flow 5
+ein Storno gültiger Verkäufe.
+
+Filter von Flow 2 vollständig: *Lager-ID & Lagertyp* = Lager 2 + **Warenausgang** ·
+*Versand ausschließlich durch FBA* = Ja · *Herkunft* = 2.08.
+
+### Warum die Rechnung am Warenausgang hängt, nicht an der Zahlung
+
+Ursprünglich sollten Rechnung und Statuswechsel in einem Flow laufen. Die Trennung ist
+besser: Wird ein Auftrag storniert, **bevor** Amazon liefert, existiert gar keine Rechnung
+— also braucht es keine Gutschrift und keine Korrektur in der Buchhaltung. Der Fall
+wickelt sich ohne steuerliche Spuren ab.
+
+Preis der Trennung: Die Rechnung hängt jetzt daran, dass Status [7] eintritt. Bleibt der
+Warenausgang aus, gibt es keine Rechnung — dann ist aber auch die Ware nicht unterwegs,
+und eBay zeigt „nicht versendet". Der Fehler fällt also ohnehin auf.
+
+### Flow 5 und die Mängelquote
+
+`Kaufabbruch auf eBay starten` existiert als Aktion, ebenso `eBay-Rückerstattung
+veranlassen` und `eBay-Nachricht senden`. Trotzdem storniert Flow 5 vorerst **nicht**:
+
+> „Wenn Sie einen Kauf abbrechen, erhalten Sie einen Mangelvermerk — unabhängig davon, ob
+> Sie den Artikel nicht mehr vorrätig haben." Zulässig sind **2 %** (Mindeststandard) und
+> **0,5 %** (Verkäufer mit Top-Bewertung).
+
+Bei 200 Verkäufen ist ein einziger Storno bereits 0,5 %. Ein Tippfehler im Suchfilter
+würde reihenweise gültige Verkäufe wegwerfen, und ein Kaufabbruch ist nicht rückholbar.
+Deshalb erst eine Woche Trockenlauf mit Notiz und Tag; erst wenn die Suche nachweislich
+die richtigen (bei ruhendem Betrieb: **keine**) Aufträge trifft, kommen Nachricht,
+Kaufabbruch und Status [8] dazu.
+
+`eBay-Rückerstattung veranlassen` bleibt bewusst draußen — bei Managed Payments erstattet
+der Kaufabbruch vermutlich selbst. Beim ersten echten Fall prüfen, sonst zahlt man zweimal.
+
+### Das Suche-Element (Flow 5)
+
+Ein zeitgesteuerter Auslöser kennt keine Objekte und bietet deshalb keine Filter. Die
+Objekte beschafft das Steuerelement **Suche**:
+
+| Feld | Wert | Warum |
+|---|---|---|
+| Typ | Auftragssuche | |
+| Sortieren nach | **Auftragsdatum, aufsteigend** | älteste zuerst — sonst trifft das Limit die falschen |
+| Ergebnislimit | 25 | Sicherheitsnetz |
+| Verwendung | **Nur mit Suchergebnissen dieser Aktion fortfahren** | sonst kämen Objekte von außen dazu |
+| Bei keinem Ergebnis | **Flow-Ausführung abbrechen** | nichts gefunden heißt nichts zu tun |
+| Filter | Herkunft 2.08 · Status [5] · **Auftragseingangsdatum (Tage) < -2** | |
+
+Zur Datumsskala: negative Zahl = Vergangenheit, gezählt in **Kalendertagen**. „Ist kleiner"
+ist exklusiv, `< -2` trifft also ab dem dritten Kalendertag. Bewusst konservativ — ein
+Auftrag von gestern 23:00 Uhr wäre heute schon „-1", real aber erst zehn Stunden alt.
+Mit `< -2` hatte Amazon garantiert zwei volle Paketnummern-Zyklen.
+
+### Was PlentyONE beim MCF nicht kann
+
+Getestet und belegt, damit es niemand erneut sucht:
+
+- **Keine Versandgeschwindigkeit.** Die Flow-Aktion hat außer der Fehlerbehandlung keine
+  Felder. Es gilt Amazons Standard (2–3 Werktage).
+- **Kein Carrier.** JTL schreibt dasselbe: „Sie haben keinen Einfluss darauf, mit welchem
+  Versanddienstleister der Auftrag verschickt wird." Die Steuerung sitzt bei Amazon, nicht
+  in der Warenwirtschaft — `BLOCK_AMZL` gibt es nur in Seller Central, und es schließt
+  lediglich Amazon Logistics aus, ohne DHL zu garantieren. Kostet Aufpreis und erhöht die
+  Quote verspäteter Sendungen; **nicht aktiviert**.
+- **Neutrale Verpackung** ist bei MCF Standard, kostenlos, automatisch. Der Käufer sieht
+  Amazon also ohnehin nicht auf dem Karton.
+- Die Felder *Amazon Versandeinstellungen » Transportservice/Versandservice* im
+  Versandprofil sind eine **Carrier-Liste für den Gegenweg** (Selbstversand eines
+  Amazon-Auftrags), nicht für MCF.
+
+### Versandprofil „eBay Bücher DE" (ID 8)
+
+| Feld | Wert | Warum |
+|---|---|---|
+| Auftragsherkunft | nur eBay | Amazon behält sein eigenes Profil |
+| Bei neuen Artikeln aktivieren | **an** | sonst beim Vollimport 2.000-mal Handarbeit |
+| Paketstation / Postfiliale | **aus** | Amazon wählt den Carrier; nur DHL bedient eine DHL-Packstation. Trifft es Hermes oder DPD, geht die Sendung als unzustellbar zurück |
+| Expressversand | **aus** | MCF Standard hält kein Express-Versprechen |
+| Lieferfrist (Tage) | **2** | Paketnummern kommen nur täglich — ohne Puffer wird die Sendungsnummer strukturell zu spät hochgeladen |
+| Pauschales Porto | 0,00 | bei eBay versandkostenfrei; Marktplatzaufträge bringen den Betrag ohnehin mit |
+
+### Rückmeldung an eBay
+
+*Einrichtung » Märkte » eBay » Einstellungen » Tab Basiseinstellungen* →
+**„Versand- und Zahlungsmarkierung setzen"**. Meldet Versand und Paketnummer an eBay,
+sobald der Warenausgang gebucht ist. Ohne diesen Schalter sieht der Käufer nie ein
+„versendet", egal wie sauber der Rest läuft.
+
+Reserve, falls das nicht greift: die Flow-Aktion `Versandbestätigung an eBay senden`.
+
+---
+
 ## 14 Offene Punkte
 
 Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft).
@@ -1558,7 +1678,8 @@ Stand 06.09.2026, nach dem Testlauf mit 50 Büchern (49 Listings, alle geprüft)
 | **Zeitpläne scharf schalten** | Die vier Importe stehen auf Handstart. Für den echten Zyklus: Artikelimport 02:00, Eigenschaftsimport 02:30, Import 23 um 03:00, Import 22 um 04:00. **Erinnerung an den Nutzer eingeplant** |
 | **Vollimport ~2.000 Bücher** | bisher 49 Listings gebaut und geprüft |
 | **Lager-ID 2** | zeigt laut API auf „Amazon FBA-Lager BuchDepot24"; prüfen, ob das für eBay-Versand richtig ist oder Lager 1 („Sales") gehört |
-| **Testkauf über eBay** | Der Rechnungs-Flow (§13c) ist gebaut und aktiv, aber unbewiesen. Ein eigener Kauf am aktiven Testlisting muss zeigen: Auftrag mit Herkunft 2.08, Artikel verknüpft, **7 %**, Zahlung erfasst, Rechnung erzeugt, PDF im Postfach — und Amazon unverändert |
+| **Testkauf über eBay** | Fuenf Flows (§13c, §13d) sind gebaut, aber unbewiesen. Ein eigener Kauf am aktiven Testlisting muss zeigen: Auftrag mit Herkunft 2.08 · Artikel verknuepft · **7 %** · Zahlung erfasst · Status [5] · MCF-Auftrag in Seller Central · Folgetag Paketnummer, Status [7], eBay „versendet" · Rechnung + PDF im Postfach — und Amazon unveraendert |
+| **Flow 5 scharf schalten** | Erst nach einer Woche Trockenlauf: eBay-Nachricht, Kaufabbruch, Status [8] ergaenzen. Vorher pruefen, dass die Suche bei ruhendem Betrieb **keine** Auftraege trifft |
 | **Aktionsmanager vor dem 1.10.2026 räumen** | Nur falls dort noch Automatisierungen liegen. Die **Rechnungsstellung ist nicht betroffen** — Amazon fakturiert nativ über die Marktanbindung, eBay über den Flow aus §13c |
 
 ### Verbesserung für später — Prüfung aus n8n statt aus dem Browser
