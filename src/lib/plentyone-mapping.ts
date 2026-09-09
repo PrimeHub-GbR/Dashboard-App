@@ -223,7 +223,7 @@ export const EBAY_MERKMALE_IMPORT = {
 export const EIGENSCHAFTEN_IMPORT = {
   datei: 'plentyONE_Eigenschaften.csv',
   hinweis:
-    'PlentyONE transportiert je Import-Zeile genau eine Eigenschaft. Mehrere Spalten auf „Eigenschaften » Wert" zu mappen wird mit „Das PlentyONE Feld kann nur einmal zugeordnet werden" abgelehnt. Deshalb eine eigene Datei mit einem eigenen Import — sechs Mappings, einmal gesetzt.',
+    'PlentyONE transportiert je Import-Zeile genau eine Eigenschaft. Mehrere Spalten auf „Eigenschaften » Wert" zu mappen wird mit „Das PlentyONE Feld kann nur einmal zugeordnet werden" abgelehnt. Deshalb eine eigene Datei mit einem eigenen Import. Sie transportiert zusätzlich die zweite Amazon-SKU (Marktplatz 104) — der Artikelimport kann sein SKU-Feld je Lauf nur einmal belegen, und dort steht Marktplatz 4 für den Bestandsabgleich. So spart man sich einen dritten Import.',
   mapping: [
     { spalte: 'variantennummer', zielfeld: 'Varianten » Variantennr.', beschreibung: 'Abgleichschlüssel — verbindet die Zeile mit dem Artikel.' },
     { spalte: 'gruppen_id', zielfeld: 'Eigenschaften » Gruppen-ID', beschreibung: 'Immer 7 = Gruppe „VLB Buchdaten".' },
@@ -231,6 +231,9 @@ export const EIGENSCHAFTEN_IMPORT = {
     { spalte: 'wert', zielfeld: 'Eigenschaften » Wert', beschreibung: 'Für Text-, Zahl- und Datums-Eigenschaften. Bei Auswahl-Eigenschaften leer.' },
     { spalte: 'auswahl_id', zielfeld: 'Eigenschaften » Auswahl-ID', beschreibung: 'Für Sprache und Bindung. Bei allen anderen leer.' },
     { spalte: 'sprache', zielfeld: 'Eigenschaften » Sprache', beschreibung: 'Immer „de".' },
+    { spalte: 'variantennummer', zielfeld: 'SKU » SKU', beschreibung: 'Die zweite Amazon-SKU — dieselbe Spalte ein zweites Mal zuordnen. Die SKU ist gleich der Variantennummer.' },
+    { spalte: 'marktplatz_id_fba', zielfeld: 'SKU » Marktplatz-ID', beschreibung: 'Immer 104 = „Amazon FBA" (generisch, NICHT 104.01). Ohne diese zweite SKU scheitert die Versandfreigabe an FBA mit „sellerSku must be of type string, null given“: der Multi-Channel-Auftrag läuft über die SP-API-Anbindung und sucht die SKU unter 104, der Artikelimport hat sein SKU-Feld aber schon mit 4 belegt. Belegt am 09.09.2026 an Variante 1207.' },
+    { spalte: 'account_id', zielfeld: 'SKU » Account-ID', beschreibung: 'Immer 0 — dasselbe Konto wie bei der ersten SKU.' },
   ],
   nichtGemappt: 'eigenschaft_name',
   nichtGemapptHinweis:
@@ -264,12 +267,8 @@ export const IMPORT_SCHRITTE = [
     text: 'Wieder Import erstellen, Typ „Artikel". plentyONE_Import_final.csv hochladen, Abgleich über die Variantennummer, Spalten zuordnen (Tabelle unten). Die Zeilenreihenfolge der Datei nicht verändern: die Hauptvariante steht vor ihren Geschwistern.',
   },
   {
-    titel: 'Zweite SKU importieren (Versand über Amazon)',
-    text: 'Noch ein Import vom Typ „Artikel", aber ein ganz schlanker: nur vier Zuordnungen — variantennummer als Abgleichskriterium, sku → SKU » SKU, marktplatz_id_fba → SKU » Marktplatz-ID, account_id → SKU » Account-ID. Dieselbe Datei plentyONE_Import_final.csv. Grund: PlentyONE schreibt je Importlauf nur eine SKU-Zeile, gebraucht werden aber zwei — die unter Marktplatz 4 trägt den FBA-Bestand, die unter 104 die Versandfreigabe. Ohne die zweite scheitert jeder eBay-Auftrag beim Versand an Amazon, ohne Fehlermeldung im Auftrag selbst.',
-  },
-  {
     titel: 'Eigenschaften importieren',
-    text: 'Dritter Import, Typ „Eigenschaften". plentyONE_Eigenschaften.csv hochladen, sechs Zuordnungen (Tabelle unten). Eigene Datei, weil PlentyONE je Zeile nur eine Eigenschaft annimmt.',
+    text: 'Dritter Import, Typ „Eigenschaften". plentyONE_Eigenschaften.csv hochladen, sechs Zuordnungen (Tabelle unten). Eigene Datei, weil PlentyONE je Zeile nur eine Eigenschaft annimmt. Drei der Zuordnungen betreffen gar keine Eigenschaft, sondern die zweite Amazon-SKU — ohne sie geht kein eBay-Auftrag an Amazon raus.',
   },
   {
     titel: 'Die zwei eBay-Importe anlegen',
@@ -277,7 +276,7 @@ export const IMPORT_SCHRITTE = [
   },
   {
     titel: 'Auf Selbstabholung umstellen',
-    text: 'In jedem der sechs Importe: Datenquelle von „CSV-Upload" auf „HTTPS / URL" ändern und die passende Adresse aus Abschnitt 5 eintragen. Danach den Zeitplan einschalten. Ab jetzt holt PlentyONE alles allein — du lädst oben nur noch den Amazon-Bericht hoch.',
+    text: 'In jedem der fünf Importe: Datenquelle von „CSV-Upload" auf „HTTPS / URL" ändern und die passende Adresse aus Abschnitt 5 eintragen. Danach den Zeitplan einschalten. Ab jetzt holt PlentyONE alles allein — du lädst oben nur noch den Amazon-Bericht hoch.',
   },
   {
     titel: 'Erst klein testen',
