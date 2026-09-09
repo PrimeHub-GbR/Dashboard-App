@@ -31,6 +31,12 @@ const ABHOLUNGEN = [
     zweck: 'Artikel, Varianten, Preise, Bild-URL',
   },
   {
+    datei: 'hersteller.csv',
+    zeit: '01:30',
+    import: 'Herstellerimport',
+    zweck: 'Verlage mit GPSR-Kontakt — muss VOR dem Artikelimport laufen',
+  },
+  {
     datei: 'eigenschaften.csv',
     zeit: '02:30',
     import: 'Eigenschaftsimport',

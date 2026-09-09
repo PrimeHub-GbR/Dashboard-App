@@ -47,6 +47,7 @@ Seller Central          Dashboard                  n8n                PlentyONE 
 Bestandsbericht ─upload─► /dashboard/plentyone ──► VLB-Anreicherung
                                                    + Cover
                                 │
+                                ├─ hersteller.csv     ──HTTPS/URL──► Herstellerimport
                                 ├─ artikel.csv        ──HTTPS/URL──► Artikelimport
                                 ├─ eigenschaften.csv  ──HTTPS/URL──► Eigenschaftsimport
                                 │                                          │
@@ -649,11 +650,14 @@ das rechts erscheint, sobald `Market-Listing-Eigenschaft » Wert` gewählt ist:
 Gleiche Machart, andere URLs:
 
 ```
+…/api/plentyone/export/hersteller.csv?t=<TOKEN>
 …/api/plentyone/export/artikel.csv?t=<TOKEN>
 …/api/plentyone/export/eigenschaften.csv?t=<TOKEN>
 ```
 
-Vorgesehene Zeitpläne: 02:00 und 02:30. Der Export liefert nur innerhalb des
+Vorgesehene Zeitpläne: 01:30, 02:00 und 02:30. Der Herstellerimport steht bewusst
+**vorn** — sonst findet der Artikelimport seinen Verlag nicht und lässt
+*Artikel » Hersteller-ID* leer. Der Export liefert nur innerhalb des
 Freigabefensters echte Daten, sonst die Kopfzeile — ein Zeitplan ist damit
 gefahrlos.
 
@@ -669,6 +673,7 @@ gefahrlos.
 |---|---|
 | `artikel.csv` | Supabase Storage `workflow-results`, Feld `csv_path` des letzten Laufs |
 | `eigenschaften.csv` | dito, Feld `eigenschaften_path` |
+| `hersteller.csv` | dito, Feld `hersteller_path` |
 | `ebay-listings.csv` | Proxy auf `N8N_EBAY_LISTINGS_URL` |
 | `ebay-merkmale.csv` | Proxy auf `N8N_EBAY_MERKMALE_URL` |
 

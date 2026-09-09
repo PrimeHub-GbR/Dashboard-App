@@ -14,11 +14,13 @@ const RESULT_BUCKET = 'workflow-results'
  */
 const FENSTER_TAGE = Number(process.env.PLENTYONE_EXPORT_FENSTER_TAGE) || 7
 
-type Datei = 'artikel.csv' | 'eigenschaften.csv' | 'ebay-listings.csv' | 'ebay-merkmale.csv'
+type Datei = 'artikel.csv' | 'eigenschaften.csv' | 'hersteller.csv'
+  | 'ebay-listings.csv' | 'ebay-merkmale.csv'
 
-const AUS_LAUF: Record<string, 'csv_path' | 'eigenschaften_path'> = {
+const AUS_LAUF: Record<string, 'csv_path' | 'eigenschaften_path' | 'hersteller_path'> = {
   'artikel.csv': 'csv_path',
   'eigenschaften.csv': 'eigenschaften_path',
+  'hersteller.csv': 'hersteller_path',
 }
 
 const AUS_N8N: Record<string, { url?: string; name: string }> = {
@@ -42,6 +44,7 @@ function csvAntwort(text: string, dateiname: string) {
  *
  *   artikel.csv        Artikelimport      — aus dem letzten freigegebenen Lauf
  *   eigenschaften.csv  Eigenschaftsimport — aus dem letzten freigegebenen Lauf
+ *   hersteller.csv     Herstellerimport   — aus dem letzten freigegebenen Lauf
  *   ebay-listings.csv  Import 23          — frisch aus n8n berechnet
  *   ebay-merkmale.csv  Import 22          — frisch aus n8n berechnet
  *
@@ -105,7 +108,7 @@ export async function GET(
   const svc = createSupabaseServiceClient()
   const { data: lauf } = await svc
     .from('plentyone_runs')
-    .select('id, created_at, export_freigabe, csv_status, csv_path, eigenschaften_path')
+    .select('id, created_at, export_freigabe, csv_status, csv_path, eigenschaften_path, hersteller_path')
     .eq('csv_status', 'success')
     .not(feld, 'is', null)
     .order('created_at', { ascending: false })

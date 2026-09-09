@@ -85,6 +85,7 @@ unter `/dashboard/plentyone` → **5 · Weiter zu eBay** und lassen sich dort ko
 
 | Import in PlentyONE | Adresse | Uhrzeit |
 |---|---|---|
+| Herstellerimport | `…/api/plentyone/export/hersteller.csv?t=TOKEN-A` | 01:30 |
 | Artikelimport (Kopie von „Amazon Import 3.0") | `…/api/plentyone/export/artikel.csv?t=TOKEN-A` | 02:00 |
 | Eigenschaftsimport | `…/api/plentyone/export/eigenschaften.csv?t=TOKEN-A` | 02:30 |
 | **Import 23** eBay-Listings anlegen | `…/api/plentyone/export/ebay-listings.csv?t=TOKEN-A` | 03:00 |
