@@ -88,3 +88,29 @@ for (const s of (vonId.get('1207')?.variationSkus) || []) {
     String(s.marketId).padEnd(4), s.accountId, String(s.status).padEnd(9),
     JSON.stringify(s.sku), JSON.stringify(s.exportedAt), JSON.stringify(s.stockUpdatedAt))
 }
+
+// --- 4. Aktive Verkaufskanaele: was haben 1220/1221, was 1207 fehlt? ----------
+// Alle Amazon-Kanaele stehen an der Variante auf "aus" (Read-only-Regel). Falls
+// MCF eine aktive Kanalzuordnung braucht, waere das neben der SKU die zweite
+// Ursache. Also die Kanaele der drei Varianten nebeneinanderlegen.
+console.log('\n=== Verkaufskanaele je Variante ===')
+try {
+  const mitMarkets = await alleSeiten(token, '/rest/items/variations?with=variationMarkets')
+  const mm = new Map(mitMarkets.map((v) => [String(v.id), v]))
+  for (const id of ['1207', '1220', '1221']) {
+    const v = mm.get(id)
+    const kanaele = (v?.variationMarkets || []).map((m) => m.marketId).sort((a, b) => a - b)
+    console.log('  Variante %s (%s): %s', id, v?.number || '?',
+      kanaele.length ? kanaele.join(', ') : '(keine)')
+  }
+  // Wie viele Varianten haben ueberhaupt einen Amazon-Kanal aktiv?
+  let mitAmazon = 0
+  for (const v of mitMarkets) {
+    if ((v.variationMarkets || []).some((m) => Math.floor(Number(m.marketId)) === 4
+      || Math.floor(Number(m.marketId)) === 104)) mitAmazon++
+  }
+  console.log('  Varianten mit aktivem Amazon-Kanal (4.x oder 104.x): %d von %d',
+    mitAmazon, mitMarkets.length)
+} catch (e) {
+  console.log('  variationMarkets nicht lesbar: ' + e.message.slice(0, 120))
+}
