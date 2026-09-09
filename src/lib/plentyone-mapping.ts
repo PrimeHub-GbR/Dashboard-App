@@ -231,9 +231,9 @@ export const EIGENSCHAFTEN_IMPORT = {
     { spalte: 'wert', zielfeld: 'Eigenschaften » Wert', beschreibung: 'Für Text-, Zahl- und Datums-Eigenschaften. Bei Auswahl-Eigenschaften leer.' },
     { spalte: 'auswahl_id', zielfeld: 'Eigenschaften » Auswahl-ID', beschreibung: 'Für Sprache und Bindung. Bei allen anderen leer.' },
     { spalte: 'sprache', zielfeld: 'Eigenschaften » Sprache', beschreibung: 'Immer „de".' },
-    { spalte: 'variantennummer', zielfeld: 'SKU » SKU', beschreibung: 'Die zweite Amazon-SKU — dieselbe Spalte ein zweites Mal zuordnen. Die SKU ist gleich der Variantennummer.' },
-    { spalte: 'marktplatz_id_fba', zielfeld: 'SKU » Marktplatz-ID', beschreibung: 'Immer 104 = „Amazon FBA" (generisch, NICHT 104.01). Ohne diese zweite SKU scheitert die Versandfreigabe an FBA mit „sellerSku must be of type string, null given“: der Multi-Channel-Auftrag läuft über die SP-API-Anbindung und sucht die SKU unter 104, der Artikelimport hat sein SKU-Feld aber schon mit 4 belegt. Belegt am 09.09.2026 an Variante 1207.' },
-    { spalte: 'account_id', zielfeld: 'SKU » Account-ID', beschreibung: 'Immer 0 — dasselbe Konto wie bei der ersten SKU.' },
+    { spalte: 'sku_fba', zielfeld: 'SKU » SKU', beschreibung: 'Die zweite Amazon-SKU. Steht nur in der ERSTEN Zeile je Variante — PlentyONE lehnt dieselbe SKU mehrfach in einer Anfrage ab („identical sku was provided more than once“), und die Datei hat bis zu sieben Zeilen je Buch. Belegt am 09.09.2026: 295 von 347 Zeilen meldeten diesen Fehler, die SKUs waren trotzdem korrekt angelegt — der Lärm hätte bei 2.000 Büchern aber jeden echten Fehler verdeckt.' },
+    { spalte: 'marktplatz_id_fba', zielfeld: 'SKU » Marktplatz-ID', beschreibung: 'In der ersten Zeile je Variante 104 = „Amazon FBA" (generisch, NICHT 104.01). Ohne diese zweite SKU scheitert die Versandfreigabe an FBA mit „sellerSku must be of type string, null given“: der Multi-Channel-Auftrag läuft über die SP-API-Anbindung und sucht die SKU unter 104, der Artikelimport hat sein SKU-Feld aber schon mit 4 belegt. Belegt am 09.09.2026 an Variante 1207.' },
+    { spalte: 'account_id', zielfeld: 'SKU » Account-ID', beschreibung: 'In der ersten Zeile je Variante 0, sonst leer — dasselbe Konto wie bei der ersten SKU.' },
   ],
   nichtGemappt: 'eigenschaft_name',
   nichtGemapptHinweis:
