@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Upload, FileSpreadsheet, Images, CheckCircle2, XCircle, Loader2,
-  AlertTriangle, Download, Link2, ChevronDown
+  AlertTriangle, Download, Link2, ChevronDown, RotateCcw
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -120,6 +120,7 @@ export function PlentyOneClient() {
     onOpenChange: (v: boolean) => setOffen((z) => ({ ...z, [id]: v })),
   })
   const [starten, setStarten] = useState(false)
+  const [csvNeustartLaeuft, setCsvNeustart] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [datei, setDatei] = useState<File | null>(null)
   const [limit, setLimit] = useState('')
@@ -169,6 +170,23 @@ export function PlentyOneClient() {
       setFehler(e instanceof Error ? e.message : 'Start fehlgeschlagen')
     } finally {
       setStarten(false)
+    }
+  }
+
+  // Nur den CSV-Strang wiederholen — der Cover-Strang läuft weiter bzw. bleibt,
+  // wie er ist. Typischer Fall: kein freier VLB-Slot beim Login.
+  async function csvNeustart(id: string) {
+    setCsvNeustart(true)
+    setFehler(null)
+    try {
+      const res = await fetch(`/api/plentyone/runs/${id}/csv-neustart`, { method: 'POST' })
+      const j = await res.json()
+      if (!res.ok) throw new Error(j.error ?? 'Neustart fehlgeschlagen')
+      await holen()
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : 'Neustart fehlgeschlagen')
+    } finally {
+      setCsvNeustart(false)
     }
   }
 
@@ -377,6 +395,26 @@ export function PlentyOneClient() {
                   <p className="text-xs text-muted-foreground">
                     Datei wird aufbereitet und gegen die VLB abgeglichen…
                   </p>
+                )}
+                {aktuell.csv_status === 'failed' && (
+                  <div className="space-y-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="w-full gap-2"
+                      disabled={csvNeustartLaeuft}
+                      onClick={() => csvNeustart(aktuell.id)}
+                    >
+                      {csvNeustartLaeuft
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        : <RotateCcw className="h-3.5 w-3.5" aria-hidden />}
+                      Nur CSV-Strang neu starten
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Der Cover-Strang bleibt unberührt. Braucht einen freien VLB-Slot —
+                      läuft der Cover-Strang noch, belegt er einen der beiden.
+                    </p>
+                  </div>
                 )}
               </StrangKarte>
 
