@@ -329,8 +329,9 @@ export function PlentyOneClient() {
               </p>
             </div>
             <p className="text-sm text-muted-foreground">
-              Beide Stränge laufen parallel gegen die VLB. Der CSV-Strang braucht etwa zwei Minuten,
-              der Cover-Strang bei allen Titeln rund zwanzig — er lädt jedes Bild einzeln.
+              Die Stränge laufen unabhängig gegen die VLB. Der CSV-Strang braucht etwa fünf Minuten,
+              der Cover-Strang bei allen Titeln rund eine halbe Stunde — er lädt jedes Bild einzeln
+              und bündelt je 50 zu einem ZIP.
             </p>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -466,7 +467,7 @@ export function PlentyOneClient() {
 
               <StrangKarte
                 titel="Buchcover"
-                untertitel="Originalgröße, ZIP-Pakete à 250"
+                untertitel="Originalgröße, ZIP-Pakete à 50"
                 icon={Images}
                 status={aktuell.cover_status}
                 fehler={aktuell.cover_error}
