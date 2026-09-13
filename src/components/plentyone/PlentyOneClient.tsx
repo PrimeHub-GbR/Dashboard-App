@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MappingTabelle } from './MappingTabelle'
 import { HinweisListe, type Hinweis } from './HinweisListe'
 import { EbayKette } from './EbayKette'
+import { CoverBestand } from './CoverBestand'
 import { IMPORT_SCHRITTE } from '@/lib/plentyone-mapping'
 
 type Strang = 'pending' | 'running' | 'success' | 'failed'
@@ -483,7 +484,18 @@ export function PlentyOneClient() {
                         <dt className="text-muted-foreground">ohne Bild</dt>
                         <dd className="tabular-nums text-foreground">{aktuell.stats.cover_fehlend ?? 0}</dd>
                       </div>
+                      {aktuell.stats.cover_uebersprungen !== undefined && (
+                        <div className="col-span-2 flex justify-between gap-2">
+                          <dt className="text-muted-foreground">bereits im Bestand, übersprungen</dt>
+                          <dd className="tabular-nums text-foreground">{aktuell.stats.cover_uebersprungen}</dd>
+                        </div>
+                      )}
                     </dl>
+                    {aktuell.cover_pakete.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Alle Cover waren schon im Bestand — nichts Neues zu laden.
+                      </p>
+                    )}
                     <ul className="space-y-1.5">
                       {aktuell.cover_pakete.map((p) => (
                         <li key={p.name}>
@@ -504,9 +516,19 @@ export function PlentyOneClient() {
                   </>
                 )}
                 {aktuell.cover_status === 'running' && (
-                  <p className="text-xs text-muted-foreground">
-                    Cover werden einzeln geladen und zu ZIP-Paketen gebündelt…
-                  </p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground">
+                      Cover werden einzeln geladen und zu ZIP-Paketen gebündelt…
+                    </p>
+                    {aktuell.cover_pakete.length > 0 && (
+                      <p className="text-xs tabular-nums text-foreground">
+                        {aktuell.cover_pakete.length} Paket{aktuell.cover_pakete.length === 1 ? '' : 'e'} fertig
+                        {' · '}
+                        {aktuell.cover_pakete.reduce((n, p) => n + (p.gefunden ?? 0), 0)} Cover geladen
+                        {aktuell.stats.cover_fehlend ? ` · ${aktuell.stats.cover_fehlend} ohne Bild` : ''}
+                      </p>
+                    )}
+                  </div>
                 )}
                 {aktuell.cover_status === 'pending' && (
                   <p className="text-xs text-muted-foreground">
@@ -591,6 +613,29 @@ export function PlentyOneClient() {
           </Collapsible>
         </>
       )}
+
+      {/* ------------------------------------------------------- Cover-Bestand */}
+      <Collapsible asChild {...klappe('cover')}>
+      <section className="space-y-3">
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 text-left">
+          <ChevronDown
+            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+            aria-hidden
+          />
+          <h2 className="text-lg font-semibold text-foreground">Cover-Bestand</h2>
+          <span className="text-sm text-muted-foreground">
+            (alle je geladenen Buchcover, laufübergreifend)
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent asChild>
+        <Card>
+          <CardContent className="py-5">
+            <CoverBestand aktualisieren={runs.filter((r) => r.cover_status === 'success').length} />
+          </CardContent>
+        </Card>
+        </CollapsibleContent>
+      </section>
+      </Collapsible>
 
       {/* ------------------------------------------------------------ Schritt 5 */}
       <section className="space-y-3">

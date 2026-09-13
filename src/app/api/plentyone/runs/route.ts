@@ -136,10 +136,14 @@ export async function POST(request: NextRequest) {
       if (alt.input_path) {
         await svc.storage.from(UPLOAD_BUCKET).remove([alt.input_path]).catch(() => {})
       }
+      // Cover-ZIPs liegen seit 13.09.2026 run-unabhängig unter plentyone/cover/
+      // und gehören zum Bestand (plentyone_cover) — die bleiben. Gelöscht wird
+      // nur, was im Ordner des Laufs liegt.
+      const imLaufordner = (pfad: string) => pfad.startsWith(`plentyone/${alt.geloescht}/`)
       const ergebnisse = [
         ...(alt.csv_path ? [alt.csv_path] : []),
         ...((alt.cover_pakete ?? []).map((p) => p?.datei).filter(Boolean) as string[]),
-      ]
+      ].filter(imLaufordner)
       if (ergebnisse.length) {
         await svc.storage.from(RESULT_BUCKET).remove(ergebnisse).catch(() => {})
       }
