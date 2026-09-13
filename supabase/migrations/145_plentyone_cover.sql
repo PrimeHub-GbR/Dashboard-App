@@ -40,9 +40,12 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
+  -- "ok" gilt dauerhaft; "fehlt" wird erst nach 7 Tagen erneut bei der VLB versucht,
+  -- damit nicht jeder Lauf nur wegen weniger bildloser Titel eine VLB-Sitzung aufmacht.
   SELECT COALESCE(array_agg(isbn ORDER BY isbn), ARRAY[]::TEXT[])
   FROM plentyone_cover
-  WHERE status = 'ok';
+  WHERE status = 'ok'
+     OR (status = 'fehlt' AND geladen_am > NOW() - INTERVAL '7 days');
 $$;
 
 -- ---------------------------------------------------------------------------

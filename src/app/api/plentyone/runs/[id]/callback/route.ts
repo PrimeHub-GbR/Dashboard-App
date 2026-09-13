@@ -152,12 +152,16 @@ export async function POST(
       const pakete = d.pakete ? paketeVereinen(paketeBisher, d.pakete) : paketeBisher
       patch.cover_pakete = pakete
       // Kein einziges Cover trotz Paketen: die VLB hat die Sitzung abgelehnt.
-      if (d.status === 'success' && pakete.length > 0 && coverStats(pakete).cover_gefunden === 0) {
+      // Erst ab 10 versuchten Covern — ein Mini-Paket aus zwei bekannten
+      // "fehlt"-ISBN darf den Lauf nicht scheitern lassen (Lauf 13.09.2026).
+      const cs = coverStats(pakete)
+      if (d.status === 'success' && pakete.length > 0 && cs.cover_gefunden === 0
+          && cs.cover_gefunden + cs.cover_fehlend >= 10) {
         patch.cover_status = 'failed'
         patch.cover_error = 'Kein einziges Cover geladen — VLB-Anmeldung vermutlich abgelehnt.'
       }
       if (d.status === 'success') {
-        patch.stats = { ...(run.stats ?? {}), ...(d.stats ?? {}), ...coverStats(pakete) }
+        patch.stats = { ...(run.stats ?? {}), ...(d.stats ?? {}), ...cs }
       }
     }
 
