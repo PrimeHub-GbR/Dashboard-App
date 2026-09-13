@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
 import { plentyoneTokenPruefen } from '@/lib/plentyone-token'
+import { strangAnstossen, type StrangKey } from '@/lib/plentyone-strang'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -16,6 +17,9 @@ const startSchema = z.object({
     .union([z.coerce.number().int().min(1).max(100_000), z.literal('')])
     .optional()
     .transform((v) => (v === '' || v === undefined ? null : (v as number))),
+  // Welche Straenge sofort starten. Der andere bleibt "pending" und kann
+  // spaeter ueber /runs/[id]/strang nachgestartet werden.
+  straenge: z.enum(['beide', 'csv', 'cover']).default('beide'),
 })
 
 /** admin und manager dürfen einen Lauf starten und sehen. */
@@ -49,7 +53,7 @@ export async function GET() {
   return NextResponse.json({ runs: data ?? [] })
 }
 
-// POST /api/plentyone/runs — Amazon-Export hochladen und beide Stränge starten
+// POST /api/plentyone/runs — Amazon-Export hochladen und die gewählten Stränge starten
 export async function POST(request: NextRequest) {
   try {
     // Zwei Wege herein, ein Ablauf dahinter:
@@ -97,11 +101,16 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const parsed = startSchema.safeParse({ zeilen_limit: formData.get('zeilen_limit') ?? '' })
+    const parsed = startSchema.safeParse({
+      zeilen_limit: formData.get('zeilen_limit') ?? '',
+      straenge: formData.get('straenge') ?? 'beide',
+    })
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Ungültige Zeilenbegrenzung' }, { status: 400 })
+      return NextResponse.json({ error: 'Ungültige Zeilenbegrenzung oder Strangauswahl' }, { status: 400 })
     }
     const zeilenLimit = parsed.data.zeilen_limit
+    const gewaehlt: StrangKey[] =
+      parsed.data.straenge === 'beide' ? ['csv', 'cover'] : [parsed.data.straenge]
 
     if (!file) {
       return NextResponse.json({ error: 'Bitte den Amazon-Export auswählen' }, { status: 400 })
@@ -144,6 +153,8 @@ export async function POST(request: NextRequest) {
         input_path: 'wird-gleich-gesetzt',
         input_name: file.name,
         zeilen_limit: zeilenLimit,
+        csv_status: gewaehlt.includes('csv') ? 'running' : 'pending',
+        cover_status: gewaehlt.includes('cover') ? 'running' : 'pending',
       })
       .select()
       .single()
@@ -183,54 +194,19 @@ export async function POST(request: NextRequest) {
 
     await svc.from('plentyone_runs').update({ input_path: inputPath }).eq('id', run.id)
 
-    // --- Beide Stränge parallel anstoßen ---
-    const basis = process.env.N8N_WEBHOOK_BASE_URL
-    if (!basis) {
-      await svc
-        .from('plentyone_runs')
-        .update({
-          csv_status: 'failed',
-          cover_status: 'failed',
-          csv_error: 'N8N_WEBHOOK_BASE_URL ist nicht konfiguriert',
-          cover_error: 'N8N_WEBHOOK_BASE_URL ist nicht konfiguriert',
-        })
-        .eq('id', run.id)
-      return NextResponse.json({ error: 'N8N-Webhook-URL nicht konfiguriert' }, { status: 500 })
-    }
-
-    const koerper = JSON.stringify({
+    // --- Gewählte Stränge parallel anstoßen ---
+    const koerper = {
       run_id: run.id,
       input_file_path: inputPath,
       callback_url: `${request.nextUrl.origin}/api/plentyone/runs/${run.id}/callback`,
       limit: zeilenLimit,
-    })
-
-    const straenge: Array<{ key: 'csv' | 'cover'; pfad: string }> = [
-      { key: 'csv', pfad: 'plentyone-metadata' },
-      { key: 'cover', pfad: 'plentyone-cover' },
-    ]
+    }
 
     const ergebnisse = await Promise.all(
-      straenge.map(async (s) => {
-        try {
-          const res = await fetch(`${basis}/${s.pfad}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: koerper,
-          })
-          if (!res.ok) {
-            const txt = await res.text().catch(() => '')
-            return { ...s, ok: false, fehler: `n8n antwortete ${res.status} ${txt.slice(0, 200)}` }
-          }
-          return { ...s, ok: true, fehler: null }
-        } catch (e) {
-          const m = e instanceof Error ? e.message : 'Netzwerkfehler'
-          return { ...s, ok: false, fehler: `n8n nicht erreichbar: ${m}` }
-        }
-      })
+      gewaehlt.map(async (key) => ({ key, fehler: await strangAnstossen(key, koerper) }))
     )
 
-    const fehlgeschlagen = ergebnisse.filter((r) => !r.ok)
+    const fehlgeschlagen = ergebnisse.filter((r) => r.fehler)
     if (fehlgeschlagen.length) {
       const patch: Record<string, unknown> = {}
       for (const f of fehlgeschlagen) {

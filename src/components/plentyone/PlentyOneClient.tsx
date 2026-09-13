@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Upload, FileSpreadsheet, Images, CheckCircle2, XCircle, Loader2,
-  AlertTriangle, Download, Link2, ChevronDown, RotateCcw
+  AlertTriangle, Download, Link2, ChevronDown, Play, Clock
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -11,12 +11,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MappingTabelle } from './MappingTabelle'
 import { HinweisListe, type Hinweis } from './HinweisListe'
 import { EbayKette } from './EbayKette'
 import { IMPORT_SCHRITTE } from '@/lib/plentyone-mapping'
 
-type Strang = 'running' | 'success' | 'failed'
+type Strang = 'pending' | 'running' | 'success' | 'failed'
+type StrangKey = 'csv' | 'cover'
+type Straenge = 'beide' | 'csv' | 'cover'
 
 interface CoverPaket {
   name: string
@@ -67,6 +70,7 @@ function StrangKarte({
   const rahmen =
     status === 'success' ? 'border-emerald-500/30 bg-emerald-500/5'
     : status === 'failed' ? 'border-red-500/30 bg-red-500/5'
+    : status === 'pending' ? 'border-border bg-muted/30'
     : 'border-sky-500/30 bg-sky-500/5'
 
   return (
@@ -80,6 +84,11 @@ function StrangKarte({
               <p className="mt-0.5 text-xs text-muted-foreground">{untertitel}</p>
             </div>
           </div>
+          {status === 'pending' && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" aria-hidden /> nicht gestartet
+            </span>
+          )}
           {status === 'running' && (
             <span className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> läuft
@@ -109,6 +118,19 @@ function StrangKarte({
   )
 }
 
+function StrangStartKnopf({
+  label, laeuft, gesperrt, onClick,
+}: { label: string; laeuft: boolean; gesperrt: boolean; onClick: () => void }) {
+  return (
+    <Button size="sm" variant="secondary" className="w-full gap-2" disabled={gesperrt} onClick={onClick}>
+      {laeuft
+        ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        : <Play className="h-3.5 w-3.5" aria-hidden />}
+      {label}
+    </Button>
+  )
+}
+
 export function PlentyOneClient() {
   const [runs, setRuns] = useState<Run[]>([])
   const [laden, setLaden] = useState(true)
@@ -120,7 +142,8 @@ export function PlentyOneClient() {
     onOpenChange: (v: boolean) => setOffen((z) => ({ ...z, [id]: v })),
   })
   const [starten, setStarten] = useState(false)
-  const [csvNeustartLaeuft, setCsvNeustart] = useState(false)
+  const [strangStartet, setStrangStartet] = useState<StrangKey | null>(null)
+  const [straenge, setStraenge] = useState<Straenge>('beide')
   const [fehler, setFehler] = useState<string | null>(null)
   const [datei, setDatei] = useState<File | null>(null)
   const [limit, setLimit] = useState('')
@@ -159,6 +182,7 @@ export function PlentyOneClient() {
       const fd = new FormData()
       fd.append('file', datei)
       if (limit.trim()) fd.append('zeilen_limit', limit.trim())
+      fd.append('straenge', straenge)
       const res = await fetch('/api/plentyone/runs', { method: 'POST', body: fd })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error ?? 'Start fehlgeschlagen')
@@ -173,20 +197,24 @@ export function PlentyOneClient() {
     }
   }
 
-  // Nur den CSV-Strang wiederholen — der Cover-Strang läuft weiter bzw. bleibt,
-  // wie er ist. Typischer Fall: kein freier VLB-Slot beim Login.
-  async function csvNeustart(id: string) {
-    setCsvNeustart(true)
+  // Einen einzelnen Strang (nach)starten — der andere bleibt, wie er ist.
+  // Typischer Ablauf: erst nur die CSV, und wenn die sitzt, die Cover hinterher.
+  async function strangStarten(id: string, strang: StrangKey) {
+    setStrangStartet(strang)
     setFehler(null)
     try {
-      const res = await fetch(`/api/plentyone/runs/${id}/csv-neustart`, { method: 'POST' })
+      const res = await fetch(`/api/plentyone/runs/${id}/strang`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strang }),
+      })
       const j = await res.json()
-      if (!res.ok) throw new Error(j.error ?? 'Neustart fehlgeschlagen')
+      if (!res.ok) throw new Error(j.error ?? 'Start fehlgeschlagen')
       await holen()
     } catch (e) {
-      setFehler(e instanceof Error ? e.message : 'Neustart fehlgeschlagen')
+      setFehler(e instanceof Error ? e.message : 'Start fehlgeschlagen')
     } finally {
-      setCsvNeustart(false)
+      setStrangStartet(null)
     }
   }
 
@@ -206,7 +234,7 @@ export function PlentyOneClient() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
             <div className="space-y-1.5">
               <Label htmlFor="amazon-datei" className="text-xs text-muted-foreground">Datei</Label>
               <Input
@@ -234,6 +262,23 @@ export function PlentyOneClient() {
                 className="w-32 text-foreground placeholder:text-muted-foreground"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="straenge" className="text-xs text-muted-foreground">Was starten</Label>
+              <Select
+                value={straenge}
+                onValueChange={(v) => setStraenge(v as Straenge)}
+                disabled={starten || laeuft}
+              >
+                <SelectTrigger id="straenge" className="w-44 text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">Nur CSV-Dateien</SelectItem>
+                  <SelectItem value="cover">Nur Buchcover</SelectItem>
+                  <SelectItem value="beide">Beides</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={start} disabled={!datei || starten || laeuft} className="gap-2">
               {starten ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                        : <Upload className="h-4 w-4" aria-hidden />}
@@ -243,14 +288,16 @@ export function PlentyOneClient() {
 
           <p className="text-xs text-muted-foreground">
             Der Testlauf begrenzt den Durchlauf auf die ersten N Titel — praktisch, um in einer
-            halben Minute zu prüfen, ob alles sitzt, bevor der Vollauf startet.
+            halben Minute zu prüfen, ob alles sitzt, bevor der Vollauf startet. Die Stränge
+            lassen sich einzeln starten: erst die CSV-Dateien (etwa 5 Minuten), die Cover
+            später aus der Karte unten nachstarten.
           </p>
 
           {laeuft && (
             <p className="flex items-start gap-2 rounded-md border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-800 dark:text-sky-200">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              Es läuft gerade eine Migration. Die VLB erlaubt nur zwei gleichzeitige Sitzungen —
-              ein Lauf belegt beide. Der nächste Start ist möglich, sobald beide Stränge fertig sind.
+              Es läuft gerade eine Migration. Der nächste Upload ist möglich, sobald der laufende
+              Strang fertig ist.
             </p>
           )}
 
@@ -396,25 +443,13 @@ export function PlentyOneClient() {
                     Datei wird aufbereitet und gegen die VLB abgeglichen…
                   </p>
                 )}
-                {aktuell.csv_status === 'failed' && (
-                  <div className="space-y-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="w-full gap-2"
-                      disabled={csvNeustartLaeuft}
-                      onClick={() => csvNeustart(aktuell.id)}
-                    >
-                      {csvNeustartLaeuft
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                        : <RotateCcw className="h-3.5 w-3.5" aria-hidden />}
-                      Nur CSV-Strang neu starten
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Der Cover-Strang bleibt unberührt. Braucht einen freien VLB-Slot —
-                      läuft der Cover-Strang noch, belegt er einen der beiden.
-                    </p>
-                  </div>
+                {(aktuell.csv_status === 'failed' || aktuell.csv_status === 'pending') && (
+                  <StrangStartKnopf
+                    label={aktuell.csv_status === 'failed' ? 'CSV-Strang neu starten' : 'CSV-Strang jetzt starten'}
+                    laeuft={strangStartet === 'csv'}
+                    gesperrt={strangStartet !== null}
+                    onClick={() => strangStarten(aktuell.id, 'csv')}
+                  />
                 )}
               </StrangKarte>
 
@@ -460,6 +495,19 @@ export function PlentyOneClient() {
                   <p className="text-xs text-muted-foreground">
                     Cover werden einzeln geladen und zu ZIP-Paketen gebündelt…
                   </p>
+                )}
+                {aktuell.cover_status === 'pending' && (
+                  <p className="text-xs text-muted-foreground">
+                    Noch nicht gestartet — sinnvoll, sobald die CSV-Dateien geprüft sind.
+                  </p>
+                )}
+                {(aktuell.cover_status === 'failed' || aktuell.cover_status === 'pending') && (
+                  <StrangStartKnopf
+                    label={aktuell.cover_status === 'failed' ? 'Cover-Strang neu starten' : 'Cover jetzt starten'}
+                    laeuft={strangStartet === 'cover'}
+                    gesperrt={strangStartet !== null}
+                    onClick={() => strangStarten(aktuell.id, 'cover')}
+                  />
                 )}
               </StrangKarte>
             </div>

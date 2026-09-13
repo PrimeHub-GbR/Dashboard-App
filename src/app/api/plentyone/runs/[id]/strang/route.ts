@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase-server'
+import { strangAnstossen } from '@/lib/plentyone-strang'
 
 export const runtime = 'nodejs'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const bodySchema = z.object({
+  strang: z.enum(['csv', 'cover']),
+})
+
 /**
- * Nur den Metadaten-Strang eines Laufs neu anstoßen.
+ * Einen einzelnen Strang eines bestehenden Laufs (nach)starten.
  *
- * Der Cover-Strang bleibt unberührt — er braucht bei allen Titeln lange, und
- * ein Fehler im CSV-Strang (typisch: kein freier VLB-Slot beim Login) soll
- * nicht den ganzen Lauf samt Cover-Abruf wiederholen. Die Eingabedatei liegt
- * noch im Storage, der Webhook bekommt denselben Auftrag wie beim Start.
+ * Erlaubt, wenn der Strang "pending" (nie gestartet) oder "failed" ist. Der
+ * andere Strang bleibt unberührt — typischer Ablauf: erst nur die CSV, und
+ * wenn die sitzt, die Cover hinterher. Die Eingabedatei liegt noch im
+ * Storage, der Webhook bekommt denselben Auftrag wie beim Start.
  */
 export async function POST(
   request: NextRequest,
@@ -36,16 +42,25 @@ export async function POST(
     return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 })
   }
 
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Ungültiger Strang' }, { status: 400 })
+  }
+  const { strang } = parsed.data
+  const statusFeld = `${strang}_status` as const
+  const fehlerFeld = `${strang}_error` as const
+
   const { data: run } = await svc
     .from('plentyone_runs')
-    .select('id, csv_status, input_path, zeilen_limit')
+    .select('id, csv_status, cover_status, input_path, zeilen_limit')
     .eq('id', id)
     .single()
   if (!run) return NextResponse.json({ error: 'Lauf nicht gefunden' }, { status: 404 })
 
-  if (run.csv_status !== 'failed') {
+  const bisher = run[statusFeld] as string
+  if (bisher !== 'pending' && bisher !== 'failed') {
     return NextResponse.json(
-      { error: 'Der CSV-Strang kann nur nach einem Fehlschlag neu gestartet werden' },
+      { error: `Der ${strang === 'csv' ? 'CSV' : 'Cover'}-Strang läuft bereits oder ist fertig` },
       { status: 409 }
     )
   }
@@ -53,46 +68,28 @@ export async function POST(
     return NextResponse.json({ error: 'Eingabedatei dieses Laufs fehlt' }, { status: 409 })
   }
 
-  const basis = process.env.N8N_WEBHOOK_BASE_URL
-  if (!basis) {
-    return NextResponse.json({ error: 'N8N-Webhook-URL nicht konfiguriert' }, { status: 500 })
-  }
-
   // Erst zurücksetzen, dann anstoßen — der Callback ignoriert Meldungen für
   // einen Strang, der nicht auf "running" steht.
   const { error: resetError } = await svc
     .from('plentyone_runs')
-    .update({ csv_status: 'running', csv_error: null })
+    .update({ [statusFeld]: 'running', [fehlerFeld]: null })
     .eq('id', id)
-    .eq('csv_status', 'failed')
+    .eq(statusFeld, bisher)
   if (resetError) {
     return NextResponse.json({ error: 'Lauf konnte nicht zurückgesetzt werden' }, { status: 500 })
   }
 
-  let fehler: string | null = null
-  try {
-    const res = await fetch(`${basis}/plentyone-metadata`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        run_id: run.id,
-        input_file_path: run.input_path,
-        callback_url: `${request.nextUrl.origin}/api/plentyone/runs/${run.id}/callback`,
-        limit: run.zeilen_limit,
-      }),
-    })
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '')
-      fehler = `n8n antwortete ${res.status} ${txt.slice(0, 200)}`
-    }
-  } catch (e) {
-    fehler = `n8n nicht erreichbar: ${e instanceof Error ? e.message : 'Netzwerkfehler'}`
-  }
+  const fehler = await strangAnstossen(strang, {
+    run_id: run.id,
+    input_file_path: run.input_path,
+    callback_url: `${request.nextUrl.origin}/api/plentyone/runs/${run.id}/callback`,
+    limit: run.zeilen_limit,
+  })
 
   if (fehler) {
     await svc
       .from('plentyone_runs')
-      .update({ csv_status: 'failed', csv_error: fehler })
+      .update({ [statusFeld]: 'failed', [fehlerFeld]: fehler })
       .eq('id', id)
     return NextResponse.json({ error: fehler }, { status: 502 })
   }
