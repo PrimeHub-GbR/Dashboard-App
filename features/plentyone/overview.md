@@ -32,7 +32,13 @@ Ersetzt den bisherigen lokalen Ablauf (Python-Skript + zwei Form-Workflows in N8
 5. Der Lauf gilt als `success`, wenn beide Stränge erfolgreich sind; als `partial`,
    wenn genau einer fehlschlägt.
 6. Es werden maximal **3 Läufe** aufbewahrt. Beim Start eines neuen Laufs wird der
-   älteste samt aller Dateien im Storage gelöscht.
+   älteste samt seiner Dateien im Laufordner gelöscht. **Cover-ZIPs bleiben** — sie
+   liegen laufübergreifend unter `plentyone/cover/` und hängen am Cover-Bestand.
+6a. **Cover-Bestand** (`plentyone_cover`): jede je geladene ISBN mit Titel, Status
+   (`ok`/`fehlt`), Paket, Ladezeitpunkt und Haken „in PlentyONE hochgeladen" (je Paket).
+   Ein neuer Cover-Lauf holt nur ISBN, die dort noch nicht `ok` sind; `fehlt` wird
+   erneut versucht. Der Storage wächst dadurch dauerhaft (~600 MB für 2.000 Cover) —
+   bewusst, damit nie ein Cover zweimal aus der VLB geholt werden muss.
 7. Der Hinweisblock listet je betroffener ISBN auf, was fehlt (kein VLB-Treffer, kein
    Cover, Gewicht pauschaliert, kein GPSR-Kontakt, kein gebundener Ladenpreis).
 8. Die Mapping-Tabelle zeigt Quellspalte, Zielfeld, Zusatz-Dropdown und eine
@@ -76,19 +82,25 @@ voneinander und brauchen keine Zwischendatei.
 | `zeilen_limit` | int | optionaler Testlauf |
 | `csv_status` / `csv_path` / `csv_error` | text | Strang 1 |
 | `cover_status` / `cover_error` | text | Strang 2 |
-| `cover_pakete` | jsonb | `[{name, path, von, bis, gefunden, fehlend, bytes}]` |
+| `cover_pakete` | jsonb | `[{name, datei, von, bis, gefunden, fehlend}]` — wächst während des Laufs je Paket-Callback |
 | `stats` | jsonb | Zählwerte für die Ergebnisanzeige |
 | `hinweise` | jsonb | `[{isbn, variantennummer, titel, fehlt:[...]}]` |
 
-Retention über `enforce_plentyone_retention()` beim Insert: älteste Läufe über 3 löschen.
-Storage-Dateien werden von der API mitgelöscht (Storage kennt keine Fremdschlüssel).
+Retention in `POST /api/plentyone/runs`: älteste Läufe über 3 löschen, Storage-Dateien
+nur aus dem Laufordner mitlöschen (Storage kennt keine Fremdschlüssel).
 
-### Storage — Bucket `plentyone` (privat)
+**Tabelle `plentyone_cover`** (Migration 145): `isbn` PK, `titel`, `status ok|fehlt`,
+`grund`, `paket`, `paket_pfad`, `run_id` (SET NULL beim Löschen des Laufs), `geladen_am`,
+`plenty_hochgeladen_am`. RPCs: `plentyone_cover_bekannt()` (alle `ok`-ISBN als Array —
+PostgREST kappt Listen bei 1.000), `plentyone_cover_melden(run, paket, pfad, cover jsonb)`
+(Upsert, ein vorhandenes `ok` wird nie auf `fehlt` zurückgesetzt), `plentyone_cover_zaehler()`.
+
+### Storage — Bucket `workflow-results` (privat)
 ```
-<run_id>/input/<dateiname>
-<run_id>/csv/plentyONE_Import_final.csv
-<run_id>/cover/cover_0001-0250.zip
+plentyone/<run_id>/plentyONE_Import_final.csv      (+ Eigenschaften-/Hersteller-CSV)
+plentyone/cover/<run_id>_cover_0001-0050.zip       laufübergreifend, wird nie gelöscht
 ```
+Eingabedatei: Bucket `workflow-uploads`, `plentyone/<run_id>/<dateiname>`.
 
 ### API
 | Route | Zweck |
@@ -96,8 +108,12 @@ Storage-Dateien werden von der API mitgelöscht (Storage kennt keine Fremdschlü
 | `POST /api/plentyone/runs` | Upload, Retention, Lauf anlegen, beide Webhooks triggern |
 | `GET /api/plentyone/runs` | Liste der letzten 3 Läufe |
 | `GET /api/plentyone/runs/[id]` | Status eines Laufs (Polling) |
-| `POST /api/plentyone/runs/[id]/callback` | Rückmeldung aus N8N, Feld `strang` = `csv` \| `cover` |
+| `POST /api/plentyone/runs/[id]/strang` | einen Strang (`csv`/`cover`) aus `pending`/`failed` nachstarten |
+| `POST /api/plentyone/runs/[id]/callback` | Rückmeldung aus N8N, `strang` = `csv` \| `cover`; `status` = `success` \| `failed` \| `paket` (Cover: je ZIP sofort, füllt den Bestand) |
 | `GET /api/plentyone/runs/[id]/download` | signierte URL, Parameter `datei` |
+| `GET /api/plentyone/cover` | Cover-Bestand: Suche `q`, `nur_offen=1`, `seite` (100 je Seite), Zähler |
+| `PATCH /api/plentyone/cover` | `{paket_pfad, hochgeladen}` → Haken „in PlentyONE" für das ganze Paket |
+| `GET /api/plentyone/cover/[isbn]/download` | signierte URL auf das ZIP-Paket der ISBN |
 
 Prozesslogik bleibt vollständig in N8N (N8N-First-Regel). Das Backend macht Upload,
 Job-Tracking, signierte URLs und Callback-Empfang.
@@ -106,6 +122,15 @@ Job-Tracking, signierte URLs und Callback-Empfang.
 Statisch in `src/lib/plentyone-mapping.ts` — versioniert mit dem Code, kein DB-Zugriff nötig.
 Enthält je Spalte: Nummer, Quellspalte, Zielfeld, Zusatz-Dropdown, Import an/aus,
 Herkunft (Amazon / VLB / berechnet) und eine Klartext-Beschreibung.
+
+### n8n — Cover-Strang (Stand 13.09.2026)
+Aufbereiten → **Bekannte Cover laden** (RPC) → **Neue Cover filtern** (50er-Pakete) →
+IF „Neue Cover vorhanden?" (nein → direkt Cover-Ergebnis, kein VLB-Login) → VLB Login →
+Loop: Cover laden → bündeln → IF „Paket brauchbar?" (volles Paket ohne ein einziges Cover
+→ Fehlerpfad) → ZIP → Upload → **Paket melden** (Callback `paket`) → Paket merken.
+Voraussetzung auf dem n8n-Host: `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` und
+`saveExecutionProgress` aus — sonst wächst der Ausführungsdatensatz quadratisch und der
+Lauf bleibt nach ~6 Paketen stehen. Quelle: `plentyone-migration/scripts/gen_wf_dashboard.py`.
 
 ## Offene Punkte
 - Die 2 Cover unter 1.024 px lassen sich nicht verbessern — die VLB liefert nicht mehr.
