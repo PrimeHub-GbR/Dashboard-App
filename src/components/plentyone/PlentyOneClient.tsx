@@ -367,10 +367,21 @@ export function PlentyOneClient() {
                         )
                       )}
                     </dl>
-                    {Number(aktuell.stats.ust_19) > 0 && (
+                    {/* Seit 13.09.2026 übernimmt der Workflow den VLB-Satz in die CSV und
+                        meldet ust_19_uebernommen. Fehlt der Zähler, stammt die CSV aus
+                        einem älteren Lauf und trägt noch pauschal 7 %. */}
+                    {aktuell.stats.ust_19_uebernommen !== undefined ? (
+                      Number(aktuell.stats.ust_19_uebernommen) > 0 && (
+                        <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                          {aktuell.stats.ust_19_uebernommen} Titel mit 19 % Umsatzsteuer laut VLB
+                          (Malbücher, Kalender, Spielzeug) — der Satz ist in die CSV übernommen.
+                        </p>
+                      )
+                    ) : Number(aktuell.stats.ust_19) > 0 && (
                       <p className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-                        {aktuell.stats.ust_19} Titel haben laut VLB 19 % Umsatzsteuer. Die CSV setzt
-                        pauschal 7 % — vor dem Import prüfen.
+                        {aktuell.stats.ust_19} Titel haben laut VLB 19 % Umsatzsteuer. Diese CSV
+                        setzt noch pauschal 7 % — vor dem Import korrigieren oder den CSV-Strang
+                        neu laufen lassen.
                       </p>
                     )}
                     <div className="space-y-1.5">
