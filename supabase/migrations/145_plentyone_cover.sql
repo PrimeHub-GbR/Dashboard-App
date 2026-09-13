@@ -135,3 +135,23 @@ AS $$
   )
   FROM plentyone_cover;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Paketliste fuer "Alle Cover herunterladen": ein Eintrag je ZIP
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION plentyone_cover_pakete()
+RETURNS TABLE (paket TEXT, paket_pfad TEXT, cover BIGINT, hochgeladen BIGINT, geladen_am TIMESTAMPTZ)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT paket, paket_pfad,
+         COUNT(*)                                             AS cover,
+         COUNT(*) FILTER (WHERE plenty_hochgeladen_am IS NOT NULL) AS hochgeladen,
+         MAX(geladen_am)                                      AS geladen_am
+  FROM plentyone_cover
+  WHERE status = 'ok' AND paket_pfad IS NOT NULL
+  GROUP BY paket, paket_pfad
+  ORDER BY MAX(geladen_am) DESC, paket;
+$$;

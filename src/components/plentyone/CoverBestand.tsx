@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Download, Loader2, RefreshCw, Search, Undo2 } from 'lucide-react'
+import { Check, ChevronDown, Download, Loader2, Package, RefreshCw, Search, Undo2 } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +22,16 @@ interface CoverZeile {
   run_id: string | null
   geladen_am: string
   plenty_hochgeladen_am: string | null
+}
+
+interface Paket {
+  paket: string
+  paket_pfad: string
+  dateiname: string
+  cover: number
+  hochgeladen: number
+  geladen_am: string
+  url: string | null
 }
 
 interface Antwort {
@@ -51,6 +62,9 @@ export function CoverBestand({ aktualisieren }: { aktualisieren?: number }) {
   const [nurOffen, setNurOffen] = useState(false)
   const [seite, setSeite] = useState(1)
   const [markiert, setMarkiert] = useState<string | null>(null)
+  const [pakete, setPakete] = useState<Paket[] | null>(null)
+  const [paketeOffen, setPaketeOffen] = useState(false)
+  const [alleLaeuft, setAlleLaeuft] = useState<{ nr: number; von: number } | null>(null)
 
   const holen = useCallback(async () => {
     setLaden(true)
@@ -72,6 +86,48 @@ export function CoverBestand({ aktualisieren }: { aktualisieren?: number }) {
 
   useEffect(() => { void holen() }, [holen, aktualisieren])
 
+  const paketeHolen = useCallback(async (): Promise<Paket[]> => {
+    const res = await fetch('/api/plentyone/cover/pakete')
+    const j = await res.json()
+    if (!res.ok) throw new Error(j.error ?? 'Pakete konnten nicht geladen werden')
+    setPakete(j.pakete)
+    return j.pakete
+  }, [])
+
+  useEffect(() => { paketeHolen().catch(() => setPakete([])) }, [paketeHolen, aktualisieren])
+
+  // Ein Download über einen unsichtbaren Link — die signierte URL trägt
+  // Content-Disposition, deshalb landet die Datei direkt im Download-Ordner.
+  const dateiLaden = (url: string, name: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
+  // Alle ZIP-Pakete nacheinander laden. Der Browser fragt beim ersten Mal,
+  // ob mehrere Downloads erlaubt sind — danach läuft es durch.
+  async function alleLaden() {
+    setFehler(null)
+    setAlleLaeuft({ nr: 0, von: 0 })
+    try {
+      const liste = (await paketeHolen()).filter((p) => p.url)
+      if (!liste.length) throw new Error('Keine Pakete vorhanden.')
+      for (let i = 0; i < liste.length; i++) {
+        setAlleLaeuft({ nr: i + 1, von: liste.length })
+        dateiLaden(liste[i].url!, liste[i].dateiname)
+        await new Promise((r) => setTimeout(r, 900))
+      }
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : 'Download fehlgeschlagen')
+    } finally {
+      setAlleLaeuft(null)
+    }
+  }
+
   // Ein ganzes Paket als hochgeladen markieren (oder den Haken zurücknehmen)
   async function paketMarkieren(paketPfad: string, hochgeladen: boolean) {
     setMarkiert(paketPfad)
@@ -84,7 +140,7 @@ export function CoverBestand({ aktualisieren }: { aktualisieren?: number }) {
       })
       const j = await res.json()
       if (!res.ok) throw new Error(j.error ?? 'Markieren fehlgeschlagen')
-      await holen()
+      await Promise.all([holen(), paketeHolen()])
     } catch (e) {
       setFehler(e instanceof Error ? e.message : 'Markieren fehlgeschlagen')
     } finally {
@@ -145,6 +201,70 @@ export function CoverBestand({ aktualisieren }: { aktualisieren?: number }) {
           </Button>
         </form>
       </div>
+
+      {/* Alle Cover herunterladen + Paketliste */}
+      <Collapsible open={paketeOffen} onOpenChange={setPaketeOffen}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={alleLaden}
+            disabled={alleLaeuft !== null || !pakete?.length}
+            className="gap-2"
+          >
+            {alleLaeuft
+              ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              : <Download className="h-4 w-4" aria-hidden />}
+            {alleLaeuft && alleLaeuft.von
+              ? `Paket ${alleLaeuft.nr} von ${alleLaeuft.von} …`
+              : `Alle Cover herunterladen${pakete?.length ? ` (${pakete.length} ZIP${pakete.length === 1 ? '' : 's'})` : ''}`}
+          </Button>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" disabled={!pakete?.length}>
+              <Package className="h-3.5 w-3.5" aria-hidden />
+              Pakete einzeln
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${paketeOffen ? 'rotate-180' : ''}`} aria-hidden />
+            </Button>
+          </CollapsibleTrigger>
+          <span className="text-xs text-muted-foreground">
+            Jedes ZIP enthält bis zu 50 Cover als <span className="font-mono">&lt;ISBN&gt;.jpg</span>. Der
+            Browser fragt einmal, ob mehrere Downloads erlaubt sind.
+          </span>
+        </div>
+        <CollapsibleContent>
+          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+            {pakete?.map((p) => (
+              <li key={p.paket_pfad} className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs">
+                <button
+                  type="button"
+                  className="inline-flex min-w-0 flex-1 items-center gap-1.5 text-left hover:underline disabled:opacity-50"
+                  disabled={!p.url}
+                  onClick={() => p.url && dateiLaden(p.url, p.dateiname)}
+                  title={p.dateiname}
+                >
+                  <Download className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="truncate font-mono text-foreground">{p.dateiname}</span>
+                </button>
+                <span className="shrink-0 tabular-nums text-muted-foreground">{p.cover} Cover</span>
+                {p.hochgeladen >= p.cover ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-emerald-700 dark:text-emerald-300" title="in PlentyONE hochgeladen">
+                    <Check className="h-3 w-3" aria-hidden /> Plenty
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 shrink-0 px-2 text-[11px]"
+                    disabled={markiert !== null}
+                    onClick={() => paketMarkieren(p.paket_pfad, true)}
+                    title="Dieses Paket als in PlentyONE hochgeladen markieren"
+                  >
+                    hochgeladen
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
 
       {fehler && <p className="text-sm text-red-600 dark:text-red-400">{fehler}</p>}
 
