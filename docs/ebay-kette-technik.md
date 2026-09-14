@@ -698,7 +698,8 @@ in den Storage legt und nur den Pfad meldet.
 | `ebay-merkmale.csv` | Proxy auf `N8N_EBAY_MERKMALE_URL` |
 
 Ablauf für die eBay-Dateien: `fetch` mit Header `x-primehub-token` (aus
-`N8N_EBAY_TOKEN`), `AbortSignal.timeout(55_000)`, `cache: 'no-store'`. Bei
+`N8N_EBAY_TOKEN`), `AbortSignal.timeout(290_000)` bei `maxDuration = 300` (der Vollkatalog
+braucht in n8n 70–80 s — mit 55 s brach die Route am 14.09.2026 mit 502 ab), `cache: 'no-store'`. Bei
 `!res.ok` antwortet die Route **502** — bewusst ein Fehlerstatus, damit
 PlentyONE den Import abbricht, statt eine Fehlerseite als Datensatz einzulesen.
 

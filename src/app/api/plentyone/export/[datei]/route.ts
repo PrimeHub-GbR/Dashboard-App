@@ -4,7 +4,7 @@ import { plentyoneTokenPruefen } from '@/lib/plentyone-token'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
 const RESULT_BUCKET = 'workflow-results'
 
@@ -52,6 +52,11 @@ function csvAntwort(text: string, dateiname: string) {
  * Artikel ohne Listing, Import 22 nur bereits existierende MLIDs. Damit ist die Kette
  * beliebig oft wiederholbar und das Zwei-Lauf-Problem (MLID entsteht erst nach der
  * Listing-Anlage) löst sich von selbst.
+ *
+ * n8n liest dafür den kompletten Katalog seitenweise aus der PlentyONE-API — beim
+ * Vollbestand (~2.000 Artikel, ~14.000 Eigenschaften) sind das 70–80 s. Deshalb
+ * maxDuration 300 und ein Timeout von 290 s; mit 55 s brach die Route ab, obwohl n8n
+ * sauber durchlief (Ausführungen 383940–383945 am 14.09.2026).
  */
 export async function GET(
   request: NextRequest,
@@ -81,7 +86,7 @@ export async function GET(
           ...(process.env.N8N_EBAY_TOKEN ? { 'x-primehub-token': process.env.N8N_EBAY_TOKEN } : {}),
         },
         cache: 'no-store',
-        signal: AbortSignal.timeout(55_000),
+        signal: AbortSignal.timeout(290_000),
       })
       const text = await res.text()
       if (!res.ok) {
