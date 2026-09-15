@@ -14,19 +14,40 @@ const login = $('PlentyONE Login').first().json;
 const token = login.accessToken || (login.data && login.data.accessToken);
 if (!token) throw new Error('Kein Login-Token von PlentyONE erhalten - Passwort im Knoten "Konfiguration" pruefen.');
 
+const schlafen = (ms) => new Promise(r => setTimeout(r, ms));
+
+// PlentyONE drosselt die REST-API. Laeuft gleichzeitig ein Import, teilen sich
+// beide dasselbe Kontingent - dann kommt mitten im Lauf ein 429. Am 15.09.2026
+// hat genau das den Bericht nach 34 s abgebrochen, waehrend der Artikelimport
+// lief. Ein 429 ist kein Fehler, sondern die Bitte zu warten: kurz pausieren und
+// erneut fragen, statt den ganzen Lauf wegzuwerfen.
 const api = async (path) => {
-  return await this.helpers.httpRequest({
-    method: 'GET',
-    url: cfg.plentyUrl + path,
-    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-    json: true,
-  });
+  let warte = 3000;
+  for (let versuch = 1; ; versuch++) {
+    try {
+      return await this.helpers.httpRequest({
+        method: 'GET',
+        url: cfg.plentyUrl + path,
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+        json: true,
+      });
+    } catch (e) {
+      const code = String(e.httpCode || e.statusCode || (e.response && e.response.status) || '');
+      const ist429 = code === '429' || /429/.test(String(e.message || ''));
+      if (!ist429 || versuch >= 6) throw e;
+      await schlafen(warte);
+      warte = Math.min(warte * 2, 30000);   // 3, 6, 12, 24, 30 s
+    }
+  }
 };
 
 const pageAll = async (base) => {
   const sep = base.includes('?') ? '&' : '?';
   const all = [];
   for (let p = 1; p <= 400; p++) {
+    // Kurze Pause zwischen den Seiten: rund 80 Seitenabrufe je Lauf kosten so
+    // gut 10 Sekunden extra und bleiben dafuer unter der Drossel.
+    if (p > 1) await schlafen(150);
     const res = await api(`${base}${sep}page=${p}&itemsPerPage=250`);
     const entries = res.entries || [];
     all.push(...entries);

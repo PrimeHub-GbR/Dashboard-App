@@ -340,7 +340,13 @@ if (!token) throw new Error('Kein Login-Token von PlentyONE erhalten …');
 
 Zwei Helfer: `api(path)` setzt `Authorization: Bearer` und `Accept: application/json`;
 `pageAll(base)` blättert mit `page` + `itemsPerPage=250` bis `isLastPage`, maximal
-400 Seiten (= 100.000 Datensätze).
+400 Seiten (= 100.000 Datensätze), mit 150 ms Pause zwischen den Seiten.
+
+**429 bricht den Lauf nicht mehr ab.** PlentyONE drosselt die REST-API; läuft
+gleichzeitig ein Import, teilen sich beide dasselbe Kontingent. Am 15.09.2026 hat
+ein 429 den Bericht nach 34 s abgeschossen, während der Artikelimport lief.
+`api()` wartet seitdem bei 429 und wiederholt bis zu fünfmal (3, 6, 12, 24, 30 s).
+Das Dashboard pollt entsprechend fünf statt zwei Minuten auf den Bericht.
 
 ### 5.2 Die Lesezugriffe
 

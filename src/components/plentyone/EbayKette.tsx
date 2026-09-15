@@ -164,7 +164,9 @@ export function EbayKette({
    * Stoesst den n8n-Workflow an und wartet, bis ein neuerer Bericht eintrifft.
    * n8n antwortet sofort und meldet das Ergebnis spaeter per Callback - deshalb
    * wird hier gepollt statt auf die Antwort zu warten. Der Lauf liest gut 2.000
-   * Artikel aus PlentyONE, eine Minute ist normal.
+   * Artikel aus PlentyONE, eine gute Minute ist normal. Bremst PlentyONE mit 429
+   * (etwa waehrend eines laufenden Imports), wartet n8n ab und wiederholt - dann
+   * dauert es laenger. Deshalb fuenf Minuten Geduld statt zwei.
    */
   async function neuBerechnen() {
     setFehler(null)
@@ -177,12 +179,12 @@ export function EbayKette({
         setFehler(j.error ?? `Start fehlgeschlagen (${res.status})`)
         return
       }
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 100; i++) {
         await new Promise((r) => setTimeout(r, 3000))
         const neu = await holen()
         if (neu && neu !== vorher) return
       }
-      setFehler('Der Bericht kam nicht innerhalb von zwei Minuten zurück — Lauf in n8n prüfen.')
+      setFehler('Der Bericht kam nicht innerhalb von fünf Minuten zurück — Lauf in n8n prüfen.')
     } catch {
       setFehler('Der Bericht konnte nicht angestoßen werden.')
     } finally {
