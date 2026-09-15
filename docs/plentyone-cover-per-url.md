@@ -9,7 +9,7 @@ Durchgängen auf — bei 1.884 Covern ist das unbenutzbar. Es geht auch ohne ihn
 Die Spalte `bild_multi_url` der Artikel-CSV sagt PlentyONE nur, **von welcher
 Adresse** ein Bild zu holen ist. Diese Adresse muss nicht im Dateimanager liegen.
 
-Die Cover liegen jetzt öffentlich abrufbar im Supabase-Speicher:
+Die Cover liegen jetzt einzeln und öffentlich abrufbar im Supabase-Speicher:
 
 ```
 https://tcqdyzmhwyfamzyeyskj.supabase.co/storage/v1/object/public/plentyone-cover/<ISBN13>.jpg
@@ -27,79 +27,63 @@ ZIP-Pakete, kein Aufhängen — bei jedem Zyklus aufs Neue.
 
 ---
 
-## Die Änderung in n8n
+## Was bereits erledigt ist (16.09.2026)
 
-**Was geändert wird:** eine einzige Zeile — die Basis-Adresse der Bilder.
+| Schritt | Stand |
+|---|---|
+| Bucket `plentyone-cover` angelegt, öffentlich lesbar, nur JPEG/PNG bis 10 MB | ✓ |
+| 41 ZIP-Pakete ausgepackt, **1.934 Cover** einzeln abgelegt, 0 Fehler | ✓ |
+| Stichprobe: 29 von 30 zufälligen ISBN aus der Artikel-CSV abrufbar (die 30. Zeile hat keine EAN) | ✓ |
+| n8n `[Dashboard] plentyone-metadata` → Knoten „Aufbereiten" → Zeile 29 umgestellt | ✓ |
 
-### Schritt 1 — n8n öffnen
-1. Öffne https://n8n.primehubgbr.com im Browser
-2. Melde dich an
-
-### Schritt 2 — Workflow finden
-1. Klicke links in der Seitenleiste auf **Workflows**
-2. Suche den Workflow **`[Dashboard] plentyone-metadata`**
-3. Klicke darauf, um ihn zu öffnen
-
-### Schritt 3 — Den Knoten „Aufbereiten" öffnen
-1. Doppelklick auf den Knoten **„Aufbereiten"** (das ist der Code-Knoten mit den
-   geschweiften Klammern `{}`)
-2. Rechts öffnet sich das Code-Fenster
-
-### Schritt 4 — Zeile 29 ersetzen
-Suche diese Zeile (sie steht ganz oben, etwa bei Zeile 29):
+Die geänderte Zeile:
 
 ```javascript
+// vorher
 const CDN = 'https://cdn02.plentyone.com/lwk1xvxv9m6a/frontend/{ordner}/{ean}.jpg;1';
-```
-
-Ersetze sie durch:
-
-```javascript
+// jetzt
 const CDN = 'https://tcqdyzmhwyfamzyeyskj.supabase.co/storage/v1/object/public/plentyone-cover/{ean}.jpg;1';
 ```
 
-Die Zeile darüber (`const CDN_ORDNER = 'cover';`) bleibt unverändert stehen — sie
-wird nur nicht mehr verwendet und stört nicht.
-
-> Das `;1` am Ende ist die Bildposition und muss bleiben.
-
-### Schritt 5 — Speichern
-1. Klicke oben rechts auf den roten **Save**-Button
-2. Der Button wird grau — gespeichert ✓
+Geprüft gegen den Stand vor der Änderung: genau **eine** Codezeile abweichend,
+alle 25 Knoten sonst unverändert, Workflow weiterhin aktiv. Das `;1` am Ende ist
+die Bildposition und bleibt.
 
 ---
 
-## Danach: der Testlauf
+## Was noch zu tun ist
 
+### 1 — Testlauf mit fünf Titeln
 1. Dashboard → **PlentyONE-Migration**
-2. Amazon-Export wählen, ins Feld **Testlauf** eine **5** eintragen,
-   „Was starten" auf **Nur CSV-Dateien**, dann **Migration starten**
-3. Nach etwa einer halben Minute die `plentyONE_Import_final.csv` herunterladen
-   und prüfen: In der Spalte `bild_multi_url` muss jetzt die
-   `supabase.co`-Adresse stehen
-4. Diese CSV in PlentyONE als **Artikelimport** ausführen
-5. Einen der fünf Artikel öffnen → Tab **Bilder**: Das Cover muss da sein
+2. Amazon-Export wählen, Feld **Testlauf** auf **5**, „Was starten" auf
+   **Nur CSV-Dateien**, dann **Migration starten**
+3. Nach etwa einer halben Minute `plentyONE_Import_final.csv` herunterladen:
+   In der Spalte `bild_multi_url` muss jetzt die `supabase.co`-Adresse stehen
 
-Kommt das Bild an, ist der Weg bewiesen. Dann:
+### 2 — Diese CSV als Artikelimport ausführen
+Einen der fünf Artikel öffnen → Tab **Bilder**: Das Cover muss da sein.
+Kommt es an, ist der Weg bewiesen.
 
-6. Vollen CSV-Lauf starten (ohne Testlauf-Zahl, etwa fünf Minuten)
-7. **Hersteller → Artikel → Eigenschaften** importieren
-8. Dashboard → Tab 5 → **Aktualisieren**: `ohne Artikelbild` muss auf unter 100 fallen
-9. Erst dann **Import 23** (Listings), danach **Import 22** (Merkmale)
+### 3 — Vollausbau
+1. Vollen CSV-Lauf starten (ohne Testlauf-Zahl, etwa fünf Minuten)
+2. **Hersteller → Artikel → Eigenschaften** importieren
+3. Dashboard → Tab 5 → **Aktualisieren**:
+   `ohne Artikelbild` muss auf unter 100 fallen, `ohne eBay-Listing` auf etwa 1.850 steigen
+4. Erst dann **Import 23** (Listings), danach **Import 22** (Merkmale)
 
 ---
 
-## Wenn es nicht klappt
+## Wenn PlentyONE die Bilder nicht zieht
 
-Lädt PlentyONE die Bilder nicht, liegt es nicht an der Datei — die Adresse lässt
-sich im Browser öffnen, jeder sieht das Cover. Dann verweigert PlentyONE fremde
-Quellen, und der nächste Weg wäre der FTP-Zugang (`upload_article_image_<plentyID>`,
-200 Bilder je Durchlauf) — sofern eure Instanz einen hat. Neue Systeme bekommen ihn
-laut Handbuch nicht mehr.
+Dann liegt es nicht an den Dateien — die Adressen lassen sich im Browser öffnen.
+Dann verweigert PlentyONE fremde Quellen, und der nächste Weg wäre der FTP-Zugang
+(`upload_article_image_<plentyID>`, 200 Bilder je Durchlauf) — sofern eure Instanz
+einen hat. Neue Systeme bekommen ihn laut Handbuch nicht mehr.
 
 ---
 
 ## Was aus den ZIP-Paketen wird
 
-Sie werden nicht mehr gebraucht, sobald der Weg steht — die Einzelbilder sind der
-bessere Bestand. Bis zum bestandenen Testlauf bleiben sie liegen.
+696 MB in `workflow-results/plentyone/cover/`. Sie werden nicht mehr gebraucht,
+sobald der Weg steht — die Einzelbilder sind der bessere Bestand. **Gelöscht wird
+erst nach bestandenem Testlauf**, dann fällt auch der ZIP-Download im Dashboard weg.
