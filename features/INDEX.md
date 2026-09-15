@@ -124,6 +124,7 @@
 | Doku: Code des n8n-Knotens "Daten holen" zum Einfuegen | Deployed | [../docs/ebay-daten-holen.js](../docs/ebay-daten-holen.js) |
 | Doku: technische Rekonstruktion der eBay-Kette | Deployed | [../docs/ebay-kette-technik.md](../docs/ebay-kette-technik.md) |
 | Doku: Arbeitsanweisung Mitarbeiter | Deployed | [../docs/ebay-anleitung-mitarbeiter.md](../docs/ebay-anleitung-mitarbeiter.md) |
+| Doku: Cover per URL statt Dateimanager (n8n-Anleitung) | Deployed | [../docs/plentyone-cover-per-url.md](../docs/plentyone-cover-per-url.md) |
 
 ## Manager (GF) `/dashboard/manager`
 

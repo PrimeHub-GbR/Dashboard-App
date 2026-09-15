@@ -62,7 +62,8 @@ Bestand). Amazon läuft autark mit externem Repricer; von Amazon wird nur gelese
 | Kategorie (plenty) | „Books" **ID 77** |
 | Eigenschaften „VLB Buchdaten" | 10 Autor · 11 Erscheinungsdatum · 12 Sprache · 13 Seitenzahl · 14 Bindung · 15 Warengruppe · 16 Thema; Verlag über Systemfeld **Hersteller** |
 | Variantennummern-Schema | `<PREFIX>-<nr>-<tt-mm-jjjj>` — **korrigiert:** der Prefix ist nicht immer `APR-`, siehe 2.9 |
-| Dateimanager-CDN | `https://cdn02.plentyone.com/lwk1xvxv9m6a/frontend/<ordner>/<datei>`, Cover-Ordner „cover", Dateiname = ISBN13 |
+| Cover-Quelle | **seit 16.09.2026:** `https://tcqdyzmhwyfamzyeyskj.supabase.co/storage/v1/object/public/plentyone-cover/<ISBN13>.jpg` — PlentyONE lädt die Bilder selbst, kein Dateimanager mehr (siehe [plentyone-cover-per-url.md](../../docs/plentyone-cover-per-url.md)) |
+| Dateimanager-CDN (abgelöst) | `https://cdn02.plentyone.com/lwk1xvxv9m6a/frontend/<ordner>/<datei>`, Cover-Ordner „cover", Dateiname = ISBN13 — Upload nimmt nur 10 Bilder je Durchgang und hängt sich auf |
 | Testdaten | Artikel 186–197 (Varianten 1145–1156); 21 Artikel im System; 6 eBay-Listings (MLID 1–6) fertig geprüft, **nicht gestartet** |
 
 ### 2.3 eBay-Kanaleinstellungen
