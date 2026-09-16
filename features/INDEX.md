@@ -125,6 +125,7 @@
 | Doku: technische Rekonstruktion der eBay-Kette | Deployed | [../docs/ebay-kette-technik.md](../docs/ebay-kette-technik.md) |
 | Doku: Arbeitsanweisung Mitarbeiter | Deployed | [../docs/ebay-anleitung-mitarbeiter.md](../docs/ebay-anleitung-mitarbeiter.md) |
 | Doku: Cover per URL statt Dateimanager (n8n-Anleitung) | Deployed | [../docs/plentyone-cover-per-url.md](../docs/plentyone-cover-per-url.md) |
+| Doku: Bilder mit Varianten verknuepfen (n8n-Workflow VDDcKhyD6AvBKohk) | Deployed | [../docs/plentyone-bilder-varianten-verknuepfen.md](../docs/plentyone-bilder-varianten-verknuepfen.md) |
 
 ## Manager (GF) `/dashboard/manager`
 
