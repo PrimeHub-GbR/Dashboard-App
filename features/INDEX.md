@@ -126,6 +126,7 @@
 | Doku: Arbeitsanweisung Mitarbeiter | Deployed | [../docs/ebay-anleitung-mitarbeiter.md](../docs/ebay-anleitung-mitarbeiter.md) |
 | Doku: Cover per URL statt Dateimanager (n8n-Anleitung) | Deployed | [../docs/plentyone-cover-per-url.md](../docs/plentyone-cover-per-url.md) |
 | Doku: Bilder mit Varianten verknuepfen (n8n-Workflow VDDcKhyD6AvBKohk) | Deployed | [../docs/plentyone-bilder-varianten-verknuepfen.md](../docs/plentyone-bilder-varianten-verknuepfen.md) |
+| Doku: Market-Listings pruefen per API (n8n-Workflow ufqiBqiE1atoYopj) | Deployed | [../docs/plentyone-listings-pruefen.md](../docs/plentyone-listings-pruefen.md) |
 
 ## Manager (GF) `/dashboard/manager`
 

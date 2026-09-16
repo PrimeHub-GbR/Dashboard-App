@@ -27,7 +27,7 @@ POST /rest/items/{itemId}/variations/{variationId}/variation_images
 
 | Knoten | Aufgabe |
 |---|---|
-| **Zeitplan 04:30** | **läuft jeden Tag von allein — niemand muss etwas drücken** |
+| **Zeitplan 04:00** | **läuft jeden Tag von allein — niemand muss etwas drücken** |
 | Manuell starten | Klick in der n8n-Oberfläche → verknüpft **alle** offenen Artikel |
 | Webhook Start | `POST /webhook/bilder-varianten`, Header `x-primehub-token`, Body `{"limit": N}` |
 | Konfiguration | Zugang, `limit` (0 = alle) |
@@ -36,9 +36,9 @@ POST /rest/items/{itemId}/variations/{variationId}/variation_images
 
 ### Der tägliche Lauf
 
-**04:30 Uhr, jeden Tag.** Der Zeitpunkt sitzt zwischen den PlentyONE-Importen
-(02:00–04:00) und dem eBay-Statusbericht (05:00): Neu importierte Artikel sind
-verknüpft, bevor der Bericht sie zählt. Steht in der Nacht nichts an, ist der
+**04:00 Uhr, jeden Tag.** Der Zeitpunkt sitzt zwischen den PlentyONE-Importen
+(02:00–03:00) und der Listing-Prüfung (04:30): Neu importierte Artikel haben ihr
+Cover an der Variante, bevor eBay die Angebote prüft. Steht in der Nacht nichts an, ist der
 Lauf nach einer halben Minute wieder fertig — er schreibt nur, wo wirklich eine
 Verknüpfung fehlt.
 

@@ -822,6 +822,13 @@ Chronologisch. „Lauf" = Importlauf in PlentyONE.
 |---|---|
 | `/rest/data/import`, `/rest/data/imports`, `/rest/imports`, `/rest/item/import` | 503 |
 | `/rest/listings/markets/{id}/attributes` / `/properties` / `/verify` | 503 |
+
+> **Korrektur 16.09.2026:** Die Prüfung geht doch — nur unter einem anderen Pfad.
+> `POST /rest/listings/markets/verify` mit `{ "id": <MLID> }` liefert
+> `{"affectedRows":1}` und setzt `verified` von `unknown` auf `succeeded`.
+> Die Bulk-Formate (`ids`, `listingIds`, `marketListingIds`) antworten mit 200,
+> bewirken aber nichts. Siehe [plentyone-listings-pruefen.md](plentyone-listings-pruefen.md).
+
 | `/rest/listings/{id}/contents` | 503 |
 | `/rest/listings/layouts` / `/directories` / `/templates` / `/profiles` | 503 |
 | `/rest`, `/rest/openapi` | 503 |
