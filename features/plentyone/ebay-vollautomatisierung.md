@@ -194,6 +194,36 @@ verworfen (E11).
 
 ---
 
+## Tab 5 „Weiter zu eBay" — Ampel-Prüfliste (16.09.2026)
+
+Die Kennzahlen des n8n-Berichts standen als nackte Zahlenwand da: 19 Werte ohne
+Zielwert, ohne Bedeutung, ohne Handlungsanweisung. „Bestand 0 im FBA-Lager: 7"
+sagt niemandem, ob das ein Fehler ist.
+
+**Jetzt dreistufig:**
+
+1. **Nächster Schritt** — ein farbiges Band ganz oben mit dem einen Satz, was zu
+   tun ist. Priorität: laufende Angebote ohne GPSR (abmahnbar) → fehlgeschlagene
+   Prüfung → halb angelegte Listings → fehlende Bilder → fehlende Verlagsdaten →
+   ungeprüfte Angebote → Warteschlange für Import 23 → alles startklar.
+2. **Prüfliste in fünf Gruppen** — je Zeile Ampel, Wert, Zielwert, ein Satz
+   Bedeutung und bei Abweichung der konkrete Handgriff:
+   | Gruppe | Frage, die sie beantwortet |
+   |---|---|
+   | 1 · Voraussetzungen je Buch | Warum wird ein Titel zurückgehalten? |
+   | 2 · Listings anlegen (Import 23) | Wie viel Arbeit wartet, was ist schon da? |
+   | 3 · Startklar machen | Darf das Angebot online? |
+   | 4 · Bestand aus dem FBA-Lager | Ist es kaufbar? (nie ein Grund, nicht zu listen) |
+   | 5 · Recht an laufenden Angeboten | Ist etwas online, das abmahnbar ist? |
+3. **Betroffene Titel aufklappbar** — „Nicht startklar" (rot) und
+   „Zurückgehalten" (gelb) mit Anzahl im Badge, zugeklappt. Erst der Klick zeigt
+   die Liste, gedeckelt auf 100 Einträge mit eigenem Scrollbereich.
+
+Wichtig für das Verständnis: **„ohne eBay-Listing" ist kein Fehler**, sondern die
+Warteschlange für Import 23. Ebenso ist **„ohne Bestand"** kein Mangel — das Buch
+ist bei Amazon gerade ausverkauft und kommt von selbst zurück. Beides steht jetzt
+ausdrücklich in der Zeile, weil es vorher wie ein Alarm aussah.
+
 ## 3. Tech Design — Umsetzung im Dashboard
 
 ### 3.1 Prinzip
