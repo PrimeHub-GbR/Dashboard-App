@@ -46,21 +46,41 @@ den Bild-Guard schon einmal zwei Tage blind laufen lassen.
 1. https://n8n.primehubgbr.com öffnen
 2. Links **Workflows** → **„Bilder mit Varianten verknuepfen (PrimeHub)"**
 3. Unten auf **„Execute workflow"** klicken (oder oben „Test workflow")
-4. Warten — bei rund 1.950 Artikeln etwa **15 bis 25 Minuten**. Der Knoten
-   „Verknuepfen" dreht sich, solange er arbeitet.
+4. Warten — rund **18 Minuten** für 1.400 Artikel. Der Knoten „Verknuepfen"
+   dreht sich, solange er arbeitet. Du musst nicht zuschauen.
 5. Am Ende zeigt der Knoten eine Zusammenfassung:
 
 ```json
 {
   "artikel_gesamt": 1953,
-  "ohne_bild_an_variante": 1946,
-  "verknuepft": 1946,
+  "ohne_bild_an_variante": 1415,
+  "verknuepft": 1415,
   "artikel_ohne_bild_am_artikel": 0,
-  "fehler": 0
+  "fehler": 0,
+  "limit_laut_plentyone": "159 Aufrufe frei, Fenster erneuert sich in 33 s",
+  "drossel_treffer": 1
 }
 ```
 
 `fehler: 0` und `verknuepft` ≈ `ohne_bild_an_variante` heißt: alles sitzt.
+
+## Warum es nicht schneller geht
+
+**PlentyONE gibt das Tempo vor.** Gemessen am 16.09.2026: rund **160 bis 175
+Aufrufe je Minutenfenster**. Jeder Artikel kostet zwei davon — einen, um die
+Bild-ID zu holen, einen für die Verknüpfung. Macht etwa **80 Artikel pro Minute**.
+
+Mehr Gleichzeitigkeit hilft nicht: Das Limit zählt Aufrufe je Minute, nicht
+Verbindungen. Ein Versuch mit acht parallelen Schreibvorgängen riss das
+Schreiblimit (`short period write limit reached`) — danach scheiterte sogar der
+Login der ganzen Instanz. Deshalb stehen jetzt **drei** gleichzeitige Artikel im
+Code, und der Lauf liest nach jeder Antwort mit, wie viel Kontingent noch frei
+ist (`X-Plenty-Global-Short-Period-Calls-Left`). Wird es eng, wartet er das
+Fenster ab, statt hineinzurennen.
+
+Einen Sammelabruf für Bilder, der den ersten Aufruf sparen würde, gibt es nicht:
+`/rest/items/images` kennt die Instanz nicht, `/rest/items?with=images` liefert
+kein Bildfeld. Beides geprüft.
 
 ## Danach
 
@@ -69,17 +89,13 @@ den Bild-Guard schon einmal zwei Tage blind laufen lassen.
    rund **1.850** steigen
 3. Dann **Import 23** (Listings), danach **Import 22** (Merkmale)
 
-## Testlauf vom 16.09.2026
+## Messläufe vom 16.09.2026
 
-Mit `limit: 5` gegen die ersten fünf offenen Artikel:
+| Lauf | Artikel | Ergebnis |
+|---|---|---|
+| `limit: 5` | 5 | 5 verknüpft, 0 Fehler — der Endpunkt greift |
+| `limit: 40` (8 parallel) | 40 | 36 verknüpft, danach **Instanz ausgesperrt** |
+| `limit: 40` (Wiederholung) | — | Abbruch beim Login: `short period write limit reached` |
+| `limit: 30` (3 parallel, mit Bremse) | 30 | 24 verknüpft, 0 Fehler, 1 Drosseltreffer sauber abgefangen |
 
-```
-verknuepft: 5, fehler: 0
-Artikel 170 -> Variante 1125, Bild 158
-Artikel 171 -> Variante 1127, Bild 165
-Artikel 172 -> Variante 1129, Bild 172
-Artikel 173 -> Variante 1131, Bild 178
-Artikel 174 -> Variante 1133, Bild 184
-```
-
-Der Endpunkt greift. Der Vollauf steht noch aus.
+Offen waren danach noch **1.415** Artikel. Der Vollauf steht aus.

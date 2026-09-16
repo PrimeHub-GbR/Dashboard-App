@@ -23,25 +23,53 @@ const LIMIT = Number(cfg.limit || 0);
 
 const schlafen = (ms) => new Promise(r => setTimeout(r, ms));
 
-// PlentyONE drosselt die REST-API (429). Ein 429 ist kein Fehler, sondern die
-// Bitte zu warten - also warten und erneut fragen, statt den Lauf wegzuwerfen.
+// PlentyONE begrenzt Schreibvorgaenge pro Minute - wie streng, haengt vom Tarif ab
+// und steht nirgends oeffentlich. Jede Antwort nennt aber im Kopf, wie viele Aufrufe
+// im laufenden Fenster noch frei sind und wann es sich erneuert. Danach richtet sich
+// der Lauf: Wird es eng, wartet er von selbst das Fenster ab.
+//
+// Ohne diese Bremse hat ein Lauf mit acht gleichzeitigen Schreibvorgaengen am
+// 16.09.2026 das Limit gerissen ("short period write limit reached") - danach
+// scheiterte sogar der Login. Schneller als PlentyONE erlaubt geht es nicht;
+// dieser Weg nutzt genau das erlaubte Tempo aus.
+let drosselTreffer = 0, drosselWartezeitMs = 0, bremsWartezeitMs = 0, limitInfo = '';
+
 const anfrage = async (pfad, methode, koerper) => {
-  let warte = 3000;
+  let warte = 1000;
   for (let versuch = 1; ; versuch++) {
     try {
-      return await this.helpers.httpRequest({
+      const res = await this.helpers.httpRequest({
         method: methode || 'GET',
         url: cfg.plentyUrl + pfad,
         headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
         body: koerper,
         json: true,
+        returnFullResponse: true,
       });
+      const kopf = res.headers || {};
+      const frei = Number(kopf['x-plenty-global-short-period-calls-left']);
+      const fenster = Number(kopf['x-plenty-global-short-period-decay']);
+      if (!limitInfo && Number.isFinite(frei)) {
+        limitInfo = frei + ' Aufrufe frei, Fenster erneuert sich in ' + fenster + ' s';
+      }
+      // Letzte Reserve stehen lassen - der naechste Lauf soll nicht ins Limit fallen.
+      if (Number.isFinite(frei) && frei <= 5 && Number.isFinite(fenster) && fenster > 0) {
+        bremsWartezeitMs += (fenster + 1) * 1000;
+        await schlafen((fenster + 1) * 1000);
+      }
+      return res.body;
     } catch (e) {
       const code = String(e.httpCode || e.statusCode || (e.response && e.response.status) || '');
       const ist429 = code === '429' || /\b429\b/.test(String(e.message || ''));
-      if (!ist429 || versuch >= 6) throw e;
-      await schlafen(warte);
-      warte = Math.min(warte * 2, 30000);
+      if (!ist429 || versuch >= 8) throw e;
+      drosselTreffer++;
+      // Das Minutenfenster ist voll - es hilft nur abwarten, bis es sich erneuert.
+      const kopf = (e.response && e.response.headers) || {};
+      const fenster = Number(kopf['x-plenty-global-short-period-decay']);
+      const pause = Number.isFinite(fenster) && fenster > 0 ? (fenster + 1) * 1000 : warte;
+      drosselWartezeitMs += pause;
+      await schlafen(pause);
+      warte = Math.min(warte * 2, 60000);
     }
   }
 };
@@ -89,35 +117,50 @@ const offen = Object.keys(hauptVariante)
 
 const zuTun = LIMIT > 0 ? offen.slice(0, LIMIT) : offen;
 
+// Einen Sammelabruf fuer Bilder gibt es nicht: '/rest/items/images' kennt die
+// Instanz nicht (geprueft am 16.09.2026), und '/rest/items?with=images' liefert
+// kein Bildfeld. Es bleibt bei einem Abruf je Artikel - deshalb die Parallelitaet
+// unten.
+
 // 3) Je Artikel das Bild holen und mit der Hauptvariante verknuepfen
 let verknuepft = 0, ohneBild = 0, fehler = 0;
 const beispiele = [];
 const probleme = [];
 
-for (const itemId of zuTun) {
-  const variationId = hauptVariante[itemId];
-  try {
-    const bilder = await anfrage('/rest/items/' + itemId + '/images');
-    const liste = Array.isArray(bilder) ? bilder : (bilder.entries || []);
-    if (!liste.length) { ohneBild++; continue; }
+// Drei Artikel gleichzeitig. Mehr bringt nichts: Das Limit zaehlt Schreibvorgaenge
+// je Minute, nicht gleichzeitige Verbindungen - acht haben es am 16.09.2026 gerissen.
+// Drei ueberbruecken die Wartezeit auf die Antwort, ohne das Fenster zu sprengen.
+const GLEICHZEITIG = 3;
+const schlange = zuTun.slice();
 
-    // Position 1 zuerst - das ist das Cover.
-    liste.sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
-    const imageId = liste[0].id;
+const arbeiter = async () => {
+  while (schlange.length) {
+    const itemId = schlange.shift();
+    const variationId = hauptVariante[itemId];
+    try {
+      const bilder = await anfrage('/rest/items/' + itemId + '/images');
+      const liste = Array.isArray(bilder) ? bilder : (bilder.entries || []);
+      if (!liste.length) { ohneBild++; continue; }
 
-    await anfrage(
-      '/rest/items/' + itemId + '/variations/' + variationId + '/variation_images',
-      'POST',
-      { imageId: imageId }
-    );
-    verknuepft++;
-    if (beispiele.length < 5) beispiele.push(`Artikel ${itemId} -> Variante ${variationId}, Bild ${imageId}`);
-    await schlafen(120);
-  } catch (e) {
-    fehler++;
-    if (probleme.length < 20) probleme.push(`Artikel ${itemId}: ${String(e.message).slice(0, 160)}`);
+      // Position 1 zuerst - das ist das Cover.
+      liste.sort((a, b) => Number(a.position || 0) - Number(b.position || 0));
+      const imageId = liste[0].id;
+
+      await anfrage(
+        '/rest/items/' + itemId + '/variations/' + variationId + '/variation_images',
+        'POST',
+        { imageId: imageId }
+      );
+      verknuepft++;
+      if (beispiele.length < 5) beispiele.push(`Artikel ${itemId} -> Variante ${variationId}, Bild ${imageId}`);
+    } catch (e) {
+      fehler++;
+      if (probleme.length < 20) probleme.push(`Artikel ${itemId}: ${String(e.message).slice(0, 160)}`);
+    }
   }
-}
+};
+
+await Promise.all(Array.from({ length: GLEICHZEITIG }, arbeiter));
 
 return [{
   json: {
@@ -127,6 +170,10 @@ return [{
     verknuepft: verknuepft,
     artikel_ohne_bild_am_artikel: ohneBild,
     fehler: fehler,
+    limit_laut_plentyone: limitInfo || 'kein Limit-Kopf in der Antwort',
+    drossel_treffer: drosselTreffer,
+    wartezeit_drossel_s: Math.round(drosselWartezeitMs / 1000),
+    wartezeit_vorsorglich_s: Math.round(bremsWartezeitMs / 1000),
     limit: LIMIT || 'alle',
     beispiele: beispiele,
     probleme: probleme,
