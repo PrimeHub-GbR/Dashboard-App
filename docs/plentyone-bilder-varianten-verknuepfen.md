@@ -27,21 +27,37 @@ POST /rest/items/{itemId}/variations/{variationId}/variation_images
 
 | Knoten | Aufgabe |
 |---|---|
+| **Zeitplan 04:30** | **läuft jeden Tag von allein — niemand muss etwas drücken** |
 | Manuell starten | Klick in der n8n-Oberfläche → verknüpft **alle** offenen Artikel |
 | Webhook Start | `POST /webhook/bilder-varianten`, Header `x-primehub-token`, Body `{"limit": N}` |
 | Konfiguration | Zugang, `limit` (0 = alle) |
 | PlentyONE Login | Token holen |
 | Verknuepfen | liest, filtert, schreibt |
 
+### Der tägliche Lauf
+
+**04:30 Uhr, jeden Tag.** Der Zeitpunkt sitzt zwischen den PlentyONE-Importen
+(02:00–04:00) und dem eBay-Statusbericht (05:00): Neu importierte Artikel sind
+verknüpft, bevor der Bericht sie zählt. Steht in der Nacht nichts an, ist der
+Lauf nach einer halben Minute wieder fertig — er schreibt nur, wo wirklich eine
+Verknüpfung fehlt.
+
+Sichtbar wird das Ergebnis im eBay-Statusbericht: Bleibt „ohne Artikelbild" bei
+null, hat der Lauf seine Arbeit getan. Steigt die Zahl, lief etwas schief — dann
+in n8n unter *Executions* nachsehen.
+
 **Wiederholbar.** Der Lauf liest zuerst, welche Varianten schon ein Bild haben,
-und überspringt sie. Mehrfaches Starten schadet nicht — nach jedem künftigen
-Artikelimport einmal laufen lassen.
+und überspringt sie. Mehrfaches Starten schadet nicht, doppelte Verknüpfungen
+entstehen nicht.
 
 **Eingebaute Sicherung:** Meldet keine einzige Variante ein Bildfeld, bricht der
 Lauf ab, statt blind 2.000 Verknüpfungen zu schreiben. So eine Fehlmessung hat
 den Bild-Guard schon einmal zwei Tage blind laufen lassen.
 
-## So startest du den Vollauf
+## Den ersten Vollauf von Hand anstoßen
+
+Danach übernimmt der Zeitplan. Nur beim ersten Mal lohnt der Klick, weil ein
+ganzer Katalog ansteht statt einer Handvoll neuer Titel.
 
 1. https://n8n.primehubgbr.com öffnen
 2. Links **Workflows** → **„Bilder mit Varianten verknuepfen (PrimeHub)"**
