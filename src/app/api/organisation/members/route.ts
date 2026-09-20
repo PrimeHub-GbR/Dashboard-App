@@ -69,7 +69,7 @@ export async function GET() {
   const service = createSupabaseServiceClient()
   const { data, error: dbError } = await service
     .from('employees')
-    .select('id, name, position, reports_to, reports_to_ids, birth_date, home_address, tax_number, phone, email, arbeitsvertrag_path, personalfragebogen_path, auth_user_id, color, is_active, target_hours_per_month, weekly_schedule, pin')
+    .select('id, name, position, reports_to, reports_to_ids, birth_date, home_address, tax_number, phone, email, arbeitsvertrag_path, personalfragebogen_path, auth_user_id, color, is_active, mobiles_arbeiten, target_hours_per_month, weekly_schedule, pin')
     .order('position', { ascending: false })
     .order('name')
 

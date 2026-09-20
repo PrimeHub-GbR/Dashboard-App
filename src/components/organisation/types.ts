@@ -29,6 +29,8 @@ export interface OrgMember {
   auth_user_id: string | null
   color: string
   is_active: boolean
+  /** Mobiles Arbeiten: traegt Arbeitszeit pauschal in der App ein (Mig 146) */
+  mobiles_arbeiten?: boolean
   target_hours_per_month: number
   weekly_schedule: WeekSchedule
   pin_is_set: boolean

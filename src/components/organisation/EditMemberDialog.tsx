@@ -47,6 +47,7 @@ export function EditMemberDialog({
     target_hours_per_month: 160,
     weekly_schedule:        { ...DEFAULT_SCHEDULE } as WeekSchedule,
     is_active:              true,
+    mobiles_arbeiten:       false,
     birth_date:             '',
     home_address:           '',
     tax_number:             '',
@@ -70,6 +71,7 @@ export function EditMemberDialog({
         target_hours_per_month: member.target_hours_per_month ?? 160,
         weekly_schedule:        member.weekly_schedule ?? { ...DEFAULT_SCHEDULE },
         is_active:              member.is_active,
+        mobiles_arbeiten:       member.mobiles_arbeiten ?? false,
         birth_date:             member.birth_date ?? '',
         home_address:           member.home_address ?? '',
         tax_number:             member.tax_number ?? '',
@@ -173,11 +175,13 @@ export function EditMemberDialog({
         body.target_hours_per_month = form.target_hours_per_month
         body.weekly_schedule        = form.weekly_schedule
         body.is_active              = form.is_active
+        body.mobiles_arbeiten       = form.mobiles_arbeiten
       } else {
         body.color                  = form.color
         body.target_hours_per_month = form.target_hours_per_month
         body.weekly_schedule        = form.weekly_schedule
         body.is_active              = form.is_active
+        body.mobiles_arbeiten       = form.mobiles_arbeiten
       }
 
       const res = await fetch(`/api/organisation/members/${member.id}`, {
@@ -359,6 +363,19 @@ export function EditMemberDialog({
                 <Switch
                   checked={form.is_active}
                   onCheckedChange={(checked) => setForm(f => ({ ...f, is_active: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label>Mobiles Arbeiten</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Trägt Arbeitszeit pauschal (Stunden + Minuten) in der App selbst ein – ohne Kiosk, sofort wirksam.
+                  </p>
+                </div>
+                <Switch
+                  checked={form.mobiles_arbeiten}
+                  onCheckedChange={(checked) => setForm(f => ({ ...f, mobiles_arbeiten: checked }))}
                 />
               </div>
 

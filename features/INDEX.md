@@ -72,6 +72,7 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | Check-in, Stundenauswertung, Schichtplanung, ArbZG | Deployed | [zeiterfassung/overview.md](zeiterfassung/overview.md) |
+| Mobiles Arbeiten — Pauschalzeit (Stunden+Minuten) fuer Remote-Mitarbeiter, per Chef-Schalter, sofort wirksam (App; Web nur Schalter) | Deployed | [zeiterfassung/mobiles-arbeiten.md](zeiterfassung/mobiles-arbeiten.md) |
 
 ## Aufgaben `/dashboard/aufgaben`
 
