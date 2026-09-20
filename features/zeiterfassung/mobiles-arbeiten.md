@@ -75,9 +75,10 @@ Löschen als Eigentümer. `flutter analyze` und `tsc --noEmit` ohne Befund.
 ## Ergänzung 2026-09-20: Position „Finanzbuchhaltung" + „Aktiv = beschäftigt" (Migration 147)
 
 - Neue Position `finanzbuchhalter`: Rechte wie Mitarbeiter (Level 1), berichtet direkt an die GF
-  (Organigramm Ebene 2 neben Manager, lila). Zusätzlich **Lesezugriff** auf Stunden, Abwesenheiten
-  und Urlaubstage aller Mitarbeiter über den App-Tab **„Lohn"** (read-only; nutzt dieselben RPCs wie
-  die Chef-Ansicht, Gate `is_chef_or_payroll()`).
+  (Organigramm Ebene 2 neben Manager, lila). Zusaetzlich App-Tab "Lohn": **nur Monatsuebersicht**
+  (Name, Ist/Soll-Stunden, genehmigte Urlaubstage des Monats) - keine Stempelzeiten, keine
+  Detailansicht, kein Resturlaub. Gate `is_chef_or_payroll()` nur auf `get_all_employees_month_hours`,
+  `get_employee_balance`, `get_absence_summary` (Mig 150 sperrt die Detail-RPCs wieder auf `is_chef()`).
 - `employees.is_active` heißt jetzt „beschäftigt". Wer Mobiles Arbeiten aktiv hat, wird am Kiosk
   automatisch ausgeblendet (Web-Kiosk und Toggle-Route filtern `mobiles_arbeiten = false`). Dadurch
   erscheinen Remote-Mitarbeiter überall (Skill-Matrix, Team, Urlaub, Aufgaben) ohne Extra-Pflege.

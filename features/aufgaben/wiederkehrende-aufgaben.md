@@ -3,7 +3,7 @@
 **Tab:** App → Aufgaben → Unterrubrik „Wiederkehrend" · Web `/dashboard/manager` (Fristen-Verwaltung)
 **Status:** Deployed
 **Spec-Pfad:** `features/aufgaben/wiederkehrende-aufgaben.md`
-**Migrationen:** 148 (Empfänger für alle) + 149 (Wiederkehrend, GF-Meldung) · Edge `notify-scheduled` v10
+**Migrationen:** 148 (Empfänger für alle) + 149 (Wiederkehrend, GF-Meldung) + 150 (Demo-Empfaenger bei aktivem Demo-Schalter) · Edge `notify-scheduled` v10
 **App-Version:** 1.0.58+79
 
 ---
