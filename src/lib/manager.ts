@@ -22,11 +22,25 @@ export interface Reminder {
   can_manage: boolean
 }
 
-/** Wählbarer Frist-Empfänger (GF oder Manager). */
+/** Wählbarer Frist-Empfänger (jeder aktive Mitarbeiter, Mig 148). */
 export interface RecipientOption {
   id: string
   name: string
-  position: 'geschaeftsfuehrer' | 'manager' | string
+  position: 'geschaeftsfuehrer' | 'manager' | 'finanzbuchhalter' | 'mitarbeiter' | string
+}
+
+/** Kürzel + Volltext einer Position für Empfänger-Listen. */
+export const POSITION_SHORT: Record<string, string> = {
+  geschaeftsfuehrer: 'GF',
+  manager: 'MGR',
+  finanzbuchhalter: 'FIBU',
+  mitarbeiter: 'MA',
+}
+export const POSITION_FULL: Record<string, string> = {
+  geschaeftsfuehrer: 'Geschäftsführung',
+  manager: 'Manager',
+  finanzbuchhalter: 'Finanzbuchhaltung',
+  mitarbeiter: 'Mitarbeiter',
 }
 
 export interface CompanyInfo {

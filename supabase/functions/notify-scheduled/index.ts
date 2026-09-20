@@ -8,6 +8,7 @@
 //   { "mode": "unplanned_work" }  -> Chef-Push: gestern gearbeitet, NICHT geplant
 //   { "mode": "tasks_due" }       -> WhatsApp an MA (faellige Aufgabe) + Push an Vorgesetzten
 //   { "mode": "gf_frist_reminders" } -> WhatsApp + Push an GF: Frist in X Tagen faellig
+//   { "mode": "frist_overdue" }   -> GF-Push: wiederkehrende Aufgabe (Frist) nicht bis Stichtag erledigt
 //
 // FCM v1 via Service-Account (geteilt mit notify-employee-event).
 
@@ -394,6 +395,37 @@ Deno.serve(async (req) => {
           await admin.rpc("mark_gf_reminder_whatsapp_sent", {
             p_id: r.reminder_id,
             p_due: r.next_due_date,
+          });
+        }
+      }
+    } else if (mode === "frist_overdue") {
+      // Mig 149: wiederkehrende Aufgaben (Fristen), die bis zum Stichtag NICHT
+      // erledigt wurden -> einmal pro Periode Push an die Geschaeftsfuehrung.
+      const fmtDate = (d: string): string => {
+        const [y, m, dd] = (d || "").split("-");
+        return dd && m && y ? `${dd}.${m}.${y}` : d;
+      };
+      const { data: rows } = await admin.rpc("gf_reminder_overdue_internal");
+      const list = (rows ?? []) as Array<{
+        reminder_id: string;
+        title: string;
+        next_due_date: string;
+        days_overdue: number;
+        recipient_names: string | null;
+        gf_ids: string[];
+      }>;
+      if (list.length === 0) {
+        return json({ sent: 0, reason: "keine ueberfaelligen Fristen" });
+      }
+      for (const r of list) {
+        const who = r.recipient_names ? ` (zuständig: ${r.recipient_names})` : "";
+        for (const gf of r.gf_ids ?? []) {
+          targets.push({
+            employeeId: gf,
+            title: "Wiederkehrende Aufgabe nicht erledigt",
+            body:
+              `„${r.title}"${who} war am ${fmtDate(r.next_due_date)} fällig ` +
+              `und ist seit ${r.days_overdue} Tag(en) offen.`,
           });
         }
       }

@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Reminder, Recurrence, RecipientOption, RECURRENCE_OPTIONS } from '@/lib/manager'
+import { Reminder, Recurrence, RecipientOption, RECURRENCE_OPTIONS, POSITION_SHORT, POSITION_FULL } from '@/lib/manager'
 
 interface ReminderDialogProps {
   open: boolean
@@ -125,7 +125,9 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
           <DialogTitle>{isEdit ? 'Frist bearbeiten' : 'Neue Frist'}</DialogTitle>
           <DialogDescription>
             Pflichtfristen — Pop-up, Push &amp; WhatsApp gehen an die gewählten
-            Empfänger (GF/Manager). Abhaken gilt geteilt für alle Empfänger.
+            Empfänger (jeder Mitarbeiter wählbar) und erscheinen in der App unter
+            Aufgaben → Wiederkehrend. Nicht bis zum Stichtag abgehakt → Meldung an die GF.
+            Abhaken gilt geteilt für alle Empfänger.
           </DialogDescription>
         </DialogHeader>
 
@@ -193,7 +195,7 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
             {optionsLoading ? (
               <p className="text-sm text-muted-foreground">Lädt…</p>
             ) : options.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Keine GF/Manager gefunden.</p>
+              <p className="text-sm text-muted-foreground">Keine aktiven Mitarbeiter gefunden.</p>
             ) : (
               <div className="space-y-2 rounded-md border p-3">
                 {options.map((o) => (
@@ -204,9 +206,9 @@ export function ReminderDialog({ open, onOpenChange, reminder, onSaved }: Remind
                     />
                     <span>
                       {o.name}
-                      {o.position === 'geschaeftsfuehrer' && (
-                        <span className="text-muted-foreground"> (GF)</span>
-                      )}
+                      <span className="text-muted-foreground">
+                        {' '}({POSITION_SHORT[o.position] ?? 'MA'}) · {POSITION_FULL[o.position] ?? 'Mitarbeiter'}
+                      </span>
                     </span>
                   </label>
                 ))}

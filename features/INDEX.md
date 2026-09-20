@@ -79,6 +79,7 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | To-Do-Liste in App-Struktur (Meine/Mitarbeiter, Erledigt, Archiv), Detail mit Kommentaren, Delegation | Deployed | [aufgaben/overview.md](aufgaben/overview.md) |
+| Wiederkehrende Aufgaben (GF-Fristen an jeden Mitarbeiter delegierbar, Unterrubrik in der App, GF-Meldung bei Nichterledigung) | Deployed | [aufgaben/wiederkehrende-aufgaben.md](aufgaben/wiederkehrende-aufgaben.md) |
 
 ---
 
