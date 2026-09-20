@@ -385,9 +385,14 @@ export function EditMemberDialog({
               </div>
 
               <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-muted/30"
-                style={member.pin_is_set ? undefined : { borderColor: 'rgb(251 146 60 / 0.3)' }}>
+                style={member.pin_is_set || form.mobiles_arbeiten ? undefined : { borderColor: 'rgb(251 146 60 / 0.3)' }}>
                 <div className="flex items-center gap-2">
-                  {member.pin_is_set ? (
+                  {form.mobiles_arbeiten ? (
+                    <>
+                      <div className="w-2 h-2 rounded-full bg-amber-400" />
+                      <span className="text-xs text-muted-foreground">Kein Kiosk – Mobiles Arbeiten (PIN nicht nötig)</span>
+                    </>
+                  ) : member.pin_is_set ? (
                     <>
                       <div className="w-2 h-2 rounded-full bg-green-500" />
                       <span className="text-xs text-muted-foreground">PIN gesetzt</span>
@@ -399,7 +404,7 @@ export function EditMemberDialog({
                     </>
                   )}
                 </div>
-                {member.pin_is_set && (
+                {member.pin_is_set && !form.mobiles_arbeiten && (
                   <button
                     type="button"
                     onClick={handleResetPin}
