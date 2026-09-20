@@ -36,12 +36,14 @@ const POSITION_BORDER: Record<string, string> = {
   geschaeftsfuehrer: 'border-yellow-500/50 bg-yellow-500/10',
   manager:           'border-blue-500/50 bg-blue-500/10',
   mitarbeiter:       'border-green-500/30 bg-green-500/5',
+  finanzbuchhalter:  'border-purple-500/50 bg-purple-500/10',
 }
 
 const AVATAR_BG: Record<string, string> = {
   geschaeftsfuehrer: 'bg-yellow-500/20 text-yellow-300',
   manager:           'bg-blue-500/20 text-blue-300',
   mitarbeiter:       'bg-green-500/20 text-green-300',
+  finanzbuchhalter:  'bg-purple-500/20 text-purple-300',
 }
 
 export function OrgMemberCard({
@@ -61,6 +63,10 @@ export function OrgMemberCard({
   const firstName = parts.slice(0, parts.length > 1 ? -1 : 1).join(' ')
 
   const showKioskDot = member.position !== 'geschaeftsfuehrer'
+  const isMobil = member.mobiles_arbeiten === true
+  const statusText = !member.is_active
+    ? 'Inaktiv (nicht mehr beschäftigt)'
+    : isMobil ? 'Aktiv · Mobiles Arbeiten (kein Kiosk)' : 'Aktiv · Kiosk'
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -82,12 +88,12 @@ export function OrgMemberCard({
                   <span
                     className={cn(
                       'absolute top-2 left-2 h-2.5 w-2.5 rounded-full',
-                      member.is_active ? 'bg-green-500' : 'bg-red-500'
+                      !member.is_active ? 'bg-red-500' : isMobil ? 'bg-amber-400' : 'bg-green-500'
                     )}
                   />
                 </TooltipTrigger>
                 <TooltipContent side="top" className="text-xs">
-                  {member.is_active ? 'Für Kiosk aktiv' : 'Für Kiosk inaktiv'}
+                  {statusText}
                 </TooltipContent>
               </Tooltip>
             )}

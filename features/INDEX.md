@@ -95,6 +95,7 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | Mitarbeiter-Kontaktfelder + Dokumente-API | Deployed | — |
+| Position Finanzbuchhaltung (Organigramm Ebene 2, Skill-Matrix FIBU, App-Tab Lohn read-only) + Aktiv = beschaeftigt / Kiosk folgt Mobiles Arbeiten | Deployed | [zeiterfassung/mobiles-arbeiten.md](zeiterfassung/mobiles-arbeiten.md) |
 
 ## Skill-Matrix `/dashboard/skill-matrix`
 

@@ -14,7 +14,7 @@ const weeklyScheduleSchema = z.object({
 
 const createMemberSchema = z.object({
   name:                   z.string().min(1).max(100),
-  position:               z.enum(['geschaeftsfuehrer', 'manager', 'mitarbeiter']),
+  position:               z.enum(['geschaeftsfuehrer', 'manager', 'mitarbeiter', 'finanzbuchhalter']),
   reports_to:             z.string().uuid().nullable().optional(),
   pin:                    z.string().regex(/^\d{4,8}$/).optional(),
   color:                  z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#22c55e'),

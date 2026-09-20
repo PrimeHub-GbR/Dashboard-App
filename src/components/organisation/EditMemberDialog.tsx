@@ -86,7 +86,7 @@ export function EditMemberDialog({
   if (!member) return null
 
   const isGF = member.position === 'geschaeftsfuehrer'
-  const showKioskFields = form.position === 'mitarbeiter' || form.position === 'manager'
+  const showKioskFields = form.position !== 'geschaeftsfuehrer'
   const canEditAll = userRole === 'admin'
 
   async function handleResetPin() {
@@ -356,10 +356,15 @@ export function EditMemberDialog({
           {/* ── Zeiterfassung (Kiosk) ── */}
           {showKioskFields && (
             <div className="space-y-3 border-t pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Zeiterfassung (Kiosk)</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Zeiterfassung</p>
 
-              <div className="flex items-center justify-between">
-                <Label>Für Kiosk aktiv</Label>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label>Aktiv (beschäftigt)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Inaktive erscheinen nirgends mehr (Kiosk, Team, Skill-Matrix, Urlaub).
+                  </p>
+                </div>
                 <Switch
                   checked={form.is_active}
                   onCheckedChange={(checked) => setForm(f => ({ ...f, is_active: checked }))}
@@ -370,7 +375,7 @@ export function EditMemberDialog({
                 <div>
                   <Label>Mobiles Arbeiten</Label>
                   <p className="text-xs text-muted-foreground">
-                    Trägt Arbeitszeit pauschal (Stunden + Minuten) in der App selbst ein – ohne Kiosk, sofort wirksam.
+                    Trägt Arbeitszeit pauschal (Stunden + Minuten) in der App selbst ein – sofort wirksam. Wird am Kiosk automatisch ausgeblendet.
                   </p>
                 </div>
                 <Switch

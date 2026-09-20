@@ -118,6 +118,9 @@ export function OrgChart({ members, userRole, managerOwnId, onRefresh }: OrgChar
 
   const gfs       = members.filter(m => m.position === 'geschaeftsfuehrer')
   const managers  = members.filter(m => m.position === 'manager')
+  // Finanzbuchhaltung berichtet direkt an die GF → gleiche Ebene wie Manager.
+  const payroll   = members.filter(m => m.position === 'finanzbuchhalter')
+  const level2    = [...managers, ...payroll]
   const employees = members.filter(m => m.position === 'mitarbeiter')
 
   // Manager sieht nur seine eigenen Mitarbeiter
@@ -190,15 +193,15 @@ export function OrgChart({ members, userRole, managerOwnId, onRefresh }: OrgChar
             </div>
           )}
 
-          {/* GF → Manager Verbindung */}
-          {managers.length > 0 && gfs.length > 0 && (
+          {/* GF → Manager/Finanzbuchhaltung Verbindung */}
+          {level2.length > 0 && gfs.length > 0 && (
             <GfManagerConnector gfCount={gfs.length} />
           )}
 
-          {/* Ebene 2: Manager */}
-          {managers.length > 0 && (
+          {/* Ebene 2: Manager + Finanzbuchhaltung (direkt unter der GF) */}
+          {level2.length > 0 && (
             <div className="flex gap-6 items-start">
-              {managers.map((manager) => (
+              {level2.map((manager) => (
                 <OrgMemberCard
                   key={manager.id}
                   member={manager}

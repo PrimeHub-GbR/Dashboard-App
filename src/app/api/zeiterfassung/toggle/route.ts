@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     .select('id, name, color, pin, is_active, target_hours_per_month')
     .eq('id', employee_id)
     .eq('is_active', true)
+    .eq('mobiles_arbeiten', false) // Remote-Mitarbeiter stempeln nicht am Kiosk
     .single()
 
   if (empError || !employee) {

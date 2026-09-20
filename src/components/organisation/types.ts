@@ -1,10 +1,14 @@
-export type OrgPosition = 'geschaeftsfuehrer' | 'manager' | 'mitarbeiter'
+export type OrgPosition = 'geschaeftsfuehrer' | 'manager' | 'mitarbeiter' | 'finanzbuchhalter'
 
 export const POSITION_LABELS: Record<OrgPosition, string> = {
   geschaeftsfuehrer: 'Geschäftsführer',
   manager: 'Manager',
   mitarbeiter: 'Mitarbeiter',
+  finanzbuchhalter: 'Finanzbuchhaltung',
 }
+
+/** Positionen, die direkt an die Geschäftsführung berichten (Ebene 2 im Organigramm) */
+export const LEVEL2_POSITIONS: OrgPosition[] = ['manager', 'finanzbuchhalter']
 
 export type WeekSchedule = {
   mon: number; tue: number; wed: number; thu: number

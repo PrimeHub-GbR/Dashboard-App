@@ -4,7 +4,7 @@
 **Status:** Deployed
 **Spec-Pfad:** `features/zeiterfassung/mobiles-arbeiten.md`
 **Migration:** `supabase/migrations/146_mobiles_arbeiten.sql` (angewendet 2026-09-20)
-**App-Version:** 1.0.55+76
+**App-Version:** 1.0.55+76 (Ergänzung Position Finanzbuchhaltung: Mig 147, App 1.0.56+77)
 
 ---
 
@@ -71,3 +71,19 @@ SQL-Funktionstest mit dem Demo-Mitarbeiter (simulierter Auth-Kontext, per Except
 Insert 390 min → Upsert 420 min (eine Zeile) → `get_employee_balance` +420 → Negativfälle
 (Zukunft, 8 Tage zurück, 0 min, 25 h, ohne Flag) abgelehnt → `pauschal_list` ohne Mobil-Zeile →
 Löschen als Eigentümer. `flutter analyze` und `tsc --noEmit` ohne Befund.
+
+## Ergänzung 2026-09-20: Position „Finanzbuchhaltung" + „Aktiv = beschäftigt" (Migration 147)
+
+- Neue Position `finanzbuchhalter`: Rechte wie Mitarbeiter (Level 1), berichtet direkt an die GF
+  (Organigramm Ebene 2 neben Manager, lila). Zusätzlich **Lesezugriff** auf Stunden, Abwesenheiten
+  und Urlaubstage aller Mitarbeiter über den App-Tab **„Lohn"** (read-only; nutzt dieselben RPCs wie
+  die Chef-Ansicht, Gate `is_chef_or_payroll()`).
+- `employees.is_active` heißt jetzt „beschäftigt". Wer Mobiles Arbeiten aktiv hat, wird am Kiosk
+  automatisch ausgeblendet (Web-Kiosk und Toggle-Route filtern `mobiles_arbeiten = false`). Dadurch
+  erscheinen Remote-Mitarbeiter überall (Skill-Matrix, Team, Urlaub, Aufgaben) ohne Extra-Pflege.
+- Web: Position in Typen/Zod/Dialogen/Organigramm/Skill-Matrix (Kürzel FIBU); Labels „Aktiv (beschäftigt)".
+- Gepatchte RPCs (Gate): get_employee_balance, get_time_entries, get_absence_summary, get_vacation_balance,
+  get_vacation_overview, get_employee_vacation_months, get_archive_employees, get_employee_archive*,
+  get_month_completion_facts, mobile_work_list, pauschal_list, get_team_absences,
+  get_all_employees_month_hours (jetzt SECURITY DEFINER + Gate), admin_update_employee (2 Overloads),
+  admin_create_employee (Position erlaubt).

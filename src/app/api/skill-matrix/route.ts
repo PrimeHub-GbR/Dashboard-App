@@ -33,7 +33,7 @@ export async function GET() {
   }
 
   // Reihenfolge: Geschäftsführer → Manager → Mitarbeiter, dann nach Name
-  const rank: Record<string, number> = { geschaeftsfuehrer: 0, manager: 1, mitarbeiter: 2 }
+  const rank: Record<string, number> = { geschaeftsfuehrer: 0, manager: 1, finanzbuchhalter: 2, mitarbeiter: 3 }
   const employees = (employeesRes.data ?? [])
     .filter((e) => e.is_active)
     .sort((a, b) => (rank[a.position] ?? 9) - (rank[b.position] ?? 9) || a.name.localeCompare(b.name))

@@ -1,6 +1,6 @@
 export type SkillStatus = 'kann' | 'lernt' | 'nein'
 
-export type Position = 'geschaeftsfuehrer' | 'manager' | 'mitarbeiter'
+export type Position = 'geschaeftsfuehrer' | 'manager' | 'mitarbeiter' | 'finanzbuchhalter'
 
 export type UserRole = 'admin' | 'manager' | 'staff'
 
@@ -36,10 +36,12 @@ export const POSITION_LABEL: Record<Position, string> = {
   geschaeftsfuehrer: 'Geschäftsführung',
   manager: 'Manager',
   mitarbeiter: 'Mitarbeiter',
+  finanzbuchhalter: 'Finanzbuchhaltung',
 }
 
 export const POSITION_SHORT: Record<Position, string> = {
   geschaeftsfuehrer: 'GF',
   manager: 'MGR',
   mitarbeiter: 'MA',
+  finanzbuchhalter: 'FIBU',
 }

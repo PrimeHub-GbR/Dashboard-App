@@ -63,7 +63,7 @@ export function AddMemberDialog({
   const personalfragebogenRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
 
-  const showKioskFields = form.position === 'mitarbeiter' || form.position === 'manager'
+  const showKioskFields = form.position !== 'geschaeftsfuehrer'
 
   function resetForm() {
     setForm({
@@ -93,7 +93,7 @@ export function AddMemberDialog({
   async function handleSave() {
     if (!form.name.trim())        { toast.error('Name ist erforderlich'); return }
     if (!form.position)           { toast.error('Position ist erforderlich'); return }
-    if (form.position === 'mitarbeiter' && userRole === 'admin' && !form.reports_to) {
+    if ((form.position === 'mitarbeiter' || form.position === 'finanzbuchhalter') && userRole === 'admin' && !form.reports_to) {
       toast.error('Vorgesetzter ist erforderlich'); return
     }
     if (!form.birth_date)         { toast.error('Geburtsdatum ist erforderlich'); return }
@@ -186,7 +186,7 @@ export function AddMemberDialog({
               <div className="space-y-2">
                 <Label>
                   Vorgesetzter
-                  {form.position === 'mitarbeiter' && <span className="text-destructive ml-1">*</span>}
+                  {(form.position === 'mitarbeiter' || form.position === 'finanzbuchhalter') && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 <Select
                   value={form.reports_to ?? '__none__'}

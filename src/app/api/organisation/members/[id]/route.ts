@@ -14,7 +14,7 @@ const weeklyScheduleSchema = z.object({
 
 const updateMemberSchema = z.object({
   name:                   z.string().min(1).max(100).optional(),
-  position:               z.enum(['geschaeftsfuehrer', 'manager', 'mitarbeiter']).optional(),
+  position:               z.enum(['geschaeftsfuehrer', 'manager', 'mitarbeiter', 'finanzbuchhalter']).optional(),
   reports_to:             z.string().uuid().nullable().optional(),
   reset_pin:              z.boolean().optional(), // true = PIN auf null setzen
   color:                  z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
