@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ShoppingBag, CheckCircle2, XCircle, AlertTriangle, Copy, Check,
-  RefreshCw, Loader2, Clock, ChevronDown, Info, ArrowRight,
+  RefreshCw, Loader2, Clock, ChevronDown, Info, ArrowRight, ListChecks,
 } from 'lucide-react'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -187,7 +192,7 @@ const GRUPPEN: Gruppe[] = [
         bedeutung: 'eBay hat das Angebot abgelehnt — der Grund steht unten in der Liste.',
         ziel: '0',
         bewerten: (v) => (v === 0 ? 'ok' : 'fehler'),
-        tun: () => 'Grund unten aufklappen, Ursache beheben, dann „Market-Listings prüfen" erneut ausführen.',
+        tun: () => 'Grund unten aufklappen, Ursache beheben, dann unten „Alle Listings neu prüfen" klicken.',
       },
       {
         key: 'nicht_geprueft',
@@ -196,7 +201,7 @@ const GRUPPEN: Gruppe[] = [
         ziel: '0',
         bewerten: (v) => (v === 0 ? 'ok' : 'warnung'),
         tun: () =>
-          'In PlentyONE: Artikel » Market-Listings » alle markieren » „Market-Listings prüfen".',
+          'Läuft jede Nacht um 04:30 von selbst. Sofort geht es unten über „Alle Listings neu prüfen".',
       },
       {
         key: 'merkmale',
@@ -301,7 +306,7 @@ function naechsterSchritt(z: Zahlen): { ampel: Ampel; titel: string; text: strin
     return {
       ampel: 'fehler',
       titel: 'Prüfung fehlgeschlagen',
-      text: `eBay hat ${w('geprueft_fehler')} Angebote abgelehnt. Gründe unten unter „Nicht startklar" aufklappen und beheben.`,
+      text: `eBay hat ${w('geprueft_fehler')} Angebote abgelehnt. Gründe unten unter „Nicht startklar" aufklappen, beheben und dann „Alle Listings neu prüfen" klicken.`,
     }
   }
   if (w('verwaiste_listings') > 0) {
@@ -315,7 +320,7 @@ function naechsterSchritt(z: Zahlen): { ampel: Ampel; titel: string; text: strin
     return {
       ampel: 'warnung',
       titel: 'Bilder fehlen noch an den Varianten',
-      text: `${w('ohne_bild')} Bücher werden zurückgehalten, weil das Cover nicht an der Variante hängt. Der Lauf „Bilder mit Varianten verknüpfen" um 04:30 erledigt das von selbst — danach hier aktualisieren.`,
+      text: `${w('ohne_bild')} Bücher werden zurückgehalten, weil das Cover nicht an der Variante hängt. Der Lauf „Bilder mit Varianten verknüpfen" um 04:00 erledigt das von selbst — danach hier aktualisieren.`,
     }
   }
   if (w('ohne_gpsr') > 0) {
@@ -329,7 +334,7 @@ function naechsterSchritt(z: Zahlen): { ampel: Ampel; titel: string; text: strin
     return {
       ampel: 'warnung',
       titel: 'Market-Listings prüfen',
-      text: `${w('nicht_geprueft')} Angebote sind angelegt, aber noch nicht gegen eBay geprüft. In PlentyONE: Artikel » Market-Listings » alle markieren » „Market-Listings prüfen".`,
+      text: `${w('nicht_geprueft')} Angebote sind angelegt, aber noch nicht gegen eBay geprüft. Das erledigt der Lauf um 04:30 von selbst — oder sofort unten über „Alle Listings neu prüfen".`,
     }
   }
   if (w('ohne_listing') > 0) {
@@ -368,6 +373,8 @@ const AMPEL_STIL: Record<Ampel, { rahmen: string; text: string; Icon: typeof Che
     Icon: Info,
   },
 }
+
+const PRUEF_KEY = 'plentyone-listings-pruefen-start'
 
 const datum = (iso: string) =>
   new Date(iso).toLocaleString('de-DE', {
@@ -517,6 +524,10 @@ export function EbayKette({
   const [basis, setBasis] = useState('https://dashboard.primehubgbr.com')
   // Die Abhol-URLs braucht man einmal beim Einrichten, danach nie wieder.
   const [urlsOffen, setUrlsOffen] = useState(false)
+  // Startzeit des laufenden "Alle Listings neu prüfen" (ISO) — null = läuft nicht.
+  const [pruefStart, setPruefStart] = useState<string | null>(null)
+  const [pruefFehler, setPruefFehler] = useState<string | null>(null)
+  const [pruefFertig, setPruefFertig] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') setBasis(window.location.origin)
@@ -567,6 +578,59 @@ export function EbayKette({
       setFehler('Der Bericht konnte nicht angestoßen werden.')
     } finally {
       setRechnet(false)
+    }
+  }
+
+  /**
+   * Prüft JEDES Market-Listing erneut (n8n "Market-Listings ALLE neu pruefen").
+   * Der Lauf dauert 10–15 Minuten und stösst am Ende selbst den Statusbericht an —
+   * fertig ist er also, sobald ein Bericht eintrifft, der jünger ist als der Start.
+   * Der Start wird im Browser gemerkt, damit ein Neuladen die Anzeige nicht verliert.
+   */
+  const aufPruefungWarten = useCallback(async (start: string) => {
+    const ende = new Date(start).getTime() + 30 * 60_000
+    while (Date.now() < ende) {
+      await new Promise((r) => setTimeout(r, 20_000))
+      const neu = await holen()
+      if (neu && new Date(neu).getTime() > new Date(start).getTime()) {
+        setPruefFertig(true)
+        setPruefStart(null)
+        try { localStorage.removeItem(PRUEF_KEY) } catch { /* egal */ }
+        return
+      }
+    }
+    setPruefStart(null)
+    try { localStorage.removeItem(PRUEF_KEY) } catch { /* egal */ }
+    setPruefFehler('Nach 30 Minuten kam kein neuer Bericht — Lauf „Market-Listings ALLE neu pruefen" in n8n ansehen.')
+  }, [holen])
+
+  useEffect(() => {
+    let start: string | null = null
+    try { start = localStorage.getItem(PRUEF_KEY) } catch { /* kein Speicher */ }
+    if (start && Date.now() - new Date(start).getTime() < 30 * 60_000) {
+      setPruefStart(start)
+      void aufPruefungWarten(start)
+    }
+  }, [aufPruefungWarten])
+
+  async function alleNeuPruefen() {
+    setPruefFehler(null)
+    setPruefFertig(false)
+    const start = new Date().toISOString()
+    setPruefStart(start)
+    try {
+      const res = await fetch('/api/plentyone/ebay/listings-pruefen', { method: 'POST' })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        setPruefFehler(j.error ?? `Start fehlgeschlagen (${res.status})`)
+        setPruefStart(null)
+        return
+      }
+      try { localStorage.setItem(PRUEF_KEY, start) } catch { /* kein Speicher */ }
+      await aufPruefungWarten(start)
+    } catch {
+      setPruefFehler('Die Prüfung konnte nicht angestoßen werden.')
+      setPruefStart(null)
     }
   }
 
@@ -715,6 +779,71 @@ export function EbayKette({
             )}
           </>
         )}
+
+        {/* ------------------------------------------ Alle Listings neu prüfen */}
+        <div className="space-y-2 rounded-lg border border-border px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-sm font-medium text-foreground">Alle Listings neu prüfen</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Prüft jedes Market-Listing erneut gegen eBay — auch bereits bestandene und
+                fehlgeschlagene. Nötig nach Änderungen am eBay-Konto (z.&nbsp;B. Top-Shop-Gebühren)
+                oder nach einer Korrektur. Nachts um 04:30 laufen nur die ungeprüften.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={pruefStart !== null}
+                  className="gap-1.5"
+                >
+                  {pruefStart
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    : <ListChecks className="h-3.5 w-3.5" aria-hidden />}
+                  {pruefStart ? 'Prüfung läuft…' : 'Alle neu prüfen'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Alle Market-Listings neu prüfen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    PlentyONE prüft jedes Angebot erneut gegen eBay und rechnet dabei auch die
+                    Gebühren neu. Das dauert bei rund 2.000 Angeboten 10–15 Minuten. Online
+                    gestellt wird dabei nichts. Der Statusbericht aktualisiert sich danach von selbst.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void alleNeuPruefen()}>
+                    Prüfung starten
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+          {pruefStart && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Läuft seit {datum(pruefStart)} — dauert 10–15 Minuten. Du kannst die Seite
+              verlassen; die Prüfung läuft in n8n weiter.
+            </p>
+          )}
+          {pruefFertig && !pruefStart && (
+            <p className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300" aria-live="polite">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Prüfung abgeschlossen — der Bericht oben ist neu.
+            </p>
+          )}
+          {pruefFehler && (
+            <p className="flex items-start gap-2 text-xs text-destructive" role="alert">
+              <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {pruefFehler}
+            </p>
+          )}
+        </div>
 
         {/* -------------------------------------------------- Export-Freigabe */}
         {runId && (

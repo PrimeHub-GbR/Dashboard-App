@@ -1,0 +1,394 @@
+{
+  "name": "Market-Listings ALLE neu pruefen (PrimeHub)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "listings-alle-pruefen",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c1b307b6-4117-4fa1-98d1-87c2c3853f82",
+      "name": "Webhook Start",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c486d322-6565-419b-a8c8-af1b95f366aa"
+    },
+    {
+      "parameters": {},
+      "id": "80dcd038-5ba6-4bdf-8534-e5a92f094648",
+      "name": "Manuell starten",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a01",
+              "name": "plentyUrl",
+              "value": "https://p74746.my.plentysystems.com",
+              "type": "string"
+            },
+            {
+              "id": "a02",
+              "name": "benutzer",
+              "value": "Tempnutzer",
+              "type": "string"
+            },
+            {
+              "id": "a03",
+              "name": "passwort",
+              "value": "HIER-TEMPNUTZER-PASSWORT-EINTRAGEN",
+              "type": "string"
+            },
+            {
+              "id": "a04",
+              "name": "webhookToken",
+              "value": "HIER-DEN-WERT-VON-N8N_EBAY_TOKEN-EINTRAGEN",
+              "type": "string"
+            },
+            {
+              "id": "a05",
+              "name": "limit",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "a06",
+              "name": "berichtWebhook",
+              "value": "https://n8n.primehubgbr.com/webhook/ebay-bericht",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ba7898fa-ff3b-408f-8970-60d263f5b9e6",
+      "name": "Konfiguration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wer hat gestartet? Webhook = Dashboard-Knopf (Token Pflicht), sonst Mensch in n8n.\nconst cfg = $('Konfiguration').first().json;\nlet vomWebhook = false, kopf = '';\ntry {\n  const h = $('Webhook Start').first().json;\n  vomWebhook = true;\n  kopf = (h.headers || {})['x-primehub-token'] || '';\n} catch (e) { /* manueller Start */ }\nreturn [{ json: { vomWebhook, erlaubt: !vomWebhook || (kopf !== '' && kopf === cfg.webhookToken) } }];"
+      },
+      "id": "66eb034c-912a-4abc-961b-79360a141ed1",
+      "name": "Start pruefen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d010b1dc-431a-4b50-abcb-16a724c25e5f",
+              "leftValue": "={{ $json.erlaubt }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "daeb5969-15a4-4be2-9e5b-579a5f21598e",
+      "name": "Token ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"Nicht berechtigt\" } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "c06ac38c-c37d-492c-a4bc-ae805396bc8d",
+      "name": "Antwort abgelehnt",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b7141d3a-b57f-43fb-8ce8-004e6371df7c",
+              "leftValue": "={{ $json.vomWebhook }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "632ac034-a7e3-4863-9b51-8be111577458",
+      "name": "Vom Dashboard?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        900,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"status\": \"angestossen\" } }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "664f19cb-5918-4726-8939-d171da71fb47",
+      "name": "Antwort angestossen",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Konfiguration').first().json.plentyUrl }}/rest/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "={{ $('Konfiguration').first().json.benutzer }}"
+            },
+            {
+              "name": "password",
+              "value": "={{ $('Konfiguration').first().json.passwort }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b7dd44e0-1922-4e75-8975-d9d531235970",
+      "name": "PlentyONE Login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ALLE Market-Listings erneut gegen eBay pruefen lassen - auch die bereits\n// geprueften. Ausgeloest ueber den Knopf \"Alle Listings neu pruefen\" im Dashboard.\n//\n// Wozu: PlentyONE rechnet beim Pruefen auch die eBay-Gebuehr des Angebots neu.\n// Aendert sich bei eBay etwas am Konto (z. B. Top-Shop-Abo: Einstellgebuehr\n// 0,42 EUR -> 0,06 EUR), bleibt an bereits geprueften Angeboten der alte Wert\n// stehen, bis sie erneut geprueft werden. Ebenso bekommen fehlgeschlagene\n// Angebote nach einer Korrektur (Bild, GPSR, Preis) hier ihre zweite Chance.\n//\n// Der naechtliche Workflow \"Market-Listings pruefen (PrimeHub)\" (04:30) bleibt\n// wie er ist: er prueft nur \"unknown\". Dieser hier nimmt jedes Listing.\n//\n// Schnittstelle (siehe docs/plentyone-listings-pruefen.md):\n//   POST /rest/listings/markets/verify   { \"id\": <MLID> }   -> {\"affectedRows\":1}\n// NUR dieses Format wirkt - {ids:[...]} & Co. antworten 200 mit affectedRows 0.\n//\n// 'verified' ist ein String: \"unknown\" | \"succeeded\" | alles andere = fehlgeschlagen.\n\nconst cfg = $('Konfiguration').first().json;\nconst login = $('PlentyONE Login').first().json;\nconst token = login.accessToken || (login.data && login.data.accessToken);\nif (!token) throw new Error('Kein Login-Token von PlentyONE erhalten - Passwort im Knoten \"Konfiguration\" pruefen.');\n\n// 0 = alle. Zum Ausprobieren eine kleine Zahl setzen (Konfiguration oder Webhook-Body).\nlet LIMIT = Number(cfg.limit || 0);\ntry {\n  const body = $('Webhook Start').first().json.body || {};\n  if (Number(body.limit) > 0) LIMIT = Number(body.limit);\n} catch (e) { /* manueller Start - kein Webhook */ }\n\nconst schlafen = (ms) => new Promise(r => setTimeout(r, ms));\n\n// PlentyONE begrenzt Aufrufe je Minute. Jede Antwort nennt im Kopf, wie viel im\n// laufenden Fenster noch frei ist - danach richtet sich der Lauf.\nlet drosselTreffer = 0, wartezeitMs = 0, limitInfo = '';\n\nconst anfrage = async (pfad, methode, koerper) => {\n  let warte = 1000;\n  for (let versuch = 1; ; versuch++) {\n    try {\n      const res = await this.helpers.httpRequest({\n        method: methode || 'GET',\n        url: cfg.plentyUrl + pfad,\n        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },\n        body: koerper,\n        json: true,\n        returnFullResponse: true,\n      });\n      const kopf = res.headers || {};\n      const frei = Number(kopf['x-plenty-global-short-period-calls-left']);\n      const fenster = Number(kopf['x-plenty-global-short-period-decay']);\n      if (!limitInfo && Number.isFinite(frei)) {\n        limitInfo = frei + ' Aufrufe frei, Fenster erneuert sich in ' + fenster + ' s';\n      }\n      if (Number.isFinite(frei) && frei <= 5 && Number.isFinite(fenster) && fenster > 0) {\n        wartezeitMs += (fenster + 1) * 1000;\n        await schlafen((fenster + 1) * 1000);\n      }\n      return res.body;\n    } catch (e) {\n      const code = String(e.httpCode || e.statusCode || (e.response && e.response.status) || '');\n      const ist429 = code === '429' || /\\b429\\b/.test(String(e.message || ''));\n      if (!ist429 || versuch >= 8) throw e;\n      drosselTreffer++;\n      const kopf = (e.response && e.response.headers) || {};\n      const fenster = Number(kopf['x-plenty-global-short-period-decay']);\n      const pause = Number.isFinite(fenster) && fenster > 0 ? (fenster + 1) * 1000 : warte;\n      wartezeitMs += pause;\n      await schlafen(pause);\n      warte = Math.min(warte * 2, 60000);\n    }\n  }\n};\n\nconst alleSeiten = async (basis) => {\n  const trenner = basis.includes('?') ? '&' : '?';\n  const alle = [];\n  for (let s = 1; s <= 400; s++) {\n    if (s > 1) await schlafen(150);\n    const res = await anfrage(`${basis}${trenner}page=${s}&itemsPerPage=250`);\n    const zeilen = res.entries || [];\n    alle.push(...zeilen);\n    if (res.isLastPage || zeilen.length === 0) break;\n  }\n  return alle;\n};\n\nconst marktListings = await alleSeiten('/rest/listings/markets');\n\nif (!marktListings.length) {\n  throw new Error('Keine Market-Listings gefunden - Abruf pruefen. Nichts geschrieben.');\n}\n\nconst zustand = {};\nfor (const m of marktListings) {\n  const v = String(m.verified);\n  zustand[v] = (zustand[v] || 0) + 1;\n}\n\n// Unterschied zum naechtlichen Lauf: KEIN Filter auf \"unknown\". Fehlgeschlagene\n// zuerst, dann ungepruefte, dann die bestandenen - bricht der Lauf ab, sind die\n// wichtigsten schon durch.\nconst rang = (v) => (v === 'succeeded' ? 2 : v === 'unknown' ? 1 : 0);\nconst alle = marktListings\n  .slice()\n  .sort((a, b) => rang(String(a.verified)) - rang(String(b.verified)) || a.id - b.id)\n  .map(m => m.id);\n\nconst zuTun = LIMIT > 0 ? alle.slice(0, LIMIT) : alle;\n\n// Drei gleichzeitig - mehr reisst das Schreiblimit.\nlet angestossen = 0, ohneWirkung = 0, fehler = 0;\nconst probleme = [];\nconst schlange = zuTun.slice();\n\nconst arbeiter = async () => {\n  while (schlange.length) {\n    const mlid = schlange.shift();\n    try {\n      const antwort = await anfrage('/rest/listings/markets/verify', 'POST', { id: mlid });\n      const zeilen = Number((antwort || {}).affectedRows);\n      if (zeilen > 0) angestossen++;\n      else {\n        ohneWirkung++;\n        if (probleme.length < 20) probleme.push(`MLID ${mlid}: keine Zeile betroffen`);\n      }\n    } catch (e) {\n      fehler++;\n      if (probleme.length < 20) probleme.push(`MLID ${mlid}: ${String(e.message).slice(0, 160)}`);\n    }\n  }\n};\n\nawait Promise.all(Array.from({ length: 3 }, arbeiter));\n\nreturn [{\n  json: {\n    market_listings_gesamt: marktListings.length,\n    zustand_vor_dem_lauf: zustand,\n    in_diesem_lauf: zuTun.length,\n    pruefung_angestossen: angestossen,\n    ohne_wirkung: ohneWirkung,\n    fehler: fehler,\n    limit_laut_plentyone: limitInfo || 'kein Limit-Kopf in der Antwort',\n    drossel_treffer: drosselTreffer,\n    wartezeit_s: Math.round(wartezeitMs / 1000),\n    limit: LIMIT || 'alle',\n    probleme: probleme,\n  },\n}];\n"
+      },
+      "id": "f136d771-f9ed-4ef7-8c01-057d55ef2f7f",
+      "name": "Alle pruefen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Konfiguration').first().json.berichtWebhook }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-primehub-token",
+              "value": "={{ $('Konfiguration').first().json.webhookToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "{}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "0fc12217-9a88-4b5a-b468-546c4b73da5e",
+      "name": "Statusbericht anstossen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        20
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Start": {
+      "main": [
+        [
+          {
+            "node": "Konfiguration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manuell starten": {
+      "main": [
+        [
+          {
+            "node": "Konfiguration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konfiguration": {
+      "main": [
+        [
+          {
+            "node": "Start pruefen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start pruefen": {
+      "main": [
+        [
+          {
+            "node": "Token ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token ok?": {
+      "main": [
+        [
+          {
+            "node": "Vom Dashboard?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Antwort abgelehnt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vom Dashboard?": {
+      "main": [
+        [
+          {
+            "node": "Antwort angestossen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PlentyONE Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Antwort angestossen": {
+      "main": [
+        [
+          {
+            "node": "PlentyONE Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PlentyONE Login": {
+      "main": [
+        [
+          {
+            "node": "Alle pruefen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alle pruefen": {
+      "main": [
+        [
+          {
+            "node": "Statusbericht anstossen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
