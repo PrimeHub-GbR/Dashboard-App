@@ -43,10 +43,24 @@ Manuell starten ─────────────────┴→ Konfig
 Dashboard: `POST /api/plentyone/ebay/listings-pruefen` (nur Admin/Manager) schickt den
 Aufruf mit Header `x-primehub-token` = `N8N_EBAY_TOKEN`. URL aus
 `N8N_LISTINGS_ALLE_PRUEFEN_URL`, sonst `N8N_WEBHOOK_BASE_URL` + `/listings-alle-pruefen`.
-Das Dashboard wartet bis zu 30 Minuten auf einen neuen Statusbericht.
+Das Dashboard wartet bis zu 60 Minuten auf einen neuen Statusbericht.
 
-**Tempo:** ~200 Aufrufe/Minute, drei gleichzeitig, einer je Listing → rund
-10–15 Minuten für ~1.950 Angebote.
+**Tempo:** einer je Listing, drei gleichzeitig. Das PlentyONE-Fenster ist schnell
+erschöpft, der Lauf wartet dann ab → **rund 30 Minuten** für ~1.950 Angebote.
+
+**Workflow live:** ID `3MuPhuwtEgE8yL2j`, aktiv seit 26.09.2026.
+
+**Erster Volllauf 26.09.2026 (Execution 384160, nach Top-Shop-Wechsel):**
+
+```
+1.925 Market-Listings (vorher 1.823 succeeded, 102 failed)
+1.822 neu bewertet (affectedRows 1), 103 ohne Aenderung, 0 Fehler, 0 Drosseltreffer
+Dauer 27:46 min, davon 23:09 min Warten auf das Aufruffenster
+```
+
+`affectedRows` zählt nur **geänderte** Zeilen: Ein Angebot, das erneut mit demselben
+Ergebnis durchfällt, meldet 0 — es wurde trotzdem geprüft. Die fehlgeschlagenen
+brauchen eine echte Korrektur (Gründe im Statusbericht), dann den Knopf erneut.
 
 ---
 
@@ -95,7 +109,7 @@ Workflow dazu, den der Dashboard-Knopf startet.
 ### Schritt 6 — Im Dashboard starten
 1. https://dashboard.primehubgbr.com/dashboard/plentyone → Karte „eBay-Automatisierung"
 2. **„Alle neu prüfen"** → bestätigen
-3. Nach 10–15 Minuten erscheint „Prüfung abgeschlossen", der Bericht ist neu
+3. Nach rund 30 Minuten erscheint „Prüfung abgeschlossen", der Bericht ist neu
 
 ## Wenn etwas hakt
 
@@ -105,4 +119,4 @@ Workflow dazu, den der Dashboard-Knopf startet.
 | Dashboard: „n8n antwortete 401" | `webhookToken` passt nicht zu `N8N_EBAY_TOKEN` |
 | n8n: „Kein Login-Token von PlentyONE" | Passwort in „Konfiguration" |
 | n8n: `Task request timed out` am Knoten „Alle pruefen" | n8n bricht Code-Knoten nach einer Zeitgrenze ab (`N8N_RUNNERS_TASK_TIMEOUT`). Fehlgeschlagene und ungeprüfte sind dann schon durch (sie kommen zuerst). Für die bestandenen den Lauf auf Etappen umbauen lassen |
-| Dashboard: „Nach 30 Minuten kam kein neuer Bericht" | Lauf in n8n unter „Executions" ansehen |
+| Dashboard: „Nach 60 Minuten kam kein neuer Bericht" | Lauf in n8n unter „Executions" ansehen |

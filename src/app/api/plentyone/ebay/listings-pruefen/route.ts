@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
  * Market-Listing erneut — nötig, wenn sich bei eBay etwas am Konto ändert
  * (z. B. Top-Shop-Gebühren) oder fehlgeschlagene Angebote korrigiert wurden.
  *
- * Der Lauf dauert bei ~2.000 Angeboten 10–15 Minuten. n8n antwortet sofort mit
+ * Der Lauf dauert bei ~2.000 Angeboten rund 30 Minuten (PlentyONE-Aufruflimit). n8n antwortet sofort mit
  * 202 und stösst am Ende selbst den Statusbericht an — das Dashboard wartet
  * deshalb auf einen neuen Bericht statt auf diese Antwort.
  */

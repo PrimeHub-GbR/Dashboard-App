@@ -583,12 +583,12 @@ export function EbayKette({
 
   /**
    * Prüft JEDES Market-Listing erneut (n8n "Market-Listings ALLE neu pruefen").
-   * Der Lauf dauert 10–15 Minuten und stösst am Ende selbst den Statusbericht an —
+   * Der Lauf dauert rund 30 Minuten (26.09.2026: 28 Min) und stösst am Ende selbst den Statusbericht an —
    * fertig ist er also, sobald ein Bericht eintrifft, der jünger ist als der Start.
    * Der Start wird im Browser gemerkt, damit ein Neuladen die Anzeige nicht verliert.
    */
   const aufPruefungWarten = useCallback(async (start: string) => {
-    const ende = new Date(start).getTime() + 30 * 60_000
+    const ende = new Date(start).getTime() + 60 * 60_000
     while (Date.now() < ende) {
       await new Promise((r) => setTimeout(r, 20_000))
       const neu = await holen()
@@ -601,13 +601,13 @@ export function EbayKette({
     }
     setPruefStart(null)
     try { localStorage.removeItem(PRUEF_KEY) } catch { /* egal */ }
-    setPruefFehler('Nach 30 Minuten kam kein neuer Bericht — Lauf „Market-Listings ALLE neu pruefen" in n8n ansehen.')
+    setPruefFehler('Nach 60 Minuten kam kein neuer Bericht — Lauf „Market-Listings ALLE neu pruefen" in n8n ansehen.')
   }, [holen])
 
   useEffect(() => {
     let start: string | null = null
     try { start = localStorage.getItem(PRUEF_KEY) } catch { /* kein Speicher */ }
-    if (start && Date.now() - new Date(start).getTime() < 30 * 60_000) {
+    if (start && Date.now() - new Date(start).getTime() < 60 * 60_000) {
       setPruefStart(start)
       void aufPruefungWarten(start)
     }
@@ -811,7 +811,7 @@ export function EbayKette({
                   <AlertDialogTitle>Alle Market-Listings neu prüfen?</AlertDialogTitle>
                   <AlertDialogDescription>
                     PlentyONE prüft jedes Angebot erneut gegen eBay und rechnet dabei auch die
-                    Gebühren neu. Das dauert bei rund 2.000 Angeboten 10–15 Minuten. Online
+                    Gebühren neu. Das dauert bei rund 2.000 Angeboten rund 30 Minuten. Online
                     gestellt wird dabei nichts. Der Statusbericht aktualisiert sich danach von selbst.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -827,7 +827,7 @@ export function EbayKette({
           {pruefStart && (
             <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
               <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Läuft seit {datum(pruefStart)} — dauert 10–15 Minuten. Du kannst die Seite
+              Läuft seit {datum(pruefStart)} — dauert rund 30 Minuten. Du kannst die Seite
               verlassen; die Prüfung läuft in n8n weiter.
             </p>
           )}
