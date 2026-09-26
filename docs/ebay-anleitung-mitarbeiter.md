@@ -78,21 +78,19 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
 
 # Block 4 · Angebote prüfen lassen
 
-> **Wichtig:** Die Schaltfläche *Gruppenfunktion » Market-Listings prüfen*
-> schafft nur **acht** Angebote. Bei mehr meldet sie Erfolg und tut nichts.
-> Deshalb läuft die Prüfung über das Skript unten.
+> **Gut zu wissen:** Neue Angebote prüft das System jede Nacht von selbst.
+> Den Knopf brauchst du, wenn du **nicht bis morgen warten** willst — und immer,
+> wenn der Chef sagt, dass sich bei eBay etwas geändert hat (zum Beispiel die Gebühren).
+> Das alte Skript mit **F12** und der Konsole brauchst du **nicht mehr**.
 
-18. In PlentyONE die **Market-Listings** öffnen.
-19. Die **kleinste** und die **größte** Zahl in der Spalte **MLID** notieren
-    (ganz oben und ganz unten in der Liste).
-20. **F12** drücken, oben auf **Konsole** klicken.
-21. Beim ersten Mal: `allow pasting` tippen, **Enter**.
-22. Die Datei **`docs/ebay-pruefung-stapel.js`** öffnen, ganz oben die zwei
-    Zahlen aus Schritt 19 bei `VON` und `BIS` eintragen.
-23. Datei komplett kopieren, in die Konsole einfügen, **Enter**.
-24. **Warten**, bis unten `fertig` erscheint. Der Browser-Tab muss offen bleiben.
-    Grobe Dauer: 100 Angebote ≈ 15 Minuten, 1.000 ≈ 2,5 Stunden.
-25. Die Liste **neu laden**. Bei jeder Zeile steht jetzt ein Zeichen:
+18. Im **Dashboard** links auf **PlentyONE-Migration** klicken.
+19. Nach unten scrollen bis zum Kasten **Alle Listings neu prüfen**.
+20. Auf **Alle neu prüfen** klicken, dann auf **Prüfung starten**.
+    Kommt „Keine Berechtigung": Chef fragen.
+21. **Warten**, etwa **30 Minuten**. Du kannst die Seite zumachen.
+22. Wenn **Prüfung abgeschlossen** steht, geht es weiter.
+23. In PlentyONE die **Market-Listings** öffnen.
+24. Die Liste **neu laden**. Bei jeder Zeile steht jetzt ein Zeichen:
 
 | Zeichen | Bedeutung | Was tun |
 |---|---|---|
@@ -100,6 +98,8 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
 | **!** | nicht in Ordnung | Stopp, Chef fragen |
 | ✓ aber **keine** Einstellgebühr | nicht wirklich geprüft | Stopp, Chef fragen |
 
+25. Bei ein paar Zeilen die **Einstellgebühr** ansehen: Dort steht **0,06 €**.
+    Steht dort 0,42 €: Chef fragen.
 26. Erst wenn **alle** Zeilen ein ✓ haben, geht es weiter.
 
 ---
@@ -135,6 +135,7 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
 |---|---|
 | Import meldet Fehler über 0 | Chef fragen |
 | Ein **!** bleibt nach der Prüfung stehen | Chef fragen |
+| Knopf „Alle neu prüfen" meldet einen Fehler | Chef fragen |
 | Bericht im Dashboard ist rot | Text kopieren, Chef schicken |
 | Bericht sagt „FBA-Bestand veraltet“ | Chef fragen — nicht live stellen |
 | „Titel enthält zu viele Zeichen" | Chef fragen |
@@ -156,10 +157,9 @@ Zeile anklicken → **Start** → warten, bis das Ergebnis erscheint.
                   ② Eigenschaftsimport
                   ③ eBay-Listing-Erstellung
                   ④ eBay-Merkmale Bücher       ← Fehler muss 0 sein
-4. PlentyONE   →  Market-Listings, kleinste und größte MLID notieren
-                  F12 » Konsole » Skript ebay-pruefung-stapel.js einfügen
-                  warten bis "fertig", dann Liste neu laden
-                  alle ✓ mit Einstellgebühr ?
+4. Dashboard   →  PlentyONE-Migration » Alle neu prüfen  (~30 Min)
+   PlentyONE   →  Market-Listings neu laden
+                  alle ✓ mit Einstellgebühr 0,06 € ?
 5. Dashboard   →  5 · Weiter zu eBay
                   grün ?
 6. Nur nach Freigabe vom Chef:

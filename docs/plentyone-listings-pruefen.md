@@ -36,6 +36,12 @@ POST /rest/listings/markets/verify
 | `POST /rest/listings/markets/verify` + `{marketListingIds:[…]}` | 200, **`affectedRows: 0`** |
 | **`POST /rest/listings/markets/verify` + `{id: <MLID>}`** | **200, `affectedRows: 1`** ✓ |
 
+> **Nachtrag 26.09.2026 — `affectedRows` zählt nur geänderte Zeilen.** Ein Angebot,
+> das erneut mit demselben Ergebnis geprüft wird, meldet `affectedRows: 0`, obwohl die
+> Prüfung lief. Beim Volllauf: 1.822 von 1.823 bestandenen meldeten 1 (Gebühr neu),
+> alle 102 fehlgeschlagenen meldeten 0 (Ergebnis unverändert). 0 heißt also nur bei
+> `unknown`-Angeboten sicher „nichts passiert".
+
 > **Die eigentliche Falle:** Die drei Bulk-Formate antworten mit **200**, bewirken
 > aber nichts. Wer nur auf den Statuscode schaut, hält den Lauf für erfolgreich und
 > wundert sich, warum nichts geprüft wird. Der Beweis steckt allein in
@@ -62,11 +68,19 @@ Gegenprobe an MLID 115: `verified` ging von `"unknown"` auf `"succeeded"`.
 
 **Wiederholbar:** Bereits geprüfte Angebote werden übersprungen.
 
+> **Alle neu prüfen (seit 26.09.2026):** Bestandene und fehlgeschlagene Angebote fasst
+> dieser Lauf nie wieder an. Dafür gibt es den zweiten Workflow
+> `Market-Listings ALLE neu pruefen (PrimeHub)` (`3MuPhuwtEgE8yL2j`), gestartet über den
+> Knopf „Alle neu prüfen" im Dashboard — nötig z. B. nach dem Top-Shop-Wechsel, damit
+> PlentyONE die Einstellgebühr neu rechnet. Siehe
+> [plentyone-listings-alle-pruefen.md](plentyone-listings-alle-pruefen.md).
+
 **Eingebaute Sicherung:** Liefert der Abruf keine Market-Listings, bricht der Lauf
 ab, statt so zu tun, als sei alles erledigt.
 
-**Tempo:** PlentyONE gibt rund **200 Aufrufe je Minute** frei, ein Aufruf je
-Listing — macht rund **10 Minuten für 1.873 Angebote**. Der Lauf liest den Kopf
+**Tempo:** PlentyONE meldet rund **200 freie Aufrufe je Fenster**, ein Aufruf je
+Listing. Der Volllauf über 1.925 Angebote am 26.09.2026 brauchte trotzdem **28 Minuten**,
+davon 23 Minuten Warten auf das nächste Fenster — mit rund 30 Minuten rechnen. Der Lauf liest den Kopf
 `X-Plenty-Global-Short-Period-Calls-Left` mit und wartet das Fenster ab, wenn es
 eng wird. Drei Prüfungen gleichzeitig; mehr reißt das Schreiblimit.
 
@@ -81,6 +95,12 @@ eng wird. Drei Prüfungen gleichzeitig; mehr reißt das Schreiblimit.
 04:30  Market-Listings prüfen               → ufqiBqiE1atoYopj
 05:00  eBay-Statusbericht                   → HYDRm1e5J5nIvJce
 ```
+
+> **Uhrzeiten (Beobachtung 26.09.2026):** Laut n8n-Protokoll starten die n8n-Läufe
+> sechs Stunden später als oben angegeben — „04:00" lief um 10:00 deutscher Zeit
+> (08:00 UTC). n8n rechnet offenbar in New Yorker Zeit. Die Reihenfolge stimmt trotzdem,
+> weil die PlentyONE-Importe vorher laufen. Behebbar über `GENERIC_TIMEZONE=Europe/Berlin`
+> auf dem n8n-Server — noch nicht umgesetzt.
 
 Jeder Schritt setzt auf dem vorigen auf: Erst hängen die Cover an den Varianten,
 dann prüft eBay die Angebote, dann zählt der Bericht das Ergebnis. Im Dashboard

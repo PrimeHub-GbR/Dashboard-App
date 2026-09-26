@@ -148,7 +148,7 @@ Testlauf 03.09.2026: 21 Artikel → 5 Zeilen Import 23 (Artikel 189, 191–194) 
 | 7 | Vorlage „Bücher (1)" ausführen | Stapelverarbeitung | manuell bis Stufe 2 |
 | 8 | WF3 erneut (MLIDs existieren erst jetzt) | n8n | entfällt (Berechnung beim Abruf) |
 | 9 | `ebay_merkmale.csv` → Import 22 | Daten » Import | automatisch (URL + Zeitplan) |
-| 10 | „Market-Listings prüfen" → Fehlgeschlagen = 0 | Stapelverarbeitung | Bericht automatisch, Klick bis Stufe 2 |
+| 10 | „Market-Listings prüfen" → Fehlgeschlagen = 0 | Stapelverarbeitung | **automatisch** (n8n 04:30, nur ungeprüfte) + Knopf „Alle neu prüfen" für alle (seit 26.09.2026) |
 | 11 | Sichtung | Nutzer | Bericht im Dashboard |
 | 12 | „Listings starten" (verteilt auf X Minuten) | Stapelverarbeitung | bleibt manuell (Freigabe, AK9) |
 
@@ -218,6 +218,16 @@ sagt niemandem, ob das ein Fehler ist.
 3. **Betroffene Titel aufklappbar** — „Nicht startklar" (rot) und
    „Zurückgehalten" (gelb) mit Anzahl im Badge, zugeklappt. Erst der Klick zeigt
    die Liste, gedeckelt auf 100 Einträge mit eigenem Scrollbereich.
+
+4. **Knopf „Alle neu prüfen" (26.09.2026)** — prüft jedes Market-Listing erneut, auch
+   bestandene und fehlgeschlagene (n8n `3MuPhuwtEgE8yL2j`, Route
+   `POST /api/plentyone/ebay/listings-pruefen`, nur Admin/Manager). Anlass: Nach dem
+   Top-Shop-Wechsel stand an allen geprüften Angeboten noch die alte Einstellgebühr
+   (0,42 € statt 0,06 €). Rund 30 Minuten; danach stößt n8n selbst den Bericht an,
+   das Dashboard wartet bis zu 60 Minuten darauf. Details:
+   [docs/plentyone-listings-alle-pruefen.md](../../docs/plentyone-listings-alle-pruefen.md).
+   Die Handlungshinweise „In PlentyONE alle markieren » Market-Listings prüfen" sind
+   entfernt — die Prüfung läuft über n8n.
 
 Wichtig für das Verständnis: **„ohne eBay-Listing" ist kein Fehler**, sondern die
 Warteschlange für Import 23. Ebenso ist **„ohne Bestand"** kein Mangel — das Buch
@@ -377,8 +387,9 @@ schreiben nur Service-Role).
 ## 7. Offene Punkte
 
 1. **Vollimport ausstehend** — erst 21 von ~2.023 Artikeln in PlentyONE.
-2. **Batch-Endpoints unbekannt** — „Vorlage ausführen", „Prüfen", „Starten" beim nächsten
-   UI-Lauf per Netzwerk-Mitschnitt erfassen (Stufe 2).
+2. **Batch-Endpoints unbekannt** — „Vorlage ausführen" und „Starten" beim nächsten
+   UI-Lauf per Netzwerk-Mitschnitt erfassen (Stufe 2). „Prüfen" ist gelöst
+   (`POST /rest/listings/markets/verify`, je MLID).
 3. **Lager ID 2** von Lagertyp „Reparatur" auf „Vertrieb" umstellen.
 4. **Bestandsautomatik / MCF** — eigene Spec: [bestand-mcf.md](bestand-mcf.md).
 5. **VLB-Cover-Genehmigung (E20)** vor dem Massenstart klären.

@@ -828,6 +828,10 @@ Chronologisch. „Lauf" = Importlauf in PlentyONE.
 > `{"affectedRows":1}` und setzt `verified` von `unknown` auf `succeeded`.
 > Die Bulk-Formate (`ids`, `listingIds`, `marketListingIds`) antworten mit 200,
 > bewirken aber nichts. Siehe [plentyone-listings-pruefen.md](plentyone-listings-pruefen.md).
+>
+> **Ergänzung 26.09.2026:** Derselbe Aufruf prüft auch bereits geprüfte Angebote neu
+> (1.822 von 1.823 bestandenen, Gebühr nach Top-Shop-Wechsel neu gerechnet). Knopf
+> „Alle neu prüfen" im Dashboard → [plentyone-listings-alle-pruefen.md](plentyone-listings-alle-pruefen.md).
 
 | `/rest/listings/{id}/contents` | 503 |
 | `/rest/listings/layouts` / `/directories` / `/templates` / `/profiles` | 503 |

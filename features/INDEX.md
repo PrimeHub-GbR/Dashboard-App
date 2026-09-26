@@ -123,14 +123,20 @@
 | Amazon-Export -> VLB-Anreicherung + Cover, 2 parallele N8N-Straenge, Mapping-Tabelle | In Progress | [plentyone/overview.md](plentyone/overview.md) |
 | eBay-Vollautomatisierung (Abhol-URLs, Import 22/23, Preis-, Bild- und GPSR-Guard, Statusbericht auf Knopfdruck) | In Review | [plentyone/ebay-vollautomatisierung.md](plentyone/ebay-vollautomatisierung.md) |
 | Bestand aus Amazon FBA spiegeln + eBay-Auftraege per MCF liefern | In Progress | [plentyone/bestand-mcf.md](plentyone/bestand-mcf.md) |
-| Doku: Pruefskript fuer Market-Listings (Gruppenfunktion schafft nur 8) | Deployed | [../docs/ebay-pruefung-stapel.js](../docs/ebay-pruefung-stapel.js) |
+| Doku: Pruefskript fuer Market-Listings (Gruppenfunktion schafft nur 8) — abgeloest durch n8n-Pruefung + Knopf "Alle neu pruefen" | Deployed | [../docs/ebay-pruefung-stapel.js](../docs/ebay-pruefung-stapel.js) |
 | Doku: Code des n8n-Knotens "Daten holen" zum Einfuegen | Deployed | [../docs/ebay-daten-holen.js](../docs/ebay-daten-holen.js) |
 | Doku: technische Rekonstruktion der eBay-Kette | Deployed | [../docs/ebay-kette-technik.md](../docs/ebay-kette-technik.md) |
 | Doku: Arbeitsanweisung Mitarbeiter | Deployed | [../docs/ebay-anleitung-mitarbeiter.md](../docs/ebay-anleitung-mitarbeiter.md) |
 | Doku: Cover per URL statt Dateimanager (n8n-Anleitung) | Deployed | [../docs/plentyone-cover-per-url.md](../docs/plentyone-cover-per-url.md) |
 | Doku: Bilder mit Varianten verknuepfen (n8n-Workflow VDDcKhyD6AvBKohk) | Deployed | [../docs/plentyone-bilder-varianten-verknuepfen.md](../docs/plentyone-bilder-varianten-verknuepfen.md) |
 | Doku: Market-Listings pruefen per API (n8n-Workflow ufqiBqiE1atoYopj) | Deployed | [../docs/plentyone-listings-pruefen.md](../docs/plentyone-listings-pruefen.md) |
-| Knopf "Alle Listings neu pruefen" (auch bestandene/fehlgeschlagene, z. B. nach Top-Shop-Wechsel) + n8n-Importdatei | Deployed | [../docs/plentyone-listings-alle-pruefen.md](../docs/plentyone-listings-alle-pruefen.md) |
+| Knopf "Alle Listings neu pruefen" (auch bestandene/fehlgeschlagene, z. B. nach Top-Shop-Wechsel), n8n-Workflow 3MuPhuwtEgE8yL2j | Deployed | [../docs/plentyone-listings-alle-pruefen.md](../docs/plentyone-listings-alle-pruefen.md) |
+
+## Betrieb (kein Tab)
+
+| Feature | Status | Spec |
+|---------|--------|------|
+| Doku: n8n-Server (CT 113) — Stoerung 26.09.2026 (Platte voll, resolv.conf leer), Aufraeum-Cron, Schnell-Diagnose | Deployed | [../docs/n8n-server-betrieb.md](../docs/n8n-server-betrieb.md) |
 
 ## Manager (GF) `/dashboard/manager`
 

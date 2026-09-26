@@ -64,59 +64,53 @@ brauchen eine echte Korrektur (Gründe im Statusbericht), dann den Knopf erneut.
 
 ---
 
-## N8N Anleitung: Workflow „Market-Listings ALLE neu pruefen" einspielen
+## Bedienung
 
-**Was geändert werden muss:** Nichts an bestehenden Workflows. Es kommt ein neuer
-Workflow dazu, den der Dashboard-Knopf startet.
-
-### Schritt 1 — N8N Dashboard öffnen
-1. Öffne https://n8n.primehubgbr.com im Browser
-2. Melde dich an
-
-### Schritt 2 — Workflow importieren
-1. Links in der Sidebar auf **„Workflows"** klicken
-2. Oben rechts auf den Pfeil neben **„Create Workflow"** → **„Import from File…"**
-   (alternativ: neuen leeren Workflow öffnen, oben rechts `…` → **„Import from File…"**)
-3. Die Datei `Dashboard v2/docs/plentyone-listings-alle-pruefen.json` auswählen
-4. Es erscheinen 11 Knoten, von links „Webhook Start" / „Manuell starten" bis rechts
-   „Statusbericht anstossen"
-
-### Schritt 3 — Zugangsdaten eintragen
-1. Doppelklick auf den Knoten **„Konfiguration"** (zweiter von links)
-2. Die Werte aus dem bestehenden Workflow **„Market-Listings pruefen (PrimeHub)"**
-   übernehmen (dort ebenfalls Knoten „Konfiguration" — in einem zweiten Browser-Tab öffnen):
-   - `passwort`: statt `HIER-TEMPNUTZER-PASSWORT-EINTRAGEN` das PlentyONE-Passwort
-   - `webhookToken`: statt `HIER-DEN-WERT-VON-N8N_EBAY_TOKEN-EINTRAGEN` denselben Token
-     wie im bestehenden Workflow (= Vercel-Variable `N8N_EBAY_TOKEN`)
-   - `plentyUrl` und `benutzer` prüfen — müssen gleich sein wie im bestehenden Workflow
-3. `limit` bleibt `0` (= alle)
-4. Panel mit ✓ bzw. Klick daneben schließen
-
-### Schritt 4 — Kurz testen (5 Listings)
-1. Im Knoten „Konfiguration" `limit` vorübergehend auf **`5`** setzen
-2. Oben **„Test Workflow"** klicken (startet über „Manuell starten")
-3. Alle Knoten müssen grün werden. Im Knoten **„Alle pruefen"** rechts im OUTPUT:
-   `in_diesem_lauf: 5`, `pruefung_angestossen: 5`, `ohne_wirkung: 0`, `fehler: 0`
-4. Stichprobe in PlentyONE: bei einem der ersten Angebote die Gebühr ansehen (Top Shop → 0,06 €)
-5. `limit` **zurück auf `0`** setzen
-
-### Schritt 5 — Speichern und aktivieren
-1. Oben rechts **„Save"** klicken
-2. Den Schalter **„Inactive" → „Active"** umlegen (oben rechts). Erst dann ist
-   `/webhook/listings-alle-pruefen` erreichbar — sonst meldet das Dashboard
-   „Workflow in n8n nicht gefunden oder nicht aktiv".
-
-### Schritt 6 — Im Dashboard starten
 1. https://dashboard.primehubgbr.com/dashboard/plentyone → Karte „eBay-Automatisierung"
-2. **„Alle neu prüfen"** → bestätigen
-3. Nach rund 30 Minuten erscheint „Prüfung abgeschlossen", der Bericht ist neu
+2. Kasten **„Alle Listings neu prüfen"** → Knopf **„Alle neu prüfen"** → bestätigen
+3. Anzeige „Läuft seit …" — die Seite darf geschlossen werden, der Lauf läuft in n8n
+4. Nach rund 30 Minuten: „Prüfung abgeschlossen", der Statusbericht darüber ist neu
+5. Stichprobe in PlentyONE: Market-Listings → Einstellgebühr ansehen
+
+**Wann drücken?**
+- Nach Änderungen am eBay-Konto (Shop-Abo, Gebührenmodell, Versand-/Rücknahmerichtlinien)
+- Nach dem Korrigieren fehlgeschlagener Angebote (Grund steht im Statusbericht unter
+  „Nicht startklar")
+- **Nicht** nötig für frisch angelegte Angebote — die prüft der Nachtlauf von selbst
+
+Nur Admin und Manager sehen den Knopf wirksam (API prüft die Rolle).
+
+## Einrichtung — erledigt am 26.09.2026
+
+- Workflow per n8n-MCP angelegt und aktiviert, **auf ausdrückliche Anweisung des
+  Nutzers** (Ausnahme von der Read-Only-Regel, nur dieser neue Workflow; der
+  bestehende `ufqiBqiE1atoYopj` blieb unverändert).
+- Zugangsdaten (`benutzer`, `passwort`, `webhookToken`) im Knoten „Konfiguration" sind
+  dieselben wie im nächtlichen Prüf-Workflow. Der `webhookToken` entspricht der
+  Vercel-Variable `N8N_EBAY_TOKEN` (derselbe Wert wie im Statusbericht-Workflow
+  `HYDRm1e5J5nIvJce`).
+- Vercel: keine neue Variable nötig — die URL ergibt sich aus `N8N_WEBHOOK_BASE_URL`.
+- Tests: ohne Token → **401** · `limit: 5` → Lauf ok, Bericht angestoßen (Execution 384158)
+  · Volllauf aus dem Dashboard → siehe oben (Execution 384160).
+
+## Wiederherstellen aus der Datei (nur falls der Workflow verloren geht)
+
+Die Datei [`plentyone-listings-alle-pruefen.json`](plentyone-listings-alle-pruefen.json)
+enthält den Workflow **ohne** Zugangsdaten (Platzhalter).
+
+1. n8n → Workflows → **„Import from File…"** → Datei wählen
+2. Knoten **„Konfiguration"**: `passwort` und `webhookToken` aus „Market-Listings
+   pruefen (PrimeHub)" übernehmen, `benutzer` angleichen
+3. **Save**, Schalter auf **Active**
+4. Testen: `limit` im Knoten „Konfiguration" auf `5`, „Test Workflow", danach wieder `0`
 
 ## Wenn etwas hakt
 
 | Meldung | Ursache |
 |---|---|
-| Dashboard: „Workflow in n8n nicht gefunden oder nicht aktiv" | Schritt 5 — Workflow nicht aktiv |
+| Dashboard: „Workflow in n8n nicht gefunden oder nicht aktiv" | Workflow in n8n nicht aktiv |
 | Dashboard: „n8n antwortete 401" | `webhookToken` passt nicht zu `N8N_EBAY_TOKEN` |
+| Dashboard: „n8n nicht erreichbar" | n8n oder Cloudflare-Tunnel down — siehe [n8n-server-betrieb.md](n8n-server-betrieb.md) |
 | n8n: „Kein Login-Token von PlentyONE" | Passwort in „Konfiguration" |
-| n8n: `Task request timed out` am Knoten „Alle pruefen" | n8n bricht Code-Knoten nach einer Zeitgrenze ab (`N8N_RUNNERS_TASK_TIMEOUT`). Fehlgeschlagene und ungeprüfte sind dann schon durch (sie kommen zuerst). Für die bestandenen den Lauf auf Etappen umbauen lassen |
-| Dashboard: „Nach 60 Minuten kam kein neuer Bericht" | Lauf in n8n unter „Executions" ansehen |
+| n8n: `Task request timed out` am Knoten „Alle pruefen" | Zeitgrenze für Code-Knoten. Beim Volllauf (28 Min) nicht aufgetreten. Falls doch: fehlgeschlagene und ungeprüfte sind durch (kommen zuerst); für den Rest den Lauf auf Etappen umbauen |
+| Dashboard: „Nach 60 Minuten kam kein neuer Bericht" | Lauf in n8n unter „Executions" ansehen — läuft er noch, kommt der Bericht später von selbst |
