@@ -88,3 +88,16 @@ Löschen als Eigentümer. `flutter analyze` und `tsc --noEmit` ohne Befund.
   get_month_completion_facts, mobile_work_list, pauschal_list, get_team_absences,
   get_all_employees_month_hours (jetzt SECURITY DEFINER + Gate), admin_update_employee (2 Overloads),
   admin_create_employee (Position erlaubt).
+
+## Ergänzung 2026-10-01: Urlaub zählt auch außerhalb des Wochenplans (Migration 151)
+
+- **Befund:** Rückwirkend vom GF eingetragener Urlaub einer Remote-Mitarbeiterin (Mo 21.09., Fr 25.09.)
+  zählte 0 Tage, weil ihr `weekly_schedule` nur Di/Do/So enthält. `_absence_workdays` zählte
+  ausschließlich Wochenplan-Tage → Urlaub fehlte in Monatskarte (GF), Lohn-Tab (FIBU), Archiv,
+  Urlaubskonto.
+- **Regel neu:** Ein Abwesenheitstag zählt, wenn der Wochentag im Wochenplan > 0 ist **oder** der
+  Mitarbeiter `mobiles_arbeiten` hat und der Tag Mo–Fr ist. Ohne Mobiles Arbeiten unverändert
+  (Vorher/Nachher-Abgleich aller Mitarbeiter: nur die betroffene Mitarbeiterin 0 → 2).
+- `get_vacation_balance` nutzt jetzt `_absence_workdays` statt duplizierter Inline-Logik.
+- **App 1.0.60+81:** Badge „Nicht geplant" bei Mobilem Arbeiten entfernt, Bearbeiten-Stift der
+  Mobil-Zeile nur noch rechts, Hinweis-Banner „Mobiles Arbeiten aktiv …" im Mitarbeiter-Detail entfernt.
