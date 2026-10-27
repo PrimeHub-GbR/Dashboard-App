@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  LogOut, ChevronLeft, ChevronRight, Search,
+  LogOut, ChevronLeft, ChevronRight, Search, Menu,
 } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { createClient } from '@/lib/supabase/client'
 import { McpStatus } from '@/components/McpStatus'
 import { CommandPalette } from '@/components/CommandPalette'
@@ -26,6 +27,9 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
   const [collapsed, setCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [cmdOpen, setCmdOpen] = useState(false)
+  // Mobil (< md): Navigation als Schublade statt fester Sidebar
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const closeMobile = () => setMobileOpen(false)
 
   // Persist collapse state in localStorage
   useEffect(() => {
@@ -66,6 +70,7 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
     return (
       <Link
         href={item.href}
+        onClick={closeMobile}
         className={cn(
           'flex items-center gap-3 rounded-lg border px-2 py-2 transition-all duration-200 group',
           active
@@ -94,16 +99,12 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
     )
   }
 
-  return (
-    <aside
-      className={cn(
-        'flex h-screen shrink-0 flex-col bg-[#0a1510] border-r border-white/10 transition-all duration-300 ease-in-out',
-        collapsed ? 'w-16' : 'w-64'
-      )}
-    >
+  // Inhalt der Sidebar — Desktop (einklappbar) und Mobil-Schublade (immer ausgeklappt)
+  const renderContent = (rail: boolean, mobile: boolean) => (
+    <>
       {/* Header */}
       <div className="px-3 py-5 border-b border-white/10 flex items-center justify-between min-h-[72px]">
-        {!collapsed && (
+        {!rail && (
           <a
             href="/landing"
             className="text-sm font-bold text-white/90 hover:text-white transition-colors tracking-tight"
@@ -118,7 +119,7 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
             </div>
           </a>
         )}
-        {collapsed && (
+        {rail && (
           <div className="mx-auto flex items-center justify-center">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75" />
@@ -126,30 +127,35 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
             </span>
           </div>
         )}
+        {!mobile && (
         <button
           onClick={toggle}
           className={cn(
             'flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white/30 hover:bg-white/8 hover:text-white/70 transition-colors',
-            collapsed && 'mx-auto'
+            rail && 'mx-auto'
           )}
-          title={collapsed ? 'Sidebar ausklappen' : 'Sidebar einklappen'}
+          title={rail ? 'Sidebar ausklappen' : 'Sidebar einklappen'}
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          {rail ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
+        )}
       </div>
 
       {/* Suche */}
-      <div className={cn('pt-4', collapsed ? 'px-2' : 'px-3')}>
+      <div className={cn('pt-4', rail ? 'px-2' : 'px-3')}>
         <button
-          onClick={() => setCmdOpen(true)}
-          title={collapsed ? 'Suchen (⌘K)' : undefined}
+          onClick={() => {
+            closeMobile()
+            setCmdOpen(true)
+          }}
+          title={rail ? 'Suchen (⌘K)' : undefined}
           className={cn(
             'flex w-full items-center rounded-lg border border-white/8 bg-white/4 text-white/50 hover:bg-white/8 hover:text-white/80 transition-colors',
-            collapsed ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2'
+            rail ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2'
           )}
         >
           <Search className="h-4 w-4 shrink-0" />
-          {!collapsed && (
+          {!rail && (
             <>
               <span className="flex-1 text-left text-sm">Suchen…</span>
               <kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-white/50">⌘K</kbd>
@@ -159,12 +165,13 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
       </div>
 
       {/* Navigation */}
-      <nav className={cn('flex-1 overflow-y-auto py-4 space-y-1.5', collapsed ? 'px-2' : 'px-3')}>
+      <nav className={cn('flex-1 overflow-y-auto py-4 space-y-1.5', rail ? 'px-2' : 'px-3')}>
         {/* Übersicht (Standalone) */}
-        {collapsed ? (
+        {rail ? (
           <Link
             href={homeItem.href}
             title={homeItem.label}
+            onClick={closeMobile}
             className={cn(
               'flex items-center justify-center rounded-xl border px-0 py-2.5 transition-all duration-200',
               isActive(homeItem.href)
@@ -183,7 +190,7 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
           const active = groupHasActive(group)
 
           // Rail-Modus: Gruppen-Icon + Popover mit den Items
-          if (collapsed) {
+          if (rail) {
             return (
               <Popover key={group.label}>
                 <PopoverTrigger asChild>
@@ -248,25 +255,62 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
       </nav>
 
       {/* Footer */}
-      <div className={cn('py-4 border-t border-white/10 space-y-3', collapsed ? 'px-2' : 'px-3')}>
-        {!collapsed && <McpStatus />}
-        {!collapsed && userEmail && (
+      <div className={cn('py-4 border-t border-white/10 space-y-3', rail ? 'px-2' : 'px-3')}>
+        {!rail && <McpStatus />}
+        {!rail && userEmail && (
           <p className="text-[11px] text-white/30 truncate px-1">{userEmail}</p>
         )}
         <button
           onClick={handleLogout}
-          title={collapsed ? 'Abmelden' : undefined}
+          title={rail ? 'Abmelden' : undefined}
           className={cn(
             'flex w-full items-center rounded-lg px-3 py-2 text-xs text-white/40 hover:bg-white/6 hover:text-white/70 transition-colors',
-            collapsed ? 'justify-center' : 'gap-2'
+            rail ? 'justify-center' : 'gap-2'
           )}
         >
           <LogOut className="h-3.5 w-3.5 shrink-0" />
-          {!collapsed && 'Abmelden'}
+          {!rail && 'Abmelden'}
         </button>
       </div>
 
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobil: Kopfleiste mit Menue-Knopf */}
+      <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-white/10 bg-[#0a1510] px-3 md:hidden">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <button
+              className="flex h-9 w-9 items-center justify-center rounded-md text-white/70 hover:bg-white/8 hover:text-white transition-colors"
+              aria-label="Navigation öffnen"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            className="flex w-72 flex-col gap-0 border-white/10 bg-[#0a1510] p-0 text-white [&>button]:text-white/60"
+          >
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            {renderContent(false, true)}
+          </SheetContent>
+        </Sheet>
+        <span className="text-sm font-bold tracking-tight text-white/90">PrimeHub Dashboard</span>
+      </div>
+
+      {/* Desktop/Tablet: feste Sidebar */}
+      <aside
+        className={cn(
+          'hidden h-screen shrink-0 flex-col bg-[#0a1510] border-r border-white/10 transition-all duration-300 ease-in-out md:flex',
+          collapsed ? 'w-16' : 'w-64'
+        )}
+      >
+        {renderContent(collapsed, false)}
+      </aside>
+
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} role={role} />
-    </aside>
+    </>
   )
 }

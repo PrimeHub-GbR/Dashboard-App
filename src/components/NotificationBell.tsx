@@ -89,19 +89,19 @@ export function NotificationBell() {
   const hasUnread = unread > 0
 
   return (
-    <div className="fixed top-6 right-6 z-50">
+    <div className="fixed right-3 top-1.5 z-50 md:right-6 md:top-6">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <button
             aria-label={`Benachrichtigungen${hasUnread ? ` (${unread} ungelesen)` : ''}`}
             className={cn(
-              'relative flex h-16 w-16 items-center justify-center rounded-full border-2 shadow-xl transition-colors',
+              'relative flex h-11 w-11 items-center md:h-16 md:w-16 justify-center rounded-full border-2 shadow-xl transition-colors',
               hasUnread
                 ? 'border-amber-300 bg-amber-500 text-black hover:bg-amber-400'
                 : 'border-emerald-400 bg-emerald-600 text-white hover:bg-emerald-500'
             )}
           >
-            {hasUnread ? <BellRing className="h-8 w-8" /> : <Bell className="h-8 w-8" />}
+            {hasUnread ? <BellRing className="h-6 w-6 md:h-8 md:w-8" /> : <Bell className="h-6 w-6 md:h-8 md:w-8" />}
             {hasUnread && (
               <span className="absolute -top-1.5 -right-1.5 flex h-7 min-w-7 items-center justify-center rounded-full bg-red-600 px-1.5 text-sm font-bold text-white ring-2 ring-background">
                 {unread > 99 ? '99+' : unread}
