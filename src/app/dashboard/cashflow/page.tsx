@@ -27,7 +27,7 @@ export default async function CashFlowPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">CashFlow</h1>
         <p className="text-muted-foreground mt-1">
-          Verfügbare Barmittel pro Monatsende — Trend &amp; Analyse über alle Konten
+          Barmittel und Lagerbestand pro Monatsende — Trend &amp; Analyse über alle Konten
         </p>
       </div>
       <CashFlowClient />

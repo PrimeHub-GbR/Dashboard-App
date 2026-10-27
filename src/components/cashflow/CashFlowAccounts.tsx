@@ -282,7 +282,7 @@ export function CashFlowAccounts({ accounts, onChanged }: Props) {
               {deleteTarget && (
                 <>
                   „{deleteTarget.provider} · {deleteTarget.name}" und{' '}
-                  <strong>alle erfassten Monatsstände</strong> dieses Kontos werden
+                  <strong>alle erfassten Monatsstände (Barmittel und Lagerbestand)</strong> dieses Kontos werden
                   unwiderruflich gelöscht.
                 </>
               )}

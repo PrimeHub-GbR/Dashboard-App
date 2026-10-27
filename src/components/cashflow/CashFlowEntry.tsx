@@ -21,20 +21,43 @@ import {
   formatEUR,
   formatMonthLabel,
 } from '@/lib/cashflow'
+import type { CashInventory, InventoryField } from '@/lib/cashflow-inventory'
+import { InventoryEntryCard } from './InventoryEntryCard'
 
 interface Props {
   accounts: CashAccount[]
   balances: CashBalance[]
   onChanged: () => void
+  inventory: CashInventory[]
+  inventoryLoading: boolean
+  inventoryError: boolean
+  onInventoryRetry: () => void
+  onInventorySaved: (
+    accountId: string,
+    month: string,
+    field: InventoryField,
+    value: number | null,
+    serverRow: CashInventory | null
+  ) => void
 }
 
-export function CashFlowEntry({ accounts, balances, onChanged }: Props) {
-  // Auswählbare Monate: vorhandene + aktueller Monat
+export function CashFlowEntry({
+  accounts,
+  balances,
+  onChanged,
+  inventory,
+  inventoryLoading,
+  inventoryError,
+  onInventoryRetry,
+  onInventorySaved,
+}: Props) {
+  // Auswählbare Monate: vorhandene (Barmittel oder Lager) + aktueller Monat
   const availableMonths = useMemo(() => {
     const set = new Set<string>(balances.map((b) => b.month))
+    for (const r of inventory) set.add(r.month)
     set.add(currentMonthKey())
     return Array.from(set).sort().reverse()
-  }, [balances])
+  }, [balances, inventory])
 
   const [month, setMonth] = useState<string>(
     availableMonths[0] ?? currentMonthKey()
@@ -233,6 +256,18 @@ export function CashFlowEntry({ accounts, balances, onChanged }: Props) {
           </p>
         </CardContent>
       </Card>
+
+      {/* Lagerbestand — eigener Bereich, gleicher Monat; key setzt Entwürfe bei Monatswechsel zurück */}
+      <InventoryEntryCard
+        key={month}
+        month={month}
+        accounts={accounts}
+        inventory={inventory}
+        loading={inventoryLoading}
+        error={inventoryError}
+        onRetry={onInventoryRetry}
+        onFieldSaved={onInventorySaved}
+      />
     </div>
   )
 }
