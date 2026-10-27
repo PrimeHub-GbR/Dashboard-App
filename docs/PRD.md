@@ -1,6 +1,6 @@
 # Product Requirements Document — PrimeHub Dashboard v2
 
-_Letzte Aktualisierung: 2026-09-03_
+_Letzte Aktualisierung: 2026-10-27_
 
 ## Vision
 
@@ -71,7 +71,7 @@ Der Detailstand steht in [`features/INDEX.md`](../features/INDEX.md); hier die f
 | Feature | Tab | Zweck |
 |---|---|---|
 | Kommunikation | `/kommunikation` | WhatsApp Business: Hub, Vorlagen, Versandhistorie |
-| CashFlow | `/cashflow` | Barmittel je Monatsende, Trend — Admin/Manager |
+| CashFlow | `/cashflow` | Barmittel und Lagerbestand je Monatsende, Trend — Admin/Manager |
 | Webseite | `/website` | öffentliche Landingpage an/aus |
 
 ---
