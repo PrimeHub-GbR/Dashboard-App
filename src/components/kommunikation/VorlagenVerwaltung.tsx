@@ -109,7 +109,7 @@ export function VorlagenVerwaltung() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Vorlage löschen?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        „{t.display_name || t.name}" wird auch bei Meta gelöscht und kann nicht mehr zum Senden verwendet werden.
+                        „{t.display_name || t.name}“ wird auch bei Meta gelöscht und kann nicht mehr zum Senden verwendet werden.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

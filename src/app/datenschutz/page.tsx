@@ -81,7 +81,7 @@ export default function DatenschutzPage() {
           <h2 className="text-lg font-semibold">4. SSL-/TLS-Verschlüsselung</h2>
           <p className="mt-2">
             Diese Website nutzt aus Sicherheitsgründen eine SSL-/TLS-Verschlüsselung. Eine verschlüsselte
-            Verbindung erkennen Sie am „https://" in der Adresszeile Ihres Browsers.
+            Verbindung erkennen Sie am „https://“ in der Adresszeile Ihres Browsers.
           </p>
         </section>
 

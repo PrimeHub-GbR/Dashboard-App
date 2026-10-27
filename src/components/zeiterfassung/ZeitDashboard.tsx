@@ -311,10 +311,10 @@ export function ZeitDashboard() {
                 </div>
               ))}
               {reviewCases.length > 5 && (
-                <p className="text-xs text-muted-foreground">+{reviewCases.length - 5} weitere — Details im Tab „Stempelzeiten".</p>
+                <p className="text-xs text-muted-foreground">+{reviewCases.length - 5} weitere — Details im Tab „Stempelzeiten“.</p>
               )}
               <p className="text-xs text-muted-foreground pt-1">
-                Offene Fälle korrigierst du im Tab „Stempelzeiten" (Eintrag bearbeiten).
+                Offene Fälle korrigierst du im Tab „Stempelzeiten“ (Eintrag bearbeiten).
               </p>
             </div>
           </AlertDescription>

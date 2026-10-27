@@ -665,7 +665,7 @@ function ReportView({
 
       <p className="text-xs text-muted-foreground">
         Netto-Stunden nach ArbZG (Pflichtpausen abgezogen) inkl. genehmigter Pauschalen. Abwesenheiten =
-        genehmigte Anträge, gezählt als Arbeitstage laut Wochenplan. „Geplant, aber nicht erschienen" ist nicht
+        genehmigte Anträge, gezählt als Arbeitstage laut Wochenplan. „Geplant, aber nicht erschienen“ ist nicht
         enthalten.
       </p>
     </div>

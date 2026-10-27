@@ -120,7 +120,7 @@ export function CashFlowOverview({ accounts, balances, months }: Props) {
           <div>
             <p className="font-medium">Noch keine Daten erfasst</p>
             <p className="text-sm text-muted-foreground">
-              Trage im Tab „Eingabe" die Barmittel für einen Monat ein — die
+              Trage im Tab „Eingabe“ die Barmittel für einen Monat ein — die
               Auswertung erscheint hier automatisch.
             </p>
           </div>

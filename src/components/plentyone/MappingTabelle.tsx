@@ -152,7 +152,7 @@ export function MappingTabelle() {
 
           {zeilen.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Keine Spalte gefunden für „{suche}".
+              Keine Spalte gefunden für „{suche}“.
             </p>
           )}
         </CardContent>

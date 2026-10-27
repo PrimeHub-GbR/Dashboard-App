@@ -697,7 +697,7 @@ export function EbayKette({
         ) : !aktuell ? (
           <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
             Noch kein Bericht. Der Kontroll-Workflow in n8n meldet sich nach dem ersten
-            nächtlichen Durchlauf hier — oder du klickst oben auf „Aktualisieren".
+            nächtlichen Durchlauf hier — oder du klickst oben auf „Aktualisieren“.
           </p>
         ) : (
           <>
@@ -893,7 +893,7 @@ export function EbayKette({
           <CollapsibleContent className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Einmalig eintragen: Daten » Import » jeweilige Definition » Datenquelle
-              „HTTPS / URL" und Zeitplan. <code className="rounded bg-muted px-1">DEIN_TOKEN</code>{' '}
+              „HTTPS / URL“ und Zeitplan. <code className="rounded bg-muted px-1">DEIN_TOKEN</code>{' '}
               durch den Wert von <code className="rounded bg-muted px-1">PLENTYONE_EXPORT_TOKEN</code>{' '}
               aus den Vercel-Umgebungsvariablen ersetzen.
             </p>
@@ -917,7 +917,7 @@ export function EbayKette({
           <p className="rounded-md border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-800 dark:text-sky-200">
             Keine Stapelverarbeitung mehr nötig: Import 22 setzt Kategorie, Versandprofil, Zustand,
             Layout, Lager, MwSt, Sprache, Bilder, Preisbindung und den eBay-Titel selbst. Die Vorlage
-            „Bücher (1)" ist damit überflüssig und kann nach dem Vollimport gelöscht werden.
+            „Bücher (1)“ ist damit überflüssig und kann nach dem Vollimport gelöscht werden.
           </p>
             </CollapsibleContent>
         </section>

@@ -133,7 +133,7 @@ export function OrderBookSearch() {
 
       {!isLoading && query.trim().length >= 2 && hasSearched && results.length === 0 && !error && (
         <p className="text-sm text-muted-foreground py-4">
-          Keine Treffer für „{query.trim()}".
+          Keine Treffer für „{query.trim()}“.
         </p>
       )}
 

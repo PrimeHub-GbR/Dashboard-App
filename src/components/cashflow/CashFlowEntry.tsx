@@ -155,7 +155,7 @@ export function CashFlowEntry({
     return (
       <Card>
         <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          Keine aktiven Konten. Lege im Tab „Konten" mindestens ein Konto an.
+          Keine aktiven Konten. Lege im Tab „Konten“ mindestens ein Konto an.
         </CardContent>
       </Card>
     )

@@ -40,7 +40,7 @@ export default function KontoLoeschenPage() {
             mit folgenden Angaben:
           </p>
           <ul className="list-disc pl-6">
-            <li>Betreff: „Kontolöschung PrimeHub App"</li>
+            <li>Betreff: „Kontolöschung PrimeHub App“</li>
             <li>Ihr vollständiger Name</li>
             <li>Die mit dem Konto verknüpfte E-Mail-Adresse</li>
           </ul>

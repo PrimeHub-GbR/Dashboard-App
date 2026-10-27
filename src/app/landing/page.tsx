@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { WebGLShader } from "@/components/ui/web-gl-shader"
 import { LiquidButton } from "@/components/ui/liquid-glass-button"
 import { Bot, Zap, BarChart3, RefreshCw, ArrowRight, Workflow } from "lucide-react"
@@ -59,9 +60,9 @@ export default function LandingPage() {
         {/* Nav */}
         <nav className="flex items-center justify-between px-6 py-5 md:px-12">
           <span className="text-lg font-bold tracking-tight">PrimeHub</span>
-          <a href="/" className="text-sm text-white/60 hover:text-white transition-colors">
+          <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors">
             Anmelden →
-          </a>
+          </Link>
         </nav>
 
         {/* Hero */}

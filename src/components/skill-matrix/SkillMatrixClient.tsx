@@ -209,7 +209,7 @@ export function SkillMatrixClient({ userRole }: { userRole: UserRole }) {
   if (employees.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        Keine aktiven Mitarbeiter gefunden. Lege zuerst im Tab „Organisation" Mitarbeiter an.
+        Keine aktiven Mitarbeiter gefunden. Lege zuerst im Tab „Organisation“ Mitarbeiter an.
       </div>
     )
   }

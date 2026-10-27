@@ -212,7 +212,7 @@ export function ManageSkillsDialog({ open, onOpenChange, skills, onChanged }: Ma
           <AlertDialogHeader>
             <AlertDialogTitle>Skill löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              „{deleteSkill?.name}" wird endgültig gelöscht. Alle Mitarbeiter-Einträge zu
+              „{deleteSkill?.name}“ wird endgültig gelöscht. Alle Mitarbeiter-Einträge zu
               diesem Skill gehen verloren. Dies kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>

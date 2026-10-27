@@ -186,7 +186,7 @@ export function NachrichtFormular({ employees, onMessageSent, footer }: Props) {
             <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Vorlage *</Label>
             {approved.length === 0 ? (
               <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                Noch keine genehmigte Vorlage vorhanden. Lege im Tab „Vorlagen" eine an (Meta-Genehmigung nötig).
+                Noch keine genehmigte Vorlage vorhanden. Lege im Tab „Vorlagen“ eine an (Meta-Genehmigung nötig).
               </p>
             ) : (
               <Select value={templateId} onValueChange={selectTemplate}>

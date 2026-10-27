@@ -313,7 +313,7 @@ export function SellerConfigSection({ sellers, onAddSeller, onUpdateSeller, onDe
               {!editingId && verifyState === 'idle' && (
                 <p className="text-xs text-white/40 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  Bitte zuerst „Prüfen" — Verifizierung ist vor dem Hinzufügen erforderlich.
+                  Bitte zuerst „Prüfen“ — Verifizierung ist vor dem Hinzufügen erforderlich.
                 </p>
               )}
               {verifyState === 'found' && (
