@@ -1,6 +1,6 @@
 # CashFlow — Lagerbestand pro Monat
 
-**Status:** In Review
+**Status:** Deployed
 **Tab:** `/dashboard/cashflow`
 **Zugriff:** Nur Admin/Manager (wie CashFlow)
 **Created:** 2026-10-27
@@ -823,4 +823,20 @@ Felder sind mindestens 36 px hoch (`h-9`), die Touch-Fläche einschließlich Lab
 **APPROVED** ✅. Keine Critical- oder High-Bugs. Bereit für das Deployment, sobald die Migration 152 eingespielt ist. Danach die Live-Tests oben durchführen.
 
 ## Deployment
-_To be added by /deploy_
+
+**Production URL:** https://dashboard.primehubgbr.com/dashboard/cashflow
+**Deployed:** 2026-10-27
+**Build:** ✅ Ready (lokal `next build` mit `NODE_OPTIONS=--max-old-space-size=6144` grün; Vercel-Auto-Deploy nach `git push origin main`, Commit `2519444`, live ca. 1 Min. nach dem Push)
+**Vercel Deployment:** Git-Integration (Vercel CLI auf dem Rechner nicht eingeloggt, deshalb keine Deployment-ID; Nachweis über die neue Route)
+**Datenbank:** Migration 152 (`cash_inventory`) vorab in Produktion eingespielt und geprüft (RLS, 4 Policies, Trigger)
+
+### Prüfung nach dem Deploy
+| Check | Ergebnis |
+|---|---|
+| `GET /api/cashflow/inventory` ohne Login | 401 `{"error":"Nicht autorisiert"}` (vor dem Deploy 404) |
+| `POST /api/cashflow/inventory` ohne Login | 401 |
+| `/dashboard/cashflow` ohne Login | 307 → Login-Seite `/` (200) |
+| `/api/cashflow/accounts` ohne Login | 401 (unverändert) |
+
+### Offen für den User (mit eigenem Login)
+Live-Tests 1–6 aus „Ausstehend: Live-Test nach Migration 152“ (Speichern + Reload, parallele Felder, Zeile löschen, Staff → 403, 400/404-Fälle, Cascade beim Konto-Löschen).

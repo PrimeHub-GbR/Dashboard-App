@@ -155,7 +155,7 @@
 | Feature | Status | Spec |
 |---------|--------|------|
 | Barmittel-Tracking pro Monatsende + Trend & Analyse (nur Admin/Manager) | Deployed | [cashflow/overview.md](cashflow/overview.md) |
-| Lagerbestand pro Monat je Amazon-Konto (Einheiten, EK, pot. Umsatz/Gewinn), Vormonatsvergleich, Barmittel vs. Lager | In Review | [cashflow/lagerbestand.md](cashflow/lagerbestand.md) |
+| Lagerbestand pro Monat je Amazon-Konto (Einheiten, EK, pot. Umsatz/Gewinn), Vormonatsvergleich, Barmittel vs. Lager | Deployed | [cashflow/lagerbestand.md](cashflow/lagerbestand.md) |
 
 ---
 
