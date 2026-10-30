@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Workflow, ShoppingCart, Database,
   RefreshCw, Package, BookOpen, Clock, CheckSquare, Building2,
   MessageCircle, BookCheck, Wallet, Cog, Boxes, Users, Banknote, Grid3x3,
-  Warehouse, Globe, PackageCheck, ShieldCheck, BookMarked,
+  Warehouse, Globe, PackageCheck, ShieldCheck, BookMarked, ScanBarcode,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -15,6 +15,12 @@ export interface NavItem {
   adminOnly?: boolean
   /** Zusammen mit adminOnly: auch für role === 'manager' sichtbar (Inhalt rollenabhängig). */
   managerAllowed?: boolean
+  /**
+   * Externe, eigenständige App (absolute URL): öffnet in neuem Tab
+   * (target="_blank", rel="noopener noreferrer"), kein Next-<Link>,
+   * nie als aktiv markiert.
+   */
+  external?: boolean
 }
 
 export interface NavGroup {
@@ -48,6 +54,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Bestellungen', desc: 'Google Drive Sync', href: '/dashboard/orders', icon: ShoppingCart },
       { label: 'Wareneingang', desc: 'Palettenannahme · Blank', href: '/dashboard/wareneingang', icon: PackageCheck },
+      { label: 'scan2list', desc: 'Scannen · Listen · FBA-Versand', href: 'https://scan2list.primehubgbr.com', icon: ScanBarcode, external: true },
       { label: 'Preisdatenbank', desc: 'SKU, ASIN & EAN', href: '/dashboard/prices', icon: Database },
       { label: 'Rebuy Scraper', desc: 'Bücher · wöchentlich · Excel', href: '/dashboard/rebuy', icon: BookOpen },
       { label: 'Buchpreisbindung', desc: 'Preiskonformität · Amazon · VLB', href: '/dashboard/buchpreisbindung', icon: BookCheck },

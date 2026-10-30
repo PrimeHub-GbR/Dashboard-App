@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  LogOut, ChevronLeft, ChevronRight, Search, Menu,
+  LogOut, ChevronLeft, ChevronRight, Search, Menu, ExternalLink,
 } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -59,25 +59,24 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
     }
   }
 
-  // Aktiv-Erkennung: Übersicht exakt, alle anderen per Prefix
-  const isActive = (href: string) =>
-    href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
-  const groupHasActive = (group: NavGroup) => group.items.some((i) => isActive(i.href))
+  // Aktiv-Erkennung: Übersicht exakt, alle anderen per Prefix.
+  // Externe Apps (absolute URL) sind nie aktiv.
+  const isActive = (item: NavItem) =>
+    !item.external &&
+    (item.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(item.href))
+  const groupHasActive = (group: NavGroup) => group.items.some((i) => isActive(i))
 
   // Einzelner Navigations-Link (innerhalb einer aufgeklappten Gruppe / im Popover)
   const ItemLink = ({ item }: { item: NavItem }) => {
-    const active = isActive(item.href)
-    return (
-      <Link
-        href={item.href}
-        onClick={closeMobile}
-        className={cn(
-          'flex items-center gap-3 rounded-lg border px-2 py-2 transition-all duration-200 group',
-          active
-            ? 'border-green-500/40 bg-green-500/10 text-white shadow-[0_0_12px_rgba(0,94,48,0.3)]'
-            : 'border-transparent text-white/60 hover:bg-white/8 hover:border-white/15 hover:text-white/90'
-        )}
-      >
+    const active = isActive(item)
+    const className = cn(
+      'flex items-center gap-3 rounded-lg border px-2 py-2 transition-all duration-200 group',
+      active
+        ? 'border-green-500/40 bg-green-500/10 text-white shadow-[0_0_12px_rgba(0,94,48,0.3)]'
+        : 'border-transparent text-white/60 hover:bg-white/8 hover:border-white/15 hover:text-white/90'
+    )
+    const content = (
+      <>
         <div
           className={cn(
             'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
@@ -95,6 +94,37 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
           <p className="mt-0.5 text-[11px] text-white/35 truncate">{item.desc}</p>
         </div>
         {active && <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-green-400" />}
+        {item.external && (
+          <>
+            <ExternalLink
+              aria-hidden="true"
+              className="ml-auto h-3.5 w-3.5 shrink-0 text-white/35 group-hover:text-white/70"
+            />
+            <span className="sr-only">(öffnet in neuem Tab)</span>
+          </>
+        )}
+      </>
+    )
+
+    // Externe App: normaler Link in neuem Tab, kein Next-Routing
+    if (item.external) {
+      return (
+        <a
+          href={item.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={closeMobile}
+          title={`${item.label} – öffnet in neuem Tab`}
+          className={className}
+        >
+          {content}
+        </a>
+      )
+    }
+
+    return (
+      <Link href={item.href} onClick={closeMobile} className={className}>
+        {content}
       </Link>
     )
   }
@@ -174,12 +204,12 @@ export function DashboardSidebar({ userEmail, role = null }: DashboardSidebarPro
             onClick={closeMobile}
             className={cn(
               'flex items-center justify-center rounded-xl border px-0 py-2.5 transition-all duration-200',
-              isActive(homeItem.href)
+              isActive(homeItem)
                 ? 'border-green-500/40 bg-green-500/10 shadow-[0_0_12px_rgba(0,94,48,0.3)]'
                 : 'border-white/8 bg-white/4 hover:bg-white/8 hover:border-white/15'
             )}
           >
-            <homeItem.icon className={cn('h-4 w-4', isActive(homeItem.href) ? 'text-green-400' : 'text-white/50')} />
+            <homeItem.icon className={cn('h-4 w-4', isActive(homeItem) ? 'text-green-400' : 'text-white/50')} />
           </Link>
         ) : (
           <ItemLink item={homeItem} />
